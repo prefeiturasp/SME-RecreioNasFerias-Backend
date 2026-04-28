@@ -11,7 +11,7 @@ services:
     env_file:
       - .env
     environment:
-      DB_HOST: ${DB_HOST}
+      DB_HOST: postgres
       DB_PORT: ${DB_PORT}
     volumes:
       - .:/app
