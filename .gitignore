@@ -3,3 +3,4 @@ venv/
 *.sqlite3
 __pycache__/
 body.json
+.pytest_cache
