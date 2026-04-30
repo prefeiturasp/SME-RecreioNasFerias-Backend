@@ -11,3 +11,10 @@ class DjangoUserRepository(UserRepository):
         )
 
         return User(id=str(model.id), nome=model.nome, email=model.email)
+
+    def find_all(self) -> list[User]:
+        models = UserModel.objects.all()
+        return [
+            User(id=str(model.id), nome=model.nome, email=model.email)
+            for model in models
+        ]
