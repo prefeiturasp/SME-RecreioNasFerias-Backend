@@ -4,3 +4,4 @@ venv/
 __pycache__/
 body.json
 .pytest_cache
+INSTRUCTIONS.md
