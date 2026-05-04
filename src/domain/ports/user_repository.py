@@ -11,3 +11,15 @@ class UserRepository(ABC):
     @abstractmethod
     def find_all(self) -> list[User]:
         pass
+
+    @abstractmethod
+    def find_by_id(self, user_id: str) -> User | None:
+        pass
+
+    @abstractmethod
+    def update(self, user: User) -> User | None:
+        pass
+
+    @abstractmethod
+    def delete(self, user_id: str) -> bool:
+        pass

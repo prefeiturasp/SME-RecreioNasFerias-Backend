@@ -1,4 +1,7 @@
 from django.urls import path
-from .views import users
+from .views import users, user_by_id
 
-urlpatterns = [path("usuarios/", users)]
+urlpatterns = [
+    path("usuarios/", users),
+    path("usuarios/<uuid:user_id>/", user_by_id),
+]
