@@ -1,3 +1,3 @@
-from django.contrib import admin
+"""Configuração de administração do app usuarios."""
 
-# Register your models here.
+from django.contrib import admin

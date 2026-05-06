@@ -1,3 +1,5 @@
+"""Mapeamento de rotas HTTP do app de usuários."""
+
 from django.urls import path
 from .views import users, user_by_id
 

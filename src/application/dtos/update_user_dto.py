@@ -1,10 +1,17 @@
+"""DTO para entrada de atualização parcial de usuário."""
+
+
 class UpdateUserDto:
+    """Representa dados opcionais para atualização de usuário."""
+
     def __init__(self, nome: str | None = None, email: str | None = None):
+        """Inicializa o DTO garantindo ao menos um campo informado."""
         self._validate(nome, email)
         self.nome = nome
         self.email = email
 
     def _validate(self, nome: str | None, email: str | None):
+        """Valida regras de atualização parcial."""
         if nome is None and email is None:
             raise ValueError("Informe ao menos um campo para atualização")
 

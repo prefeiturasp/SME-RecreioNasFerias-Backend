@@ -1,3 +1,5 @@
+"""Caso de uso para atualização de usuário."""
+
 from application.dtos.update_user_dto import UpdateUserDto
 from application.dtos.user_output_dto import UserOutputDTO
 from domain.entities.user import User
@@ -5,10 +7,14 @@ from domain.ports.user_repository import UserRepository
 
 
 class UpdateUserUseCase:
+    """Orquestra atualização total ou parcial de um usuário."""
+
     def __init__(self, user_repository: UserRepository):
+        """Recebe a dependência de repositório de usuários."""
         self.user_repository = user_repository
 
     def execute(self, user_id: str, update_user_dto: UpdateUserDto) -> UserOutputDTO:
+        """Atualiza usuário e retorna o resultado em DTO de saída."""
         existing_user = self.user_repository.find_by_id(user_id)
         if not existing_user:
             raise ValueError("Usuário não encontrado")

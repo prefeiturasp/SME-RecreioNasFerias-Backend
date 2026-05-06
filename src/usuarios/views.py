@@ -1,3 +1,5 @@
+"""Views HTTP para operações de usuários."""
+
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
@@ -16,6 +18,7 @@ _JSON = {"ensure_ascii": False, "indent": 2}
 
 @csrf_exempt
 def users(request: HttpRequest):
+    """Despacha requisições de coleção de usuários."""
     if request.method == "POST":
         return create_user(request)
     if request.method == "GET":
@@ -29,6 +32,7 @@ def users(request: HttpRequest):
 
 @csrf_exempt
 def user_by_id(request: HttpRequest, user_id):
+    """Despacha requisições de item de usuário por id."""
     if request.method == "GET":
         return get_user_by_id(request, str(user_id))
     if request.method == "PUT":
@@ -43,6 +47,7 @@ def user_by_id(request: HttpRequest, user_id):
 
 
 def create_user(request: HttpRequest):
+    """Cria um usuário e retorna os dados persistidos."""
     if request.method != "POST":
         return JsonResponse(
             {"error": "Método não permitido"},
@@ -61,6 +66,7 @@ def create_user(request: HttpRequest):
 
 
 def list_users(request: HttpRequest):
+    """Lista todos os usuários cadastrados."""
     if request.method != "GET":
         return JsonResponse(
             {"error": "Método não permitido"},
@@ -82,6 +88,7 @@ def list_users(request: HttpRequest):
 
 
 def get_user_by_id(request: HttpRequest, user_id: str):
+    """Retorna um usuário específico por id."""
     if request.method != "GET":
         return JsonResponse(
             {"error": "Método não permitido"},
@@ -99,6 +106,7 @@ def get_user_by_id(request: HttpRequest, user_id: str):
 
 
 def update_user(request: HttpRequest, user_id: str):
+    """Atualiza parcial ou totalmente um usuário por id."""
     if request.method != "PUT":
         return JsonResponse(
             {"error": "Método não permitido"},
@@ -119,6 +127,7 @@ def update_user(request: HttpRequest, user_id: str):
 
 
 def delete_user(request: HttpRequest, user_id: str):
+    """Remove um usuário por id."""
     if request.method != "DELETE":
         return JsonResponse(
             {"error": "Método não permitido"},
