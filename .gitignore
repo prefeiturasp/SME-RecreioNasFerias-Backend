@@ -1,0 +1,8 @@
+venv/
+.env
+*.sqlite3
+__pycache__/
+body.json
+.pytest_cache
+INSTRUCTIONS.md
+.coverage
