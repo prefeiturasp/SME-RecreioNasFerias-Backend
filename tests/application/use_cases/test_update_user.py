@@ -92,3 +92,17 @@ class UpdateUserUseCaseTests(TestCase):
 
         with self.assertRaisesMessage(ValueError, "Usuário não encontrado"):
             use_case.execute("u404", dto)
+
+    def test_deve_lancar_erro_quando_update_retornar_none(self):
+        repository = Mock()
+        repository.find_by_id.return_value = User(
+            id="u1",
+            nome="Maria",
+            email="maria@example.com",
+        )
+        repository.update.return_value = None
+        use_case = UpdateUserUseCase(repository)
+        dto = UpdateUserDto(nome="Maria Atualizada")
+
+        with self.assertRaisesMessage(ValueError, "Usuário não encontrado"):
+            use_case.execute("u1", dto)
