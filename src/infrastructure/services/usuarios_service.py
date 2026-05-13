@@ -118,4 +118,11 @@ class UsuariosService(CoressoPort):
             valor = dados_sigpae.get(chave)
             if valor:
                 return str(valor)
+        cargos = dados_sigpae.get("cargos")
+        if isinstance(cargos, list) and cargos:
+            primeiro_cargo = cargos[0]
+            if isinstance(primeiro_cargo, dict):
+                descricao = primeiro_cargo.get("descricaoCargo")
+                if descricao:
+                    return str(descricao)
         return ""

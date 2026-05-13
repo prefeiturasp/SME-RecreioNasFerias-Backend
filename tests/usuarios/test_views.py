@@ -3,6 +3,9 @@ from unittest.mock import Mock, patch
 
 from django.test import TestCase
 
+from usuarios.log_login import MENSAGEM_SUCESSO_LOGIN
+from usuarios.models import LogLoginModel
+
 
 class CreateUserViewTests(TestCase):
     def test_login_deve_retornar_405_para_metodo_nao_permitido(self):
@@ -72,6 +75,15 @@ class CreateUserViewTests(TestCase):
         service_cls.assert_called_once()
         use_case_cls.assert_called_once()
         use_case_instance.execute.assert_called_once()
+        log = LogLoginModel.objects.get()
+        self.assertIsInstance(log.id, int)
+        self.assertGreater(log.id, 0)
+        self.assertTrue(log.sucesso)
+        self.assertEqual(log.login_tentativa, "8080640")
+        self.assertEqual(log.codigo_http, 200)
+        self.assertEqual(log.mensagem, MENSAGEM_SUCESSO_LOGIN)
+        self.assertEqual(log.codigo_cargo, 2640)
+        self.assertEqual(log.descricao_cargo, "ASSISTENTE TECNICO DE EDUCACAO I")
 
     @patch("usuarios.views.LoginUserUseCase")
     @patch("usuarios.views.UsuariosService")
@@ -93,6 +105,15 @@ class CreateUserViewTests(TestCase):
         service_cls.assert_called_once()
         use_case_cls.assert_called_once()
         use_case_instance.execute.assert_called_once()
+        log = LogLoginModel.objects.get()
+        self.assertIsInstance(log.id, int)
+        self.assertGreater(log.id, 0)
+        self.assertFalse(log.sucesso)
+        self.assertEqual(log.login_tentativa, "1234567")
+        self.assertEqual(log.codigo_http, 401)
+        self.assertEqual(log.mensagem, "Credenciais inválidas")
+        self.assertIsNone(log.codigo_cargo)
+        self.assertEqual(log.descricao_cargo, "")
 
     def test_login_deve_retornar_400_quando_payload_json_invalido(self):
         response = self.client.post(
@@ -103,6 +124,13 @@ class CreateUserViewTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {"error": "Payload JSON inválido"})
+        log = LogLoginModel.objects.get()
+        self.assertIsInstance(log.id, int)
+        self.assertGreater(log.id, 0)
+        self.assertFalse(log.sucesso)
+        self.assertEqual(log.login_tentativa, "")
+        self.assertEqual(log.codigo_http, 400)
+        self.assertEqual(log.mensagem, "Payload JSON inválido")
 
     def test_login_deve_retornar_400_quando_login_invalido(self):
         response = self.client.post(
@@ -115,6 +143,13 @@ class CreateUserViewTests(TestCase):
         self.assertEqual(
             response.json(), {"error": "Login deve conter exatamente 7 dígitos"}
         )
+        log = LogLoginModel.objects.get()
+        self.assertIsInstance(log.id, int)
+        self.assertGreater(log.id, 0)
+        self.assertFalse(log.sucesso)
+        self.assertEqual(log.login_tentativa, "123")
+        self.assertEqual(log.codigo_http, 400)
+        self.assertEqual(log.mensagem, "Login deve conter exatamente 7 dígitos")
 
     @patch("usuarios.views.LoginUserUseCase")
     @patch("usuarios.views.UsuariosService")
@@ -140,6 +175,13 @@ class CreateUserViewTests(TestCase):
         service_cls.assert_called_once()
         use_case_cls.assert_called_once()
         use_case_instance.execute.assert_called_once()
+        log = LogLoginModel.objects.get()
+        self.assertIsInstance(log.id, int)
+        self.assertGreater(log.id, 0)
+        self.assertFalse(log.sucesso)
+        self.assertEqual(log.login_tentativa, "1234567")
+        self.assertEqual(log.codigo_http, 502)
+        self.assertEqual(log.mensagem, "Falha de conexão com API externa")
 
     def test_deve_retornar_405_para_metodo_nao_permitido(self):
         response = self.client.put("/api/usuarios/")

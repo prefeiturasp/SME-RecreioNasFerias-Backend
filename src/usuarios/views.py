@@ -27,6 +27,11 @@ from application.use_cases.update_user import UpdateUserUseCase
 from infrastructure.repositories.django_user_repository import DjangoUserRepository
 from infrastructure.repositories.usuarios_repository import UsuariosRepository
 from infrastructure.services.usuarios_service import UsuariosService
+from usuarios.log_login import (
+    MENSAGEM_SUCESSO_LOGIN,
+    extrair_codigo_e_descricao_cargo,
+    registrar_log_login,
+)
 
 _JSON = {"ensure_ascii": False, "indent": 2}
 
@@ -88,11 +93,20 @@ def login(request: HttpRequest):
     try:
         body = json.loads(request.body)
     except json.JSONDecodeError:
+        registrar_log_login(
+            sucesso=False,
+            login_tentativa="",
+            codigo_http=400,
+            mensagem="Payload JSON inválido",
+            request=request,
+        )
         return JsonResponse(
             {"error": "Payload JSON inválido"},
             status=400,
             json_dumps_params=_JSON,
         )
+
+    login_bruto = str(body.get("login") or "").strip()[:32]
 
     try:
         input_dto = LoginInputDto(login=body.get("login"), senha=body.get("senha"))
@@ -103,15 +117,48 @@ def login(request: HttpRequest):
             usuarios_rbac=UsuariosRbac(),
         )
         output = use_case.execute(input_dto)
-        body = output.to_dict()
-        body["token"] = _gerar_token_acesso(body["rf"])
-        return JsonResponse(body, status=200, json_dumps_params=_JSON)
+        response_body = output.to_dict()
+        response_body["token"] = _gerar_token_acesso(response_body["rf"])
+        codigo_c, desc_c = extrair_codigo_e_descricao_cargo(
+            response_body.get("cargos")
+        )
+        registrar_log_login(
+            sucesso=True,
+            login_tentativa=response_body["rf"],
+            codigo_http=200,
+            mensagem=MENSAGEM_SUCESSO_LOGIN,
+            request=request,
+            codigo_cargo=codigo_c,
+            descricao_cargo=desc_c,
+        )
+        return JsonResponse(response_body, status=200, json_dumps_params=_JSON)
     except ValueError as e:
         status_code = 401 if str(e) == "Credenciais inválidas" else 400
+        registrar_log_login(
+            sucesso=False,
+            login_tentativa=login_bruto,
+            codigo_http=status_code,
+            mensagem=str(e),
+            request=request,
+        )
         return JsonResponse({"error": str(e)}, status=status_code, json_dumps_params=_JSON)
     except RuntimeError as e:
+        registrar_log_login(
+            sucesso=False,
+            login_tentativa=login_bruto,
+            codigo_http=502,
+            mensagem=str(e),
+            request=request,
+        )
         return JsonResponse({"error": str(e)}, status=502, json_dumps_params=_JSON)
     except Exception as e:
+        registrar_log_login(
+            sucesso=False,
+            login_tentativa=login_bruto,
+            codigo_http=500,
+            mensagem=str(e),
+            request=request,
+        )
         return JsonResponse({"error": str(e)}, status=500, json_dumps_params=_JSON)
 
 

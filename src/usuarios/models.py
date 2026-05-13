@@ -1,5 +1,7 @@
 """Modelos de dados do app de usuários."""
 
+import uuid
+
 from django.db import models
 
 
@@ -24,3 +26,21 @@ class UsuarioAcessoModel(models.Model):
 
     class Meta:
         db_table = "usuarios_acessos"
+
+
+class LogLoginModel(models.Model):
+    """Registro de tentativas de login na API (sucesso ou falha)."""
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+    sucesso = models.BooleanField()
+    login_tentativa = models.CharField(max_length=32, blank=True, default="")
+    codigo_http = models.PositiveSmallIntegerField()
+    mensagem = models.TextField(blank=True, default="")
+    endereco_ip = models.CharField(max_length=45, blank=True, default="")
+    user_agent = models.TextField(blank=True, default="")
+    codigo_cargo = models.IntegerField(blank=True, null=True)
+    descricao_cargo = models.CharField(max_length=500, blank=True, default="")
+
+    class Meta:
+        db_table = "usuarios_logs_login"
+        ordering = ("-criado_em",)
