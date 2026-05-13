@@ -12,3 +12,15 @@ class UserModel(models.Model):
 
     class Meta:
         db_table = "usuarios"
+
+
+class UsuarioAcessoModel(models.Model):
+    """Modelo local para contexto e permissões após autenticação."""
+
+    rf = models.CharField(max_length=7, unique=True)
+    contexto = models.CharField(max_length=100, blank=True, default="")
+    permissoes = models.JSONField(default=list)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "usuarios_acessos"

@@ -2,21 +2,138 @@
 
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.core import signing
 import json
+from drf_spectacular.utils import (
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+    inline_serializer,
+)
+from rest_framework import serializers
+from rest_framework.decorators import api_view
 from application.dtos.create_user_dto import CreateUserDto
+from application.dtos.login_input_dto import LoginInputDto
 from application.dtos.update_user_dto import UpdateUserDto
 from application.dtos.user_output_dto import UserOutputDTO
+from application.services.usuarios_rbac import UsuariosRbac
+from application.services.usuarios_validador import UsuariosValidador
 from application.use_cases.create_user import CreateUserUseCase
 from application.use_cases.delete_user import DeleteUserUseCase
 from application.use_cases.get_user_by_id import GetUserByIdUseCase
 from application.use_cases.list_users import ListUsersUseCase
+from application.use_cases.login_user import LoginUserUseCase
 from application.use_cases.update_user import UpdateUserUseCase
 from infrastructure.repositories.django_user_repository import DjangoUserRepository
+from infrastructure.repositories.usuarios_repository import UsuariosRepository
+from infrastructure.services.usuarios_service import UsuariosService
 
 _JSON = {"ensure_ascii": False, "indent": 2}
 
 
+def _gerar_token_acesso(rf: str) -> str:
+    """Gera token assinado para autenticação na aplicação."""
+    return signing.dumps({"rf": rf}, salt="usuarios.login")
+
+
 @csrf_exempt
+@extend_schema(
+    tags=["Autenticacao"],
+    request=inline_serializer(
+        name="LoginRequest",
+        fields={
+            "login": serializers.CharField(),
+            "senha": serializers.CharField(),
+        },
+    ),
+    responses={
+        200: inline_serializer(
+            name="LoginResponse",
+            fields={
+                "rf": serializers.CharField(),
+                "cpf": serializers.CharField(allow_null=True, required=False),
+                "email": serializers.EmailField(allow_null=True, required=False),
+                "cargos": serializers.ListField(
+                    child=inline_serializer(
+                        name="CargoResponse",
+                        fields={
+                            "codigoCargo": serializers.IntegerField(required=False),
+                            "descricaoCargo": serializers.CharField(required=False),
+                            "codigoUnidade": serializers.CharField(required=False),
+                            "descricaoUnidade": serializers.CharField(required=False),
+                            "codigoDre": serializers.CharField(required=False),
+                            "contratoExterno": serializers.BooleanField(required=False),
+                        },
+                    )
+                ),
+                "nome": serializers.CharField(),
+                "inexistenteEol": serializers.BooleanField(),
+                "token": serializers.CharField(),
+            },
+        ),
+        400: OpenApiResponse(description="Payload invalido ou dados invalidos"),
+        401: OpenApiResponse(description="Credenciais invalidas"),
+        502: OpenApiResponse(description="Falha de integracao externa"),
+    },
+)
+@api_view(["POST"])
+def login(request: HttpRequest):
+    """Autentica usuario via API externa e retorna dados funcionais."""
+    if request.method != "POST":
+        return JsonResponse(
+            {"error": "Método não permitido"},
+            status=405,
+            json_dumps_params=_JSON,
+        )
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"error": "Payload JSON inválido"},
+            status=400,
+            json_dumps_params=_JSON,
+        )
+
+    try:
+        input_dto = LoginInputDto(login=body.get("login"), senha=body.get("senha"))
+        use_case = LoginUserUseCase(
+            coresso_port=UsuariosService(),
+            usuarios_repository_port=UsuariosRepository(),
+            usuarios_validador=UsuariosValidador(),
+            usuarios_rbac=UsuariosRbac(),
+        )
+        output = use_case.execute(input_dto)
+        body = output.to_dict()
+        body["token"] = _gerar_token_acesso(body["rf"])
+        return JsonResponse(body, status=200, json_dumps_params=_JSON)
+    except ValueError as e:
+        status_code = 401 if str(e) == "Credenciais inválidas" else 400
+        return JsonResponse({"error": str(e)}, status=status_code, json_dumps_params=_JSON)
+    except RuntimeError as e:
+        return JsonResponse({"error": str(e)}, status=502, json_dumps_params=_JSON)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500, json_dumps_params=_JSON)
+
+
+@csrf_exempt
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Usuarios"],
+        responses={200: OpenApiResponse(description="Lista de usuarios")},
+    ),
+    post=extend_schema(
+        tags=["Usuarios"],
+        request=inline_serializer(
+            name="CreateUsuarioRequest",
+            fields={
+                "nome": serializers.CharField(),
+                "email": serializers.EmailField(),
+            },
+        ),
+        responses={201: OpenApiResponse(description="Usuario criado com sucesso")},
+    ),
+)
+@api_view(["GET", "POST"])
 def users(request: HttpRequest):
     """Despacha requisições de coleção de usuários."""
     if request.method == "POST":
@@ -31,6 +148,28 @@ def users(request: HttpRequest):
 
 
 @csrf_exempt
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Usuarios"],
+        responses={200: OpenApiResponse(description="Usuario encontrado")},
+    ),
+    put=extend_schema(
+        tags=["Usuarios"],
+        request=inline_serializer(
+            name="UpdateUsuarioRequest",
+            fields={
+                "nome": serializers.CharField(required=False),
+                "email": serializers.EmailField(required=False),
+            },
+        ),
+        responses={200: OpenApiResponse(description="Usuario atualizado")},
+    ),
+    delete=extend_schema(
+        tags=["Usuarios"],
+        responses={204: OpenApiResponse(description="Usuario removido")},
+    ),
+)
+@api_view(["GET", "PUT", "DELETE"])
 def user_by_id(request: HttpRequest, user_id):
     """Despacha requisições de item de usuário por id."""
     if request.method == "GET":
@@ -121,7 +260,9 @@ def update_user(request: HttpRequest, user_id: str):
         return JsonResponse(output.to_dict(), status=200, json_dumps_params=_JSON)
     except ValueError as e:
         status_code = 404 if str(e) == "Usuário não encontrado" else 400
-        return JsonResponse({"error": str(e)}, status=status_code, json_dumps_params=_JSON)
+        return JsonResponse(
+            {"error": str(e)}, status=status_code, json_dumps_params=_JSON
+        )
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500, json_dumps_params=_JSON)
 
