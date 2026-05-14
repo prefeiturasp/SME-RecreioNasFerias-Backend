@@ -3,6 +3,7 @@ from unittest.mock import Mock
 from django.test import TestCase
 
 from application.dtos.login_input_dto import LoginInputDto
+from application.exceptions import CargoNaoAutorizadoError
 from application.services.usuarios_rbac import UsuariosRbac
 from application.services.usuarios_validador import UsuariosValidador
 from application.use_cases.login_user import LoginUserUseCase
@@ -21,18 +22,26 @@ class LoginUserUseCaseTests(TestCase):
             "rf": "8080640",
             "cpf": "22712612876",
             "email": "vania.montefusco@sme.prefeitura.sp.gov.br",
-            "cargos": [{"descricaoCargo": "ASSISTENTE TECNICO DE EDUCACAO I"}],
+            "cargos": [
+                {
+                    "codigoCargo": 2640,
+                    "descricaoCargo": "ASSISTENTE TECNICO DE EDUCACAO I",
+                }
+            ],
             "inexistenteEol": False,
             "contexto": "DRE",
             "permissoes": ["usuarios:listar", "usuarios:listar", "usuarios:editar"],
         }
         repository_port = Mock()
         repository_port.existe_por_rf.return_value = True
+        cargos_port = Mock()
+        cargos_port.algum_codigo_autorizado.return_value = True
         use_case = LoginUserUseCase(
             coresso_port=coresso_port,
             usuarios_repository_port=repository_port,
             usuarios_validador=UsuariosValidador(),
             usuarios_rbac=UsuariosRbac(),
+            cargos_permitidos_port=cargos_port,
         )
         input_dto = LoginInputDto(login="1234567", senha="123456")
 
@@ -54,7 +63,11 @@ class LoginUserUseCaseTests(TestCase):
         self.assertEqual(output.rf, "8080640")
         self.assertEqual(output.cpf, "22712612876")
         self.assertEqual(output.email, "vania.montefusco@sme.prefeitura.sp.gov.br")
-        self.assertEqual(output.cargos, [{"descricaoCargo": "ASSISTENTE TECNICO DE EDUCACAO I"}])
+        self.assertEqual(
+            output.cargos,
+            [{"codigoCargo": 2640, "descricaoCargo": "ASSISTENTE TECNICO DE EDUCACAO I"}],
+        )
+        cargos_port.algum_codigo_autorizado.assert_called_once_with([2640])
         self.assertEqual(output.nome, "VANIA FERREIRA DA SILVA CANEKI")
         self.assertFalse(output.inexistente_eol)
 
@@ -68,18 +81,21 @@ class LoginUserUseCaseTests(TestCase):
             "rf": "7654321",
             "cpf": None,
             "email": None,
-            "cargos": [],
+            "cargos": [{"codigoCargo": 71, "descricaoCargo": "ASSESSOR I"}],
             "inexistenteEol": False,
             "contexto": "SME",
             "permissoes": ["usuarios:listar"],
         }
         repository_port = Mock()
         repository_port.existe_por_rf.return_value = False
+        cargos_port = Mock()
+        cargos_port.algum_codigo_autorizado.return_value = True
         use_case = LoginUserUseCase(
             coresso_port=coresso_port,
             usuarios_repository_port=repository_port,
             usuarios_validador=UsuariosValidador(),
             usuarios_rbac=UsuariosRbac(),
+            cargos_permitidos_port=cargos_port,
         )
         input_dto = LoginInputDto(login="7654321", senha="abc123")
 
@@ -100,6 +116,57 @@ class LoginUserUseCaseTests(TestCase):
         self.assertEqual(output.rf, "7654321")
         self.assertIsNone(output.cpf)
         self.assertIsNone(output.email)
-        self.assertEqual(output.cargos, [])
+        self.assertEqual(output.cargos, [{"codigoCargo": 71, "descricaoCargo": "ASSESSOR I"}])
         self.assertEqual(output.nome, "USUARIO TESTE")
         self.assertFalse(output.inexistente_eol)
+
+    def test_deve_falhar_quando_nenhum_codigo_de_cargo_na_resposta(self):
+        coresso_port = Mock()
+        coresso_port.autenticar.return_value = {
+            "usuarioId": "12345678-1234-1234-1234-123456789abc",
+            "status": 1,
+            "nome": "USUARIO TESTE",
+            "codigoRf": "7654321",
+            "rf": "7654321",
+            "cargos": [{"descricaoCargo": "SEM CODIGO"}],
+            "inexistenteEol": False,
+            "contexto": "SME",
+            "permissoes": [],
+        }
+        cargos_port = Mock()
+        use_case = LoginUserUseCase(
+            coresso_port=coresso_port,
+            usuarios_repository_port=Mock(),
+            usuarios_validador=UsuariosValidador(),
+            usuarios_rbac=UsuariosRbac(),
+            cargos_permitidos_port=cargos_port,
+        )
+        with self.assertRaises(CargoNaoAutorizadoError):
+            use_case.execute(LoginInputDto(login="7654321", senha="abc123"))
+        cargos_port.algum_codigo_autorizado.assert_not_called()
+
+    def test_deve_falhar_quando_cargo_nao_esta_na_lista_permitida(self):
+        coresso_port = Mock()
+        coresso_port.autenticar.return_value = {
+            "usuarioId": "12345678-1234-1234-1234-123456789abc",
+            "status": 1,
+            "nome": "USUARIO TESTE",
+            "codigoRf": "7654321",
+            "rf": "7654321",
+            "cargos": [{"codigoCargo": 99999, "descricaoCargo": "CARGO EXTERNO"}],
+            "inexistenteEol": False,
+            "contexto": "SME",
+            "permissoes": [],
+        }
+        cargos_port = Mock()
+        cargos_port.algum_codigo_autorizado.return_value = False
+        use_case = LoginUserUseCase(
+            coresso_port=coresso_port,
+            usuarios_repository_port=Mock(),
+            usuarios_validador=UsuariosValidador(),
+            usuarios_rbac=UsuariosRbac(),
+            cargos_permitidos_port=cargos_port,
+        )
+        with self.assertRaises(CargoNaoAutorizadoError):
+            use_case.execute(LoginInputDto(login="7654321", senha="abc123"))
+        cargos_port.algum_codigo_autorizado.assert_called_once_with([99999])

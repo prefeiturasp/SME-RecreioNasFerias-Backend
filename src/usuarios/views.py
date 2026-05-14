@@ -16,6 +16,7 @@ from application.dtos.create_user_dto import CreateUserDto
 from application.dtos.login_input_dto import LoginInputDto
 from application.dtos.update_user_dto import UpdateUserDto
 from application.dtos.user_output_dto import UserOutputDTO
+from application.exceptions import CargoNaoAutorizadoError
 from application.services.usuarios_rbac import UsuariosRbac
 from application.services.usuarios_validador import UsuariosValidador
 from application.use_cases.create_user import CreateUserUseCase
@@ -24,6 +25,9 @@ from application.use_cases.get_user_by_id import GetUserByIdUseCase
 from application.use_cases.list_users import ListUsersUseCase
 from application.use_cases.login_user import LoginUserUseCase
 from application.use_cases.update_user import UpdateUserUseCase
+from infrastructure.repositories.cargos_permitidos_repository import (
+    CargosPermitidosRepository,
+)
 from infrastructure.repositories.django_user_repository import DjangoUserRepository
 from infrastructure.repositories.usuarios_repository import UsuariosRepository
 from infrastructure.services.usuarios_service import UsuariosService
@@ -78,6 +82,7 @@ def _gerar_token_acesso(rf: str) -> str:
         ),
         400: OpenApiResponse(description="Payload invalido ou dados invalidos"),
         401: OpenApiResponse(description="Credenciais invalidas"),
+        403: OpenApiResponse(description="Cargo nao autorizado para o sistema"),
         502: OpenApiResponse(description="Falha de integracao externa"),
     },
 )
@@ -115,6 +120,7 @@ def login(request: HttpRequest):
             usuarios_repository_port=UsuariosRepository(),
             usuarios_validador=UsuariosValidador(),
             usuarios_rbac=UsuariosRbac(),
+            cargos_permitidos_port=CargosPermitidosRepository(),
         )
         output = use_case.execute(input_dto)
         response_body = output.to_dict()
@@ -132,6 +138,15 @@ def login(request: HttpRequest):
             descricao_cargo=desc_c,
         )
         return JsonResponse(response_body, status=200, json_dumps_params=_JSON)
+    except CargoNaoAutorizadoError as e:
+        registrar_log_login(
+            sucesso=False,
+            login_tentativa=login_bruto,
+            codigo_http=403,
+            mensagem=str(e),
+            request=request,
+        )
+        return JsonResponse({"error": str(e)}, status=403, json_dumps_params=_JSON)
     except ValueError as e:
         status_code = 401 if str(e) == "Credenciais inválidas" else 400
         registrar_log_login(

@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from django.test import TestCase
 
+from application.exceptions import CargoNaoAutorizadoError
 from usuarios.log_login import MENSAGEM_SUCESSO_LOGIN
 from usuarios.models import LogLoginModel
 
@@ -114,6 +115,82 @@ class CreateUserViewTests(TestCase):
         self.assertEqual(log.mensagem, "Credenciais inválidas")
         self.assertIsNone(log.codigo_cargo)
         self.assertEqual(log.descricao_cargo, "")
+
+    @patch("usuarios.views.LoginUserUseCase")
+    @patch("usuarios.views.UsuariosService")
+    def test_login_deve_retornar_403_quando_cargo_nao_autorizado(
+        self, service_cls, use_case_cls
+    ):
+        use_case_instance = Mock()
+        use_case_instance.execute.side_effect = CargoNaoAutorizadoError(
+            "Cargo não autorizado para acesso ao sistema."
+        )
+        use_case_cls.return_value = use_case_instance
+
+        response = self.client.post(
+            "/api/auth/login/",
+            data=json.dumps({"login": "1234567", "senha": "123456"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json(),
+            {"error": "Cargo não autorizado para acesso ao sistema."},
+        )
+        log = LogLoginModel.objects.get()
+        self.assertFalse(log.sucesso)
+        self.assertEqual(log.codigo_http, 403)
+
+    @patch("usuarios.views.UsuariosService")
+    def test_login_integracao_retorna_403_quando_cargo_nao_esta_nos_permitidos(
+        self, service_cls
+    ):
+        """Fluxo real até o banco: integração devolve cargo cujo código não existe na tabela."""
+        codigo_nao_permitido = 888877766
+        service_instancia = Mock()
+        service_instancia.autenticar.return_value = {
+            "usuarioId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+            "status": 1,
+            "nome": "USUARIO CARGO BLOQUEADO",
+            "codigoRf": "1234567",
+            "rf": "1234567",
+            "cpf": None,
+            "email": None,
+            "cargos": [
+                {
+                    "codigoCargo": codigo_nao_permitido,
+                    "descricaoCargo": "CARGO FORA DA LISTA PERMITIDA",
+                }
+            ],
+            "inexistenteEol": False,
+            "contexto": "SME",
+            "permissoes": [],
+        }
+        service_cls.return_value = service_instancia
+
+        response = self.client.post(
+            "/api/auth/login/",
+            data=json.dumps({"login": "1234567", "senha": "qualquer123"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        body = response.json()
+        self.assertEqual(
+            body,
+            {"error": "Cargo não autorizado para acesso ao sistema."},
+        )
+        self.assertNotIn("token", body)
+        service_cls.assert_called_once()
+        service_instancia.autenticar.assert_called_once_with(
+            login="1234567", senha="qualquer123"
+        )
+        log = LogLoginModel.objects.get()
+        self.assertFalse(log.sucesso)
+        self.assertEqual(log.codigo_http, 403)
+        self.assertEqual(log.login_tentativa, "1234567")
+        self.assertIn("autorizado", log.mensagem.lower())
 
     def test_login_deve_retornar_400_quando_payload_json_invalido(self):
         response = self.client.post(

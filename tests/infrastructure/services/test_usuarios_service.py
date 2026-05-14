@@ -72,6 +72,47 @@ class UsuariosServiceTests(TestCase):
         self.assertEqual(payload["inexistenteEol"], False)
         self.assertEqual(payload["cargos"][0]["descricaoCargo"], "ASSISTENTE TECNICO DE EDUCACAO I")
         self.assertEqual(payload["cargo"], "ASSISTENTE TECNICO DE EDUCACAO I")
+
+    @patch("infrastructure.services.usuarios_service.request.urlopen")
+    def test_deve_preencher_descricao_cargo_a_partir_de_nome_cargo(self, urlopen_mock):
+        response_auth = Mock()
+        response_auth.read.return_value = json.dumps(
+            {
+                "usuarioId": "5b2b9b98-7692-e211-b1fe-782bcb3d2d76",
+                "status": 1,
+                "nome": "USUARIO",
+                "codigoRf": "8080640",
+            }
+        ).encode("utf-8")
+        response_dados = Mock()
+        response_dados.read.return_value = json.dumps(
+            {
+                "rf": "8080640",
+                "cargos": [
+                    {
+                        "codigoCargo": 71,
+                        "nomeCargo": "ASSESSOR I",
+                        "codigoUnidade": "121000",
+                    }
+                ],
+                "nome": "USUARIO",
+                "inexistenteEol": False,
+            }
+        ).encode("utf-8")
+
+        cm_auth = Mock()
+        cm_auth.__enter__ = Mock(return_value=response_auth)
+        cm_auth.__exit__ = Mock(return_value=False)
+        cm_dados = Mock()
+        cm_dados.__enter__ = Mock(return_value=response_dados)
+        cm_dados.__exit__ = Mock(return_value=False)
+        urlopen_mock.side_effect = [cm_auth, cm_dados]
+        service = UsuariosService(base_url="https://auth.example.com", api_eol_key="dummy")
+
+        payload = service.autenticar("1234567", "123456")
+
+        self.assertEqual(payload["cargos"][0]["descricaoCargo"], "ASSESSOR I")
+        self.assertEqual(payload["cargo"], "ASSESSOR I")
         self.assertEqual(payload["contexto"], "")
         self.assertEqual(payload["permissoes"], [])
 

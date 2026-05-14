@@ -75,7 +75,13 @@ class ExtrairCargoLogLoginTests(SimpleTestCase):
         self.assertEqual(codigo, 2640)
         self.assertEqual(desc, "X")
 
-    def test_deve_retornar_vazio_sem_cargos(self):
+    def test_deve_usar_nome_cargo_quando_descricao_ausente(self):
+        codigo, desc = extrair_codigo_e_descricao_cargo(
+            [{"codigoCargo": 71, "nomeCargo": "ASSESSOR I"}]
+        )
+        self.assertEqual(codigo, 71)
+        self.assertEqual(desc, "ASSESSOR I")
+
         self.assertEqual(extrair_codigo_e_descricao_cargo(None), (None, ""))
         self.assertEqual(extrair_codigo_e_descricao_cargo([]), (None, ""))
         self.assertEqual(extrair_codigo_e_descricao_cargo({}), (None, ""))

@@ -23,7 +23,11 @@ def extrair_codigo_e_descricao_cargo(cargos: object) -> tuple[int | None, str]:
             codigo = int(bruto)
         except (TypeError, ValueError):
             codigo = None
-    descricao = primeiro.get("descricaoCargo") or ""
+    descricao = (
+        primeiro.get("descricaoCargo")
+        or primeiro.get("nomeCargo")
+        or ""
+    )
     return codigo, str(descricao)[:500]
 
 

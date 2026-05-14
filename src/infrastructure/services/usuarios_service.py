@@ -110,7 +110,19 @@ class UsuariosService(CoressoPort):
         if not isinstance(data, dict):
             raise RuntimeError("Resposta inválida em DadosSigpae")
 
+        self._normalizar_cargos_sigpae(data)
         return data
+
+    def _normalizar_cargos_sigpae(self, dados_sigpae: dict) -> None:
+        """Alinha campos de cargo ao formato esperado (``descricaoCargo``)."""
+        cargos = dados_sigpae.get("cargos")
+        if not isinstance(cargos, list):
+            return
+        for item in cargos:
+            if not isinstance(item, dict):
+                continue
+            if not item.get("descricaoCargo") and item.get("nomeCargo"):
+                item["descricaoCargo"] = str(item["nomeCargo"])
 
     def _extrair_cargo(self, dados_sigpae: dict) -> str:
         """Extrai campo de cargo de formatos conhecidos da resposta."""

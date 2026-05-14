@@ -28,6 +28,17 @@ class UsuarioAcessoModel(models.Model):
         db_table = "usuarios_acessos"
 
 
+class CargoPermitidoModel(models.Model):
+    """Códigos de cargo (integração SIGPAE/CoreSSO) autorizados a autenticar na aplicação."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    codigo_cargo = models.IntegerField(unique=True)
+    descricao_cargo = models.CharField(max_length=512)
+
+    class Meta:
+        db_table = "usuarios_cargos_permitidos"
+
+
 class LogLoginModel(models.Model):
     """Registro de tentativas de login na API (sucesso ou falha)."""
 

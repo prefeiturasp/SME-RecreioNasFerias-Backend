@@ -37,6 +37,8 @@ paths:
           description: Payload invalido ou dados invalidos
         '401':
           description: Credenciais invalidas
+        '403':
+          description: Cargo nao autorizado para o sistema
         '502':
           description: Falha de integracao externa
   /api/schema/:
