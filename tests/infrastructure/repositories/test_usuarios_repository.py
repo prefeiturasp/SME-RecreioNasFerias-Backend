@@ -1,11 +1,13 @@
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from infrastructure.repositories.usuarios_repository import UsuariosRepository
-from usuarios.models import UsuarioAcessoModel
+
+Usuario = get_user_model()
 
 
 class UsuariosRepositoryTests(TestCase):
-    """Testes do repositório local de acesso de usuários."""
+    """Testes do repositório de conta Django sincronizada no login."""
 
     def setUp(self):
         self.repository = UsuariosRepository()
@@ -25,15 +27,22 @@ class UsuariosRepositoryTests(TestCase):
             contexto="DRE",
             permissoes=["usuarios:editar"],
         )
-        model = UsuarioAcessoModel.objects.get(rf="1234567")
-        self.assertEqual(model.contexto, "DRE")
-        self.assertEqual(model.permissoes, ["usuarios:editar"])
+        usuario = Usuario.objects.get(rf="1234567")
+        self.assertEqual(usuario.contexto, "DRE")
+        self.assertEqual(usuario.permissoes_rbac, ["usuarios:editar"])
+        self.assertFalse(usuario.has_usable_password())
 
         self.repository.persistir_acesso(
             rf="1234567",
             contexto="DIPED",
             permissoes=["usuarios:listar", "usuarios:editar"],
+            nome="Nome Completo",
+            email="user@sme.sp.gov.br",
+            cpf="12345678901",
         )
-        model.refresh_from_db()
-        self.assertEqual(model.contexto, "DIPED")
-        self.assertEqual(model.permissoes, ["usuarios:listar", "usuarios:editar"])
+        usuario.refresh_from_db()
+        self.assertEqual(usuario.contexto, "DIPED")
+        self.assertEqual(usuario.permissoes_rbac, ["usuarios:listar", "usuarios:editar"])
+        self.assertEqual(usuario.nome_completo, "Nome Completo")
+        self.assertEqual(usuario.email, "user@sme.sp.gov.br")
+        self.assertEqual(usuario.cpf, "12345678901")

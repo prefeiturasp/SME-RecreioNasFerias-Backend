@@ -17,10 +17,13 @@ class CreateUserViewTests(TestCase):
 
     @patch("usuarios.views.LoginUserUseCase")
     @patch("usuarios.views.UsuariosService")
-    @patch("usuarios.views._gerar_token_acesso")
+    @patch("usuarios.views.get_user_model")
+    @patch("usuarios.views.gerar_token_acesso")
     def test_login_deve_autenticar_com_sucesso(
-        self, gerar_token_mock, service_cls, use_case_cls
+        self, gerar_token_mock, get_user_model_mock, service_cls, use_case_cls
     ):
+        usuario_mock = Mock()
+        get_user_model_mock.return_value.objects.get.return_value = usuario_mock
         gerar_token_mock.return_value = "token-de-teste"
         use_case_instance = Mock()
         use_case_instance.execute.return_value = Mock(
@@ -72,7 +75,8 @@ class CreateUserViewTests(TestCase):
                 "token": "token-de-teste",
             },
         )
-        gerar_token_mock.assert_called_once_with("8080640")
+        get_user_model_mock.return_value.objects.get.assert_called_once()
+        gerar_token_mock.assert_called_once_with(usuario_mock)
         service_cls.assert_called_once()
         use_case_cls.assert_called_once()
         use_case_instance.execute.assert_called_once()

@@ -86,6 +86,10 @@ class LoginUserUseCase:
             rf=codigo_rf,
             contexto=contexto,
             permissoes=permissoes,
+            nome=autenticacao["nome"],
+            email=autenticacao.get("email"),
+            cpf=autenticacao.get("cpf"),
+            inexistente_eol=bool(autenticacao.get("inexistenteEol", False)),
         )
 
         return LoginOutputDto(

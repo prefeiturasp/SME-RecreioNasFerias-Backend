@@ -1,36 +1,76 @@
-"""Repositório local de contexto/permissões no fluxo de login."""
+"""Repositório local de conta Django sincronizada no fluxo de login (CoreSSO)."""
+
+from django.contrib.auth import get_user_model
 
 from domain.ports.usuarios_repository_port import UsuariosRepositoryPort
-from usuarios.models import UsuarioAcessoModel
+
+Usuario = get_user_model()
 
 
 class UsuariosRepository(UsuariosRepositoryPort):
-    """Implementação Django para persistência do acesso de usuários."""
+    """Persiste contexto e permissões no model de usuário Django."""
 
     def existe_por_rf(self, rf: str) -> bool:
-        """Retorna se há registro local de acesso para o RF."""
-        return UsuarioAcessoModel.objects.filter(rf=rf).exists()
+        """Retorna se há conta local para o RF."""
+        return Usuario.objects.filter(rf=rf).exists()
 
     def registrar_localmente(self, rf: str, contexto: str, permissoes: list[str]) -> None:
-        """Cria registro local inicial para usuário autenticado."""
-        UsuarioAcessoModel.objects.create(
+        """Cria conta local inicial para usuário autenticado no CoreSSO."""
+        usuario, criado = Usuario.objects.get_or_create(
             rf=rf,
-            contexto=contexto,
-            permissoes=permissoes,
+            defaults={
+                "email": self._email_padrao(rf),
+                "contexto": contexto,
+                "permissoes_rbac": permissoes,
+                "is_active": True,
+            },
         )
+        if not criado:
+            usuario.contexto = contexto
+            usuario.permissoes_rbac = permissoes
+            usuario.save(update_fields=["contexto", "permissoes_rbac"])
+        self._garantir_senha_nao_utilizavel(usuario)
 
     def vincular_contexto_permissoes(
         self, rf: str, contexto: str, permissoes: list[str]
     ) -> None:
-        """Atualiza contexto e permissões para RF já registrado."""
-        UsuarioAcessoModel.objects.filter(rf=rf).update(
+        """Atualiza contexto e permissões RBAC para RF já registrado."""
+        Usuario.objects.filter(rf=rf).update(
             contexto=contexto,
-            permissoes=permissoes,
+            permissoes_rbac=permissoes,
         )
 
-    def persistir_acesso(self, rf: str, contexto: str, permissoes: list[str]) -> None:
-        """Persiste snapshot final de acesso após aplicação de RBAC."""
-        UsuarioAcessoModel.objects.update_or_create(
+    def persistir_acesso(
+        self,
+        rf: str,
+        contexto: str,
+        permissoes: list[str],
+        *,
+        nome: str = "",
+        email: str | None = None,
+        cpf: str | None = None,
+        inexistente_eol: bool = False,
+    ) -> None:
+        """Sincroniza snapshot final da conta Django após login no CoreSSO."""
+        usuario, _criado = Usuario.objects.update_or_create(
             rf=rf,
-            defaults={"contexto": contexto, "permissoes": permissoes},
+            defaults={
+                "email": (email or "").strip() or self._email_padrao(rf),
+                "nome_completo": (nome or "")[:255],
+                "cpf": (cpf or "")[:11],
+                "contexto": contexto,
+                "permissoes_rbac": permissoes,
+                "inexistente_eol": inexistente_eol,
+                "is_active": True,
+            },
         )
+        self._garantir_senha_nao_utilizavel(usuario)
+
+    @staticmethod
+    def _email_padrao(rf: str) -> str:
+        return f"{rf}@recreionasferias.local"
+
+    @staticmethod
+    def _garantir_senha_nao_utilizavel(usuario: Usuario) -> None:
+        usuario.set_unusable_password()
+        usuario.save(update_fields=["password"])

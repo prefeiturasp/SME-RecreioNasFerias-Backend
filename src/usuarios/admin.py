@@ -1,8 +1,37 @@
 """Configuração de administração do app usuarios."""
 
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
 
-from usuarios.models import LogLoginModel
+from usuarios.models import LogLoginModel, Usuario
+
+
+@admin.register(Usuario)
+class UsuarioAdmin(UserAdmin):
+    """Administra contas sincronizadas com CoreSSO."""
+
+    ordering = ("rf",)
+    list_display = ("rf", "nome_completo", "email", "contexto", "is_active", "is_staff")
+    list_filter = ("is_active", "is_staff", "contexto")
+    search_fields = ("rf", "nome_completo", "email", "cpf")
+    readonly_fields = ("atualizado_em", "last_login", "date_joined")
+    fieldsets = (
+        (None, {"fields": ("rf", "password", "is_active", "is_staff", "is_superuser")}),
+        ("Dados CoreSSO", {"fields": ("nome_completo", "email", "cpf", "inexistente_eol")}),
+        ("Acesso na aplicação", {"fields": ("contexto", "permissoes_rbac")}),
+        ("Datas", {"fields": ("last_login", "date_joined", "atualizado_em")}),
+        ("Permissões Django", {"fields": ("groups", "user_permissions")}),
+    )
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": ("rf", "email", "nome_completo"),
+            },
+        ),
+    )
+    filter_horizontal = ("groups", "user_permissions")
 
 
 @admin.register(LogLoginModel)

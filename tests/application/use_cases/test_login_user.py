@@ -59,6 +59,10 @@ class LoginUserUseCaseTests(TestCase):
             rf="8080640",
             contexto="DRE",
             permissoes=["usuarios:listar", "usuarios:editar"],
+            nome="VANIA FERREIRA DA SILVA CANEKI",
+            email="vania.montefusco@sme.prefeitura.sp.gov.br",
+            cpf="22712612876",
+            inexistente_eol=False,
         )
         self.assertEqual(output.rf, "8080640")
         self.assertEqual(output.cpf, "22712612876")
@@ -112,6 +116,10 @@ class LoginUserUseCaseTests(TestCase):
             rf="7654321",
             contexto="SME",
             permissoes=["usuarios:listar"],
+            nome="USUARIO TESTE",
+            email=None,
+            cpf=None,
+            inexistente_eol=False,
         )
         self.assertEqual(output.rf, "7654321")
         self.assertIsNone(output.cpf)

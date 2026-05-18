@@ -2,8 +2,9 @@
 
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.core import signing
 import json
+
+from django.contrib.auth import get_user_model
 from drf_spectacular.utils import (
     OpenApiResponse,
     extend_schema,
@@ -31,6 +32,7 @@ from infrastructure.repositories.cargos_permitidos_repository import (
 from infrastructure.repositories.django_user_repository import DjangoUserRepository
 from infrastructure.repositories.usuarios_repository import UsuariosRepository
 from infrastructure.services.usuarios_service import UsuariosService
+from usuarios.auth_tokens import gerar_token_acesso
 from usuarios.log_login import (
     MENSAGEM_SUCESSO_LOGIN,
     extrair_codigo_e_descricao_cargo,
@@ -38,11 +40,6 @@ from usuarios.log_login import (
 )
 
 _JSON = {"ensure_ascii": False, "indent": 2}
-
-
-def _gerar_token_acesso(rf: str) -> str:
-    """Gera token assinado para autenticação na aplicação."""
-    return signing.dumps({"rf": rf}, salt="usuarios.login")
 
 
 @csrf_exempt
@@ -124,7 +121,8 @@ def login(request: HttpRequest):
         )
         output = use_case.execute(input_dto)
         response_body = output.to_dict()
-        response_body["token"] = _gerar_token_acesso(response_body["rf"])
+        usuario = get_user_model().objects.get(rf=output.rf)
+        response_body["token"] = gerar_token_acesso(usuario)
         codigo_c, desc_c = extrair_codigo_e_descricao_cargo(
             response_body.get("cargos")
         )

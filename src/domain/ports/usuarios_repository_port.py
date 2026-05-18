@@ -21,5 +21,15 @@ class UsuariosRepositoryPort(ABC):
         """Vincula contexto e permissões para usuário já existente."""
 
     @abstractmethod
-    def persistir_acesso(self, rf: str, contexto: str, permissoes: list[str]) -> None:
-        """Persiste snapshot final de acesso calculado no login."""
+    def persistir_acesso(
+        self,
+        rf: str,
+        contexto: str,
+        permissoes: list[str],
+        *,
+        nome: str = "",
+        email: str | None = None,
+        cpf: str | None = None,
+        inexistente_eol: bool = False,
+    ) -> None:
+        """Persiste snapshot final da conta Django após login no CoreSSO."""

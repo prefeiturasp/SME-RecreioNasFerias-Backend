@@ -5,9 +5,10 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    initial = True
-
-    dependencies = []
+    dependencies = [
+        ("contenttypes", "0001_initial"),
+        ("usuarios", "0000_usuario"),
+    ]
 
     operations = [
         migrations.SeparateDatabaseAndState(
