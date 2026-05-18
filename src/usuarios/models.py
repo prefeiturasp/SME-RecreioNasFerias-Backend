@@ -30,6 +30,7 @@ class Usuario(AbstractUser, ModeloAtualizavel):
         verbose_name_plural = "usuários"
 
     def __str__(self) -> str:
+        """Representação legível para admin e logs."""
         return self.rf or str(self.pk)
 
 

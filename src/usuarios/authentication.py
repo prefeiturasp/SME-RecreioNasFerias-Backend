@@ -12,6 +12,7 @@ class RfTokenAuthentication(BaseAuthentication):
     keyword = "Bearer"
 
     def authenticate(self, request):
+        """Valida Bearer token e retorna ``(usuario, token)`` ou ``None``."""
         auth_header = request.headers.get("Authorization", "")
         if not auth_header.startswith(f"{self.keyword} "):
             return None

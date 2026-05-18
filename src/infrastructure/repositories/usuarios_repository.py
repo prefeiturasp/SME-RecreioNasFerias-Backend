@@ -68,9 +68,11 @@ class UsuariosRepository(UsuariosRepositoryPort):
 
     @staticmethod
     def _email_padrao(rf: str) -> str:
+        """Gera e-mail local quando o CoreSSO não informa um."""
         return f"{rf}@recreionasferias.local"
 
     @staticmethod
     def _garantir_senha_nao_utilizavel(usuario: Usuario) -> None:
+        """Marca senha Django como inutilizável (credencial validada no CoreSSO)."""
         usuario.set_unusable_password()
         usuario.save(update_fields=["password"])
