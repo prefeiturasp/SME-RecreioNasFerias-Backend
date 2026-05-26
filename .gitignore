@@ -6,3 +6,4 @@ body.json
 .pytest_cache
 INSTRUCTIONS.md
 .coverage
+docs/_build/
