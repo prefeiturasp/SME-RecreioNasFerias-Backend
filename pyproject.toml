@@ -3,3 +3,7 @@ line-length = 88
 
 [tool.isort]
 profile = "black"
+
+[tool.pydocstyle]
+convention = "pep257"
+add-ignore = ["D100", "D104"]

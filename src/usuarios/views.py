@@ -1,4 +1,10 @@
-"""Views HTTP para operações de usuários."""
+"""
+Views HTTP para operações de usuários e autenticação.
+
+Expõe login CoreSSO (com log de auditoria e token Bearer) e CRUD legado
+de usuários de exemplo, delegando regras de negócio aos casos de uso da
+camada de aplicação e adaptadores de infraestrutura.
+"""
 
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -85,7 +91,15 @@ _JSON = {"ensure_ascii": False, "indent": 2}
 )
 @api_view(["POST"])
 def login(request: HttpRequest):
-    """Autentica usuario via API externa e retorna dados funcionais."""
+    """Autentica usuário via CoreSSO e retorna dados funcionais com token Bearer.
+
+    Args:
+        request (HttpRequest): Requisição POST com JSON ``login`` e ``senha``.
+
+    Returns:
+        JsonResponse: Payload de sucesso (200), erro de validação (400/401),
+            cargo não autorizado (403), integração (502) ou erro interno (500).
+    """
     if request.method != "POST":
         return JsonResponse(
             {"error": "Método não permitido"},
@@ -195,7 +209,14 @@ def login(request: HttpRequest):
 )
 @api_view(["GET", "POST"])
 def users(request: HttpRequest):
-    """Despacha requisições de coleção de usuários."""
+    """Despacha GET (listagem) ou POST (criação) na coleção ``/api/usuarios/``.
+
+    Args:
+        request (HttpRequest): Requisição HTTP.
+
+    Returns:
+        JsonResponse: Resposta do handler correspondente ou 405.
+    """
     if request.method == "POST":
         return create_user(request)
     if request.method == "GET":
@@ -231,7 +252,15 @@ def users(request: HttpRequest):
 )
 @api_view(["GET", "PUT", "DELETE"])
 def user_by_id(request: HttpRequest, user_id):
-    """Despacha requisições de item de usuário por id."""
+    """Despacha GET, PUT ou DELETE em ``/api/usuarios/<uuid>/``.
+
+    Args:
+        request (HttpRequest): Requisição HTTP.
+        user_id: UUID do usuário na URL.
+
+    Returns:
+        JsonResponse: Resposta do handler correspondente ou 405.
+    """
     if request.method == "GET":
         return get_user_by_id(request, str(user_id))
     if request.method == "PUT":
@@ -246,7 +275,14 @@ def user_by_id(request: HttpRequest, user_id):
 
 
 def create_user(request: HttpRequest):
-    """Cria um usuário e retorna os dados persistidos."""
+    """Cria usuário via caso de uso e retorna JSON 201.
+
+    Args:
+        request (HttpRequest): POST com ``nome`` e ``email`` no corpo JSON.
+
+    Returns:
+        JsonResponse: Dados do usuário criado ou erro 500.
+    """
     if request.method != "POST":
         return JsonResponse(
             {"error": "Método não permitido"},
@@ -265,7 +301,14 @@ def create_user(request: HttpRequest):
 
 
 def list_users(request: HttpRequest):
-    """Lista todos os usuários cadastrados."""
+    """Lista todos os usuários do repositório legado.
+
+    Args:
+        request (HttpRequest): Requisição GET.
+
+    Returns:
+        JsonResponse: Array JSON de usuários ou erro 500.
+    """
     if request.method != "GET":
         return JsonResponse(
             {"error": "Método não permitido"},
@@ -287,7 +330,15 @@ def list_users(request: HttpRequest):
 
 
 def get_user_by_id(request: HttpRequest, user_id: str):
-    """Retorna um usuário específico por id."""
+    """Retorna um usuário pelo identificador UUID.
+
+    Args:
+        request (HttpRequest): Requisição GET.
+        user_id (str): UUID do usuário.
+
+    Returns:
+        JsonResponse: Usuário (200), não encontrado (404) ou erro 500.
+    """
     if request.method != "GET":
         return JsonResponse(
             {"error": "Método não permitido"},
@@ -305,7 +356,15 @@ def get_user_by_id(request: HttpRequest, user_id: str):
 
 
 def update_user(request: HttpRequest, user_id: str):
-    """Atualiza parcial ou totalmente um usuário por id."""
+    """Atualiza parcialmente nome e/ou e-mail de um usuário.
+
+    Args:
+        request (HttpRequest): PUT com campos opcionais no JSON.
+        user_id (str): UUID do usuário.
+
+    Returns:
+        JsonResponse: Usuário atualizado (200), 404/400 ou erro 500.
+    """
     if request.method != "PUT":
         return JsonResponse(
             {"error": "Método não permitido"},
@@ -328,7 +387,15 @@ def update_user(request: HttpRequest, user_id: str):
 
 
 def delete_user(request: HttpRequest, user_id: str):
-    """Remove um usuário por id."""
+    """Remove usuário pelo identificador UUID.
+
+    Args:
+        request (HttpRequest): Requisição DELETE.
+        user_id (str): UUID do usuário.
+
+    Returns:
+        JsonResponse: Corpo vazio (204), não encontrado (404) ou erro 500.
+    """
     if request.method != "DELETE":
         return JsonResponse(
             {"error": "Método não permitido"},

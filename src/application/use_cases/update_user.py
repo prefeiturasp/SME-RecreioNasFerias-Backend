@@ -1,4 +1,8 @@
-"""Caso de uso para atualização de usuário."""
+"""
+Caso de uso para atualização de usuário na API legada de exemplo.
+
+Mescla campos opcionais do DTO com estado atual antes de persistir alterações.
+"""
 
 from application.dtos.update_user_dto import UpdateUserDto
 from application.dtos.user_output_dto import UserOutputDTO
@@ -7,14 +11,36 @@ from domain.ports.user_repository import UserRepository
 
 
 class UpdateUserUseCase:
-    """Orquestra atualização total ou parcial de um usuário."""
+    """Orquestra atualização parcial ou total de um usuário existente.
+
+    Carrega o estado atual, mescla campos opcionais do DTO e persiste via
+    repositório, garantindo que apenas usuários existentes sejam alterados.
+
+    Attributes:
+        user_repository (UserRepository): Adaptador de persistência de usuários.
+    """
 
     def __init__(self, user_repository: UserRepository):
-        """Recebe a dependência de repositório de usuários."""
+        """Injeta o adaptador de persistência de usuários.
+
+        Args:
+            user_repository (UserRepository): Porta de repositório do domínio.
+        """
         self.user_repository = user_repository
 
     def execute(self, user_id: str, update_user_dto: UpdateUserDto) -> UserOutputDTO:
-        """Atualiza usuário e retorna o resultado em DTO de saída."""
+        """Mescla campos informados e persiste a entidade atualizada.
+
+        Args:
+            user_id (str): Identificador do usuário a alterar.
+            update_user_dto (UpdateUserDto): Campos opcionais de atualização.
+
+        Returns:
+            UserOutputDTO: Estado final do usuário após persistência.
+
+        Raises:
+            ValueError: Se o usuário não existir antes ou depois da atualização.
+        """
         existing_user = self.user_repository.find_by_id(user_id)
         if not existing_user:
             raise ValueError("Usuário não encontrado")

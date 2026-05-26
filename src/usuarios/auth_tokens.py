@@ -1,4 +1,9 @@
-"""Token de API assinado vinculado ao usuário Django (pós-CoreSSO)."""
+"""
+Token de API assinado vinculado ao usuário Django (pós-CoreSSO).
+
+Utiliza ``django.core.signing`` com salt fixo e validade configurável em
+``settings.USUARIOS_TOKEN_MAX_AGE`` (padrão 12 horas).
+"""
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -9,7 +14,14 @@ TOKEN_MAX_AGE = getattr(settings, "USUARIOS_TOKEN_MAX_AGE", 60 * 60 * 12)
 
 
 def gerar_token_acesso(usuario) -> str:
-    """Gera token Bearer assinado com RF e id do usuário Django."""
+    """Gera token Bearer assinado com RF e id do usuário Django.
+
+    Args:
+        usuario: Instância de ``AUTH_USER_MODEL`` autenticada no login.
+
+    Returns:
+        str: Token opaco para o header ``Authorization: Bearer``.
+    """
     return signing.dumps(
         {"rf": usuario.rf, "uid": usuario.pk},
         salt=TOKEN_SALT,
@@ -17,7 +29,14 @@ def gerar_token_acesso(usuario) -> str:
 
 
 def resolver_usuario_por_token(token: str):
-    """Valida token e retorna o usuário ativo ou None."""
+    """Valida assinatura e expiração do token e carrega o usuário ativo.
+
+    Args:
+        token (str): Valor após o prefixo ``Bearer`` no header Authorization.
+
+    Returns:
+        Usuario | None: Usuário ativo correspondente ou ``None`` se inválido/expirado.
+    """
     Usuario = get_user_model()
     try:
         payload = signing.loads(token, salt=TOKEN_SALT, max_age=TOKEN_MAX_AGE)
