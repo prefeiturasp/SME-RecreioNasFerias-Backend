@@ -25,6 +25,10 @@ Repositórios
 Serviços
 --------
 
+.. automodule:: infrastructure.services.coresso_resposta
+   :members:
+   :show-inheritance:
+
 .. automodule:: infrastructure.services.usuarios_service
    :members:
    :show-inheritance:

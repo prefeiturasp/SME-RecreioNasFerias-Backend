@@ -12,7 +12,7 @@ class CoressoPort(ABC):
     """Define operações de autenticação e enriquecimento de dados no CoreSSO.
 
     A implementação de referência é ``UsuariosService``, que realiza chamadas
-    HTTP com ``urllib`` e variáveis de ambiente ``AUTH_API_*``.
+    HTTP com ``requests`` e variáveis de ambiente ``AUTH_API_*``.
     """
 
     @abstractmethod
@@ -28,6 +28,7 @@ class CoressoPort(ABC):
                 ``permissoes`` e demais campos usados pelo caso de uso.
 
         Raises:
-            ValueError: Para credenciais inválidas ou usuário não autorizado.
-            RuntimeError: Para falhas de integração ou resposta malformada.
+            ValueError: Para variáveis de ambiente ausentes ou validação local.
+            CoressoRespostaError: Para erros de negócio do CoreSSO (401, 404, etc.).
+            CoressoIndisponivelError: Para indisponibilidade ou timeout do serviço.
         """

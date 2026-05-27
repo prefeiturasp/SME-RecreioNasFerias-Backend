@@ -15,3 +15,7 @@ Settings e roteamento principal do projeto.
 .. automodule:: config.urls
    :members:
    :show-inheritance:
+
+.. automodule:: config.login_debug
+   :members:
+   :show-inheritance:

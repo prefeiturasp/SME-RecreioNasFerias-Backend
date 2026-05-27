@@ -151,3 +151,20 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Documentacao OpenAPI dos endpoints de usuarios e autenticacao.",
     "VERSION": "1.0.0",
 }
+
+# Logs do fluxo de login (``recreio.login``) quando LOGIN_DEBUG=1 no .env.
+if os.getenv("LOGIN_DEBUG", "").strip().lower() in ("1", "true", "yes"):
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {
+            "console": {"class": "logging.StreamHandler"},
+        },
+        "loggers": {
+            "recreio.login": {
+                "handlers": ["console"],
+                "level": "INFO",
+                "propagate": False,
+            },
+        },
+    }

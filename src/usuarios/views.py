@@ -6,11 +6,11 @@ de usuários de exemplo, delegando regras de negócio aos casos de uso da
 camada de aplicação e adaptadores de infraestrutura.
 """
 
-from django.http import HttpRequest, JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 import json
 
 from django.contrib.auth import get_user_model
+from django.http import HttpRequest, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import (
     OpenApiResponse,
     extend_schema,
@@ -19,11 +19,17 @@ from drf_spectacular.utils import (
 )
 from rest_framework import serializers
 from rest_framework.decorators import api_view
+
 from application.dtos.create_user_dto import CreateUserDto
 from application.dtos.login_input_dto import LoginInputDto
 from application.dtos.update_user_dto import UpdateUserDto
 from application.dtos.user_output_dto import UserOutputDTO
-from application.exceptions import CargoNaoAutorizadoError
+from application.exceptions import (
+    ERRO_INTERNO_API,
+    CargoNaoAutorizadoError,
+    CoressoIndisponivelError,
+    CoressoRespostaError,
+)
 from application.services.usuarios_rbac import UsuariosRbac
 from application.services.usuarios_validador import UsuariosValidador
 from application.use_cases.create_user import CreateUserUseCase
@@ -32,6 +38,7 @@ from application.use_cases.get_user_by_id import GetUserByIdUseCase
 from application.use_cases.list_users import ListUsersUseCase
 from application.use_cases.login_user import LoginUserUseCase
 from application.use_cases.update_user import UpdateUserUseCase
+from config.login_debug import login_debug
 from infrastructure.repositories.cargos_permitidos_repository import (
     CargosPermitidosRepository,
 )
@@ -84,9 +91,13 @@ _JSON = {"ensure_ascii": False, "indent": 2}
             },
         ),
         400: OpenApiResponse(description="Payload invalido ou dados invalidos"),
-        401: OpenApiResponse(description="Credenciais invalidas"),
+        401: OpenApiResponse(description="Credenciais invalidas (mensagem do CoreSSO)"),
         403: OpenApiResponse(description="Cargo nao autorizado para o sistema"),
-        502: OpenApiResponse(description="Falha de integracao externa"),
+        404: OpenApiResponse(
+            description="RF sem dados no SIGPAE (mensagem do CoreSSO)"
+        ),
+        500: OpenApiResponse(description="Erro interno da aplicacao"),
+        502: OpenApiResponse(description="CoreSSO indisponivel"),
     },
 )
 @api_view(["POST"])
@@ -97,8 +108,13 @@ def login(request: HttpRequest):
         request (HttpRequest): Requisição POST com JSON ``login`` e ``senha``.
 
     Returns:
-        JsonResponse: Payload de sucesso (200), erro de validação (400/401),
-            cargo não autorizado (403), integração (502) ou erro interno (500).
+        JsonResponse: Sucesso (200); validação local (400); mensagem do CoreSSO
+            para credenciais (401) ou RF sem dados (404); cargo não autorizado
+            (403); CoreSSO indisponível (502); erro interno genérico (500).
+
+    Raises:
+        Não propaga exceções: erros são convertidos em ``JsonResponse`` com
+        campo ``error`` e código HTTP adequado.
     """
     if request.method != "POST":
         return JsonResponse(
@@ -123,6 +139,7 @@ def login(request: HttpRequest):
         )
 
     login_bruto = str(body.get("login") or "").strip()[:32]
+    login_debug("view.login.inicio", login=login_bruto)
 
     try:
         input_dto = LoginInputDto(login=body.get("login"), senha=body.get("senha"))
@@ -133,13 +150,14 @@ def login(request: HttpRequest):
             usuarios_rbac=UsuariosRbac(),
             cargos_permitidos_port=CargosPermitidosRepository(),
         )
+        login_debug("view.login.antes_use_case")
         output = use_case.execute(input_dto)
+        login_debug("view.login.depois_use_case", rf=output.rf)
         response_body = output.to_dict()
         usuario = get_user_model().objects.get(rf=output.rf)
+        login_debug("view.login.usuario_local_ok", rf=output.rf)
         response_body["token"] = gerar_token_acesso(usuario)
-        codigo_c, desc_c = extrair_codigo_e_descricao_cargo(
-            response_body.get("cargos")
-        )
+        codigo_c, desc_c = extrair_codigo_e_descricao_cargo(response_body.get("cargos"))
         registrar_log_login(
             sucesso=True,
             login_tentativa=response_body["rf"],
@@ -151,6 +169,7 @@ def login(request: HttpRequest):
         )
         return JsonResponse(response_body, status=200, json_dumps_params=_JSON)
     except CargoNaoAutorizadoError as e:
+        login_debug("view.login.erro", tipo="CargoNaoAutorizadoError", mensagem=str(e))
         registrar_log_login(
             sucesso=False,
             login_tentativa=login_bruto,
@@ -159,17 +178,30 @@ def login(request: HttpRequest):
             request=request,
         )
         return JsonResponse({"error": str(e)}, status=403, json_dumps_params=_JSON)
-    except ValueError as e:
-        status_code = 401 if str(e) == "Credenciais inválidas" else 400
+    except CoressoRespostaError as e:
+        login_debug("view.login.erro", tipo="CoressoRespostaError", mensagem=str(e))
         registrar_log_login(
             sucesso=False,
             login_tentativa=login_bruto,
-            codigo_http=status_code,
+            codigo_http=e.status_http,
             mensagem=str(e),
             request=request,
         )
-        return JsonResponse({"error": str(e)}, status=status_code, json_dumps_params=_JSON)
-    except RuntimeError as e:
+        return JsonResponse(
+            {"error": str(e)}, status=e.status_http, json_dumps_params=_JSON
+        )
+    except ValueError as e:
+        login_debug("view.login.erro", tipo="ValueError", mensagem=str(e))
+        registrar_log_login(
+            sucesso=False,
+            login_tentativa=login_bruto,
+            codigo_http=400,
+            mensagem=str(e),
+            request=request,
+        )
+        return JsonResponse({"error": str(e)}, status=400, json_dumps_params=_JSON)
+    except CoressoIndisponivelError as e:
+        login_debug("view.login.erro", tipo="CoressoIndisponivelError", mensagem=str(e))
         registrar_log_login(
             sucesso=False,
             login_tentativa=login_bruto,
@@ -179,14 +211,17 @@ def login(request: HttpRequest):
         )
         return JsonResponse({"error": str(e)}, status=502, json_dumps_params=_JSON)
     except Exception as e:
+        login_debug("view.login.erro", tipo=type(e).__name__, mensagem=str(e))
         registrar_log_login(
             sucesso=False,
             login_tentativa=login_bruto,
             codigo_http=500,
-            mensagem=str(e),
+            mensagem=ERRO_INTERNO_API,
             request=request,
         )
-        return JsonResponse({"error": str(e)}, status=500, json_dumps_params=_JSON)
+        return JsonResponse(
+            {"error": ERRO_INTERNO_API}, status=500, json_dumps_params=_JSON
+        )
 
 
 @csrf_exempt

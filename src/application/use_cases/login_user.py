@@ -11,6 +11,7 @@ from application.dtos.login_output_dto import LoginOutputDto
 from application.exceptions import CargoNaoAutorizadoError
 from application.services.usuarios_rbac import UsuariosRbac
 from application.services.usuarios_validador import UsuariosValidador
+from config.login_debug import login_debug
 from domain.ports.cargos_permitidos_port import CargosPermitidosPort
 from domain.ports.coresso_port import CoressoPort
 from domain.ports.usuarios_repository_port import UsuariosRepositoryPort
@@ -92,7 +93,9 @@ class LoginUserUseCase:
             LoginOutputDto: Dados funcionais para resposta HTTP (sem token Bearer).
 
         Raises:
-            ValueError: Propagada pelo validador ou pela integração (credenciais).
+            ValueError: Propagada pelo validador de entrada local.
+            CoressoRespostaError: Propagada pelo serviço CoreSSO (401, 404, etc.).
+            CoressoIndisponivelError: Quando o CoreSSO está indisponível.
             CargoNaoAutorizadoError: Se nenhum cargo permitido for identificado.
         """
         self.usuarios_validador.validar_login(
@@ -105,11 +108,14 @@ class LoginUserUseCase:
             senha=login_input.senha,
         )
         codigos_cargo = _extrair_codigos_cargos(autenticacao.get("cargos"))
+        login_debug("use_case.cargos", codigos=codigos_cargo)
         if not codigos_cargo:
             raise CargoNaoAutorizadoError(
                 "Não foi possível identificar o cargo do usuário para autorização."
             )
-        if not self.cargos_permitidos_port.algum_codigo_autorizado(codigos_cargo):
+        autorizado = self.cargos_permitidos_port.algum_codigo_autorizado(codigos_cargo)
+        login_debug("use_case.cargos_permitidos", autorizado=autorizado)
+        if not autorizado:
             raise CargoNaoAutorizadoError()
 
         contexto = autenticacao.get("contexto") or autenticacao.get("cargo", "")

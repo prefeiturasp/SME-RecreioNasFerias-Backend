@@ -1,0 +1,14 @@
+# Uso: docker compose -f docker-compose.yml -f docker-compose.debug.yml up --build
+# Depois anexe o debugger no VS Code (config "Django: anexar ao Docker").
+services:
+  web:
+    ports:
+      - "8000:8000"
+      - "5678:5678"
+    environment:
+      LOGIN_DEBUG: "1"
+      AUTH_API_CONNECT_TIMEOUT_SECONDS: "5"
+      AUTH_API_AUTH_TIMEOUT_SECONDS: "10"
+      AUTH_API_TIMEOUT_SECONDS: "60"
+      PYTHONFLAGS: "-Xfrozen_modules=off"
+    command: ["sh", "/app/scripts/run-debug.sh"]
