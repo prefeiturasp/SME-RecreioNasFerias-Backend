@@ -95,8 +95,13 @@ class CreateUserViewTests(TestCase):
     def test_login_deve_retornar_401_para_credenciais_invalidas(
         self, service_cls, use_case_cls
     ):
+        from application.exceptions import CoressoRespostaError
+
+        mensagem = "Usuário ou senha incorretos."
         use_case_instance = Mock()
-        use_case_instance.execute.side_effect = ValueError("Credenciais inválidas")
+        use_case_instance.execute.side_effect = CoressoRespostaError(
+            mensagem, status_http=401
+        )
         use_case_cls.return_value = use_case_instance
 
         response = self.client.post(
@@ -106,7 +111,7 @@ class CreateUserViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.json(), {"error": "Credenciais inválidas"})
+        self.assertEqual(response.json(), {"error": mensagem})
         service_cls.assert_called_once()
         use_case_cls.assert_called_once()
         use_case_instance.execute.assert_called_once()
@@ -116,9 +121,37 @@ class CreateUserViewTests(TestCase):
         self.assertFalse(log.sucesso)
         self.assertEqual(log.login_tentativa, "1234567")
         self.assertEqual(log.codigo_http, 401)
-        self.assertEqual(log.mensagem, "Credenciais inválidas")
+        self.assertEqual(log.mensagem, mensagem)
         self.assertIsNone(log.codigo_cargo)
         self.assertEqual(log.descricao_cargo, "")
+
+    @patch("usuarios.views.LoginUserUseCase")
+    @patch("usuarios.views.UsuariosService")
+    def test_login_deve_retornar_404_quando_dados_sigpae_sem_rf(
+        self, service_cls, use_case_cls
+    ):
+        from application.exceptions import CoressoRespostaError
+
+        mensagem = "Sem informações na base de dados para o Código Rf informado"
+        use_case_instance = Mock()
+        use_case_instance.execute.side_effect = CoressoRespostaError(
+            mensagem, status_http=404
+        )
+        use_case_cls.return_value = use_case_instance
+
+        response = self.client.post(
+            "/api/auth/login/",
+            data=json.dumps({"login": "1234567", "senha": "123456"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {"error": mensagem})
+        log = LogLoginModel.objects.get()
+        self.assertFalse(log.sucesso)
+        self.assertEqual(log.login_tentativa, "1234567")
+        self.assertEqual(log.codigo_http, 404)
+        self.assertEqual(log.mensagem, mensagem)
 
     @patch("usuarios.views.LoginUserUseCase")
     @patch("usuarios.views.UsuariosService")
@@ -234,13 +267,13 @@ class CreateUserViewTests(TestCase):
 
     @patch("usuarios.views.LoginUserUseCase")
     @patch("usuarios.views.UsuariosService")
-    def test_login_deve_retornar_502_quando_api_externa_falhar(
+    def test_login_deve_retornar_502_quando_coresso_indisponivel(
         self, service_cls, use_case_cls
     ):
+        from application.exceptions import CoressoIndisponivelError, ERRO_CORESSO_INDISPONIVEL
+
         use_case_instance = Mock()
-        use_case_instance.execute.side_effect = RuntimeError(
-            "Falha de conexão com API externa"
-        )
+        use_case_instance.execute.side_effect = CoressoIndisponivelError()
         use_case_cls.return_value = use_case_instance
 
         response = self.client.post(
@@ -250,9 +283,7 @@ class CreateUserViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 502)
-        self.assertEqual(
-            response.json(), {"error": "Falha de conexão com API externa"}
-        )
+        self.assertEqual(response.json(), {"error": ERRO_CORESSO_INDISPONIVEL})
         service_cls.assert_called_once()
         use_case_cls.assert_called_once()
         use_case_instance.execute.assert_called_once()
@@ -262,7 +293,29 @@ class CreateUserViewTests(TestCase):
         self.assertFalse(log.sucesso)
         self.assertEqual(log.login_tentativa, "1234567")
         self.assertEqual(log.codigo_http, 502)
-        self.assertEqual(log.mensagem, "Falha de conexão com API externa")
+        self.assertEqual(log.mensagem, ERRO_CORESSO_INDISPONIVEL)
+
+    @patch("usuarios.views.LoginUserUseCase")
+    @patch("usuarios.views.UsuariosService")
+    def test_login_deve_retornar_500_com_mensagem_generica_em_erro_interno(
+        self, service_cls, use_case_cls
+    ):
+        from application.exceptions import ERRO_INTERNO_API
+
+        use_case_instance = Mock()
+        use_case_instance.execute.side_effect = Exception("detalhe interno")
+        use_case_cls.return_value = use_case_instance
+
+        response = self.client.post(
+            "/api/auth/login/",
+            data=json.dumps({"login": "1234567", "senha": "123456"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.json(), {"error": ERRO_INTERNO_API})
+        log = LogLoginModel.objects.get()
+        self.assertEqual(log.mensagem, ERRO_INTERNO_API)
 
     def test_deve_retornar_405_para_metodo_nao_permitido(self):
         response = self.client.put("/api/usuarios/")

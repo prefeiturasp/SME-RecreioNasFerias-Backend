@@ -1,0 +1,60 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "docker: up (debug)",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.yml -f docker-compose.debug.yml up --build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Starting development server|Quit the server with CONTROL-C"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "docker: up (debug, wait-for-client)",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.yml -f docker-compose.debug.yml up --build",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "DEBUGPY_WAIT": "1"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Waiting for debugger attach|Starting development server"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    }
+  ]
+}

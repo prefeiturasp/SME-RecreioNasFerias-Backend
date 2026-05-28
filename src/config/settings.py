@@ -27,9 +27,13 @@ if not SECRET_KEY:
     )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "true").strip().lower() in ("1", "true", "yes")
 
-ALLOWED_HOSTS = []
+_allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
+ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts.split(",") if host.strip()]
+if DEBUG and not ALLOWED_HOSTS:
+    # Mantém DX local sem precisar configurar ALLOWED_HOSTS no .env.
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
 
 # Application definition
@@ -151,3 +155,20 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Documentacao OpenAPI dos endpoints de usuarios e autenticacao.",
     "VERSION": "1.0.0",
 }
+
+# Logs do fluxo de login (``recreio.login``) quando LOGIN_DEBUG=1 no .env.
+if os.getenv("LOGIN_DEBUG", "").strip().lower() in ("1", "true", "yes"):
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {
+            "console": {"class": "logging.StreamHandler"},
+        },
+        "loggers": {
+            "recreio.login": {
+                "handlers": ["console"],
+                "level": "INFO",
+                "propagate": False,
+            },
+        },
+    }
