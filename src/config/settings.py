@@ -27,9 +27,13 @@ if not SECRET_KEY:
     )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "true").strip().lower() in ("1", "true", "yes")
 
-ALLOWED_HOSTS = []
+_allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
+ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts.split(",") if host.strip()]
+if DEBUG and not ALLOWED_HOSTS:
+    # Mantém DX local sem precisar configurar ALLOWED_HOSTS no .env.
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
 
 # Application definition
