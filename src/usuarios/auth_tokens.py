@@ -8,12 +8,13 @@ Utiliza ``django.core.signing`` com salt fixo e validade configurável em
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import signing
+from typing import Any
 
 TOKEN_SALT = "usuarios.login"
 TOKEN_MAX_AGE = getattr(settings, "USUARIOS_TOKEN_MAX_AGE", 60 * 60 * 12)
 
 
-def gerar_token_acesso(usuario) -> str:
+def gerar_token_acesso(usuario: Any) -> str:
     """Gera token Bearer assinado com RF e id do usuário Django.
 
     Args:
@@ -28,7 +29,7 @@ def gerar_token_acesso(usuario) -> str:
     )
 
 
-def resolver_usuario_por_token(token: str):
+def resolver_usuario_por_token(token: str) -> Any | None:
     """Valida assinatura e expiração do token e carrega o usuário ativo.
 
     Args:

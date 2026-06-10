@@ -23,6 +23,17 @@ from io import StringIO
 
 
 def main() -> None:
+    """Corrige histórico de migração e sincroniza o estado do banco.
+
+    Args:
+        Não recebe argumentos explícitos.
+
+    Returns:
+        None: Executa operações no banco e imprime o progresso no terminal.
+
+    Raises:
+        Exception: Propaga erros de conexão/execução de SQL e comandos Django.
+    """
     with connection.cursor() as cursor:
         cursor.execute(
             "SELECT 1 FROM django_migrations WHERE app = %s AND name = %s",

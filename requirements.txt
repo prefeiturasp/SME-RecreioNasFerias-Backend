@@ -17,6 +17,7 @@ jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 mccabe==0.7.0
 mypy_extensions==1.1.0
+mypy==1.18.2
 packaging==26.2
 pathspec==1.1.1
 platformdirs==4.9.6
@@ -27,6 +28,7 @@ pyflakes==3.4.0
 pygments==2.20.0
 PyYAML==6.0.3
 pytest==9.0.3
+pydocstyle==6.3.0
 pytest-cov==7.1.0
 pytest-django==4.12.0
 python-dotenv==1.2.2
