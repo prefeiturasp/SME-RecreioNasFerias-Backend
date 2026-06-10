@@ -53,7 +53,7 @@ def _campos_quantidade_request() -> dict[str, serializers.Field]:
     }
 
 
-def _schema_periodo(nome: str, *, obrigatorio: bool) -> inline_serializer:
+def _schema_periodo(nome: str, *, obrigatorio: bool) -> serializers.Serializer:
     """Montar schema OpenAPI de período com datas de início e fim."""
     return inline_serializer(
         name=nome,
@@ -85,7 +85,7 @@ def _parametros_paginacao_openapi() -> list[OpenApiParameter]:
     ]
 
 
-def _schema_resposta_lista_paginada(nome: str) -> inline_serializer:
+def _schema_resposta_lista_paginada(nome: str) -> serializers.Serializer:
     """Montar schema OpenAPI da resposta paginada de edições."""
     return inline_serializer(
         name=nome,
@@ -99,7 +99,7 @@ def _schema_resposta_lista_paginada(nome: str) -> inline_serializer:
     )
 
 
-def _schema_create_request(nome: str) -> inline_serializer:
+def _schema_create_request(nome: str) -> serializers.Serializer:
     """Montar schema OpenAPI do payload de criação de edição."""
     return inline_serializer(
         name=nome,
@@ -115,7 +115,7 @@ def _schema_create_request(nome: str) -> inline_serializer:
     )
 
 
-def _schema_update_request(nome: str) -> inline_serializer:
+def _schema_update_request(nome: str) -> serializers.Serializer:
     """Montar schema OpenAPI do payload de atualização de edição."""
     return inline_serializer(
         name=nome,
