@@ -41,6 +41,7 @@ if DEBUG and not ALLOWED_HOSTS:
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "usuarios.apps.UsuariosConfig",
+    "edicoes.apps.EdicoesConfig",
     "django.contrib.auth",
     "django.contrib.admin",
     "django.contrib.sessions",
@@ -143,17 +144,29 @@ AUTH_USER_MODEL = "usuarios.Usuario"
 # Validade do token Bearer emitido no login (segundos); padrão 12 horas.
 USUARIOS_TOKEN_MAX_AGE = 60 * 60 * 12
 
+# CRUD legado em /api/usuarios/ (desligado por padrão; login permanece ativo).
+USUARIOS_CRUD_ENABLED = os.getenv("USUARIOS_CRUD_ENABLED", "false").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "usuarios.authentication.RfTokenAuthentication",
     ],
+    "EXCEPTION_HANDLER": "config.exception_handler.custom_exception_handler",
 }
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "SME Recreio Nas Ferias Backend API",
     "DESCRIPTION": "Documentacao OpenAPI dos endpoints de usuarios e autenticacao.",
     "VERSION": "1.0.0",
+    # Aplica security global para que o Swagger UI mostre o campo de token.
+    "SECURITY": [{"bearerAuth": []}],
+    # Oculta o próprio endpoint de schema da lista de rotas documentadas.
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 
 # Logs do fluxo de login (``recreio.login``) quando LOGIN_DEBUG=1 no .env.

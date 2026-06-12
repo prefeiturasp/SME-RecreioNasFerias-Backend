@@ -6,8 +6,20 @@ profile = "black"
 
 [tool.pydocstyle]
 convention = "pep257"
-add-ignore = ["D100", "D104"]
+add-ignore = ["D100", "D104", "D401"]
+match-dir = "(?!migrations).*"
+match = "(?!test_).*\\.py"
 
 [tool.flake8]
 max-line-length = 88
 extend-ignore = ["E203", "W503"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+files = ["src/edicoes", "tests/edicoes", "scripts"]
+exclude = "(?x)(^src/.*/migrations/)"

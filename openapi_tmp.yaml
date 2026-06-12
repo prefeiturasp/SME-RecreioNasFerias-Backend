@@ -1,0 +1,309 @@
+openapi: 3.0.3
+info:
+  title: SME Recreio Nas Ferias Backend API
+  version: 1.0.0
+  description: Documentacao OpenAPI dos endpoints de usuarios e autenticacao.
+paths:
+  /api/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: |-
+        Autentica usuário via CoreSSO e retorna dados funcionais com token Bearer.
+
+        Args:
+            request (HttpRequest): Requisição POST com JSON ``login`` e ``senha``.
+
+        Returns:
+            JsonResponse: Sucesso (200); validação local (400); mensagem do CoreSSO
+                para credenciais (401) ou RF sem dados (404); cargo não autorizado
+                (403); CoreSSO indisponível (502); erro interno genérico (500).
+
+        Raises:
+            Não propaga exceções: erros são convertidos em ``JsonResponse`` com
+            campo ``error`` e código HTTP adequado.
+      tags:
+      - Autenticacao
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+          description: ''
+        '400':
+          description: Payload invalido ou dados invalidos
+        '401':
+          description: Credenciais invalidas (mensagem do CoreSSO)
+        '403':
+          description: Cargo nao autorizado para o sistema
+        '404':
+          description: RF sem dados no SIGPAE (mensagem do CoreSSO)
+        '500':
+          description: Erro interno da aplicacao
+        '502':
+          description: CoreSSO indisponivel
+  /api/edicoes/:
+    get:
+      operationId: edicoes_retrieve
+      description: |-
+        Despachar listagem ou cadastro no endpoint ``/api/edicoes/``.
+
+        Args:
+            request (HttpRequest): Requisição HTTP ``GET`` ou ``POST``.
+
+        Returns:
+            JsonResponse: Resposta da operação de listagem ou cadastro.
+
+        Raises:
+            Não propaga exceções: handlers encapsulam erros em respostas HTTP.
+      tags:
+      - Edições
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de edições cadastradas
+    post:
+      operationId: edicoes_create
+      description: |-
+        Despachar listagem ou cadastro no endpoint ``/api/edicoes/``.
+
+        Args:
+            request (HttpRequest): Requisição HTTP ``GET`` ou ``POST``.
+
+        Returns:
+            JsonResponse: Resposta da operação de listagem ou cadastro.
+
+        Raises:
+            Não propaga exceções: handlers encapsulam erros em respostas HTTP.
+      tags:
+      - Edições
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEdicaoRequestView'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateEdicaoRequestView'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateEdicaoRequestView'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Edição criada com sucesso
+  /api/edicoes/{edicao_id}/:
+    put:
+      operationId: edicoes_update
+      description: |-
+        Despachar atualização ou exclusão em ``/api/edicoes/<uuid>/``.
+
+        Args:
+            request (HttpRequest): Requisição HTTP ``PUT`` ou ``DELETE``.
+            edicao_id (str): UUID da edição na URL.
+
+        Returns:
+            JsonResponse: Resposta da operação correspondente ou 405.
+
+        Raises:
+            Não propaga exceções: handlers encapsulam erros em respostas HTTP.
+      parameters:
+      - in: path
+        name: edicao_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Edições
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEdicaoRequestView'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UpdateEdicaoRequestView'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UpdateEdicaoRequestView'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Edição atualizada
+    delete:
+      operationId: edicoes_destroy
+      description: |-
+        Despachar atualização ou exclusão em ``/api/edicoes/<uuid>/``.
+
+        Args:
+            request (HttpRequest): Requisição HTTP ``PUT`` ou ``DELETE``.
+            edicao_id (str): UUID da edição na URL.
+
+        Returns:
+            JsonResponse: Resposta da operação correspondente ou 405.
+
+        Raises:
+            Não propaga exceções: handlers encapsulam erros em respostas HTTP.
+      parameters:
+      - in: path
+        name: edicao_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Edições
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Edição removida
+components:
+  schemas:
+    CargoResponse:
+      type: object
+      properties:
+        codigoCargo:
+          type: integer
+        descricaoCargo:
+          type: string
+        codigoUnidade:
+          type: string
+        descricaoUnidade:
+          type: string
+        codigoDre:
+          type: string
+        contratoExterno:
+          type: boolean
+    CreateEdicaoRequestView:
+      type: object
+      properties:
+        nome:
+          type: string
+        periodoEdicao:
+          $ref: '#/components/schemas/PeriodoEdicaoRequestView'
+        periodoInscricoes:
+          $ref: '#/components/schemas/PeriodoInscricoesRequestView'
+      required:
+      - nome
+      - periodoEdicao
+      - periodoInscricoes
+    LoginRequest:
+      type: object
+      properties:
+        login:
+          type: string
+        senha:
+          type: string
+      required:
+      - login
+      - senha
+    LoginResponse:
+      type: object
+      properties:
+        rf:
+          type: string
+        cpf:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        cargos:
+          type: array
+          items:
+            $ref: '#/components/schemas/CargoResponse'
+        nome:
+          type: string
+        inexistenteEol:
+          type: boolean
+        token:
+          type: string
+      required:
+      - cargos
+      - inexistenteEol
+      - nome
+      - rf
+      - token
+    PeriodoEdicaoRequestView:
+      type: object
+      properties:
+        de:
+          type: string
+          format: date
+        ate:
+          type: string
+          format: date
+      required:
+      - ate
+      - de
+    PeriodoInscricoesRequestView:
+      type: object
+      properties:
+        de:
+          type: string
+          format: date
+        ate:
+          type: string
+          format: date
+      required:
+      - ate
+      - de
+    UpdateEdicaoRequestView:
+      type: object
+      properties:
+        nome:
+          type: string
+        periodoEdicao:
+          $ref: '#/components/schemas/UpdatePeriodoEdicaoRequestView'
+        periodoInscricoes:
+          $ref: '#/components/schemas/UpdatePeriodoInscricoesRequestView'
+      required:
+      - periodoEdicao
+      - periodoInscricoes
+    UpdatePeriodoEdicaoRequestView:
+      type: object
+      properties:
+        de:
+          type: string
+          format: date
+        ate:
+          type: string
+          format: date
+    UpdatePeriodoInscricoesRequestView:
+      type: object
+      properties:
+        de:
+          type: string
+          format: date
+        ate:
+          type: string
+          format: date
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Token

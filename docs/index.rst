@@ -11,6 +11,7 @@ API Django/DRF para autenticação via CoreSSO, gestão de usuários e auditoria
    modules/domain
    modules/infrastructure
    modules/usuarios
+   modules/edicoes
    modules/common
    modules/config
 

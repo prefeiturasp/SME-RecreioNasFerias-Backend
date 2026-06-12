@@ -58,6 +58,7 @@ _JSON = {"ensure_ascii": False, "indent": 2}
 @csrf_exempt
 @extend_schema(
     tags=["Autenticacao"],
+    auth=[],
     request=inline_serializer(
         name="LoginRequest",
         fields={
