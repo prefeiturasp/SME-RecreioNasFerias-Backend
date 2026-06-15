@@ -38,7 +38,7 @@ def resolver_usuario_por_token(token: str) -> Any | None:
     Returns:
         Usuario | None: Usuário ativo correspondente ou ``None`` se inválido/expirado.
     """
-    Usuario = get_user_model()
+    usuario_model = get_user_model()
     try:
         payload = signing.loads(token, salt=TOKEN_SALT, max_age=TOKEN_MAX_AGE)
     except signing.BadSignature:
@@ -50,6 +50,6 @@ def resolver_usuario_por_token(token: str) -> Any | None:
 
     uid = payload.get("uid")
     if uid is not None:
-        return Usuario.objects.filter(pk=uid, rf=rf, is_active=True).first()
+        return usuario_model.objects.filter(pk=uid, rf=rf, is_active=True).first()
 
-    return Usuario.objects.filter(rf=rf, is_active=True).first()
+    return usuario_model.objects.filter(rf=rf, is_active=True).first()
