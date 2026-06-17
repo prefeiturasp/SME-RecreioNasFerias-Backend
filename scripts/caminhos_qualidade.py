@@ -9,6 +9,7 @@ from __future__ import annotations
 
 TESTES_COMMON = "tests/common"
 TESTES_EDICOES = "tests/edicoes"
+TESTES_SCRIPTS = "tests/scripts"
 TESTES_EDICOES_VIEWS = "tests/edicoes/test_views.py"
 TESTES_EDICOES_MODELS = "tests/edicoes/test_models.py"
 TESTES_PEP440 = "tests/scripts/test_pep440_versions.py"
@@ -80,10 +81,12 @@ def comando_pytest(executavel: str) -> list[str]:
         TESTES_EDICOES_VIEWS,
         TESTES_EDICOES_MODELS,
         TESTES_COMMON,
-        TESTES_PEP440,
+        TESTES_SCRIPTS,
         "--cov=edicoes.views",
         "--cov=common.paginacao",
         "--cov=common.respostas_http",
+        "--cov=caminhos_qualidade",
+        "--cov=verificar_qualidade",
         "--cov-report=term-missing",
         "--cov-fail-under=90",
     ]
