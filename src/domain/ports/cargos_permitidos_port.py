@@ -12,7 +12,7 @@ class CargosPermitidosPort(ABC):
     """Consulta se algum dos códigos de cargo informados está autorizado.
 
     A lista permitida é mantida localmente (tabela ``usuarios_cargos_permitidos``)
-    e administrada via Django Admin ou migrações de dados.
+    e administrada via migrações de dados.
     """
 
     @abstractmethod

@@ -9,7 +9,7 @@ from django.apps import AppConfig
 
 
 class UsuariosConfig(AppConfig):
-    """Metadados do app ``usuarios`` (models, admin e rotas HTTP).
+    """Metadados do app ``usuarios`` (models e rotas HTTP).
 
     Referenciado em ``config.settings.INSTALLED_APPS`` como
     ``usuarios.apps.UsuariosConfig``.

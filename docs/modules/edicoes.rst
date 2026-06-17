@@ -1,7 +1,7 @@
 App Django ``edicoes``
 ======================
 
-Modelos e configuração administrativa para gestão das edições do programa.
+Modelos e endpoints HTTP para gestão das edições do programa.
 
 .. automodule:: edicoes
    :members:
@@ -12,10 +12,6 @@ Modelos e configuração administrativa para gestão das edições do programa.
    :show-inheritance:
 
 .. automodule:: edicoes.models
-   :members:
-   :show-inheritance:
-
-.. automodule:: edicoes.admin
    :members:
    :show-inheritance:
 

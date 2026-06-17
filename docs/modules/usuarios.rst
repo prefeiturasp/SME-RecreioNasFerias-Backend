@@ -34,7 +34,3 @@ Models, views HTTP, autenticação por token e auditoria de login.
 .. automodule:: usuarios.log_login
    :members:
    :show-inheritance:
-
-.. automodule:: usuarios.admin
-   :members:
-   :show-inheritance:

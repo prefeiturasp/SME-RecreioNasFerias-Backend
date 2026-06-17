@@ -50,7 +50,7 @@ class Usuario(AbstractUser, ModeloAtualizavel):
         verbose_name_plural = "usuários"
 
     def __str__(self) -> str:
-        """Representação legível para admin e logs.
+        """Representação legível para logs e interfaces de consulta.
 
         Returns:
             str: RF do usuário ou representação da chave primária se RF vazio.
@@ -79,7 +79,7 @@ class UserModel(ModeloBase):
 class CargoPermitidoModel(ModeloBase):
     """Códigos de cargo SIGPAE autorizados a autenticar na aplicação.
 
-    Populada via Admin ou migrações de dados; consultada em cada login
+    Populada via migrações de dados; consultada em cada login
     por ``CargosPermitidosRepository``.
     """
 

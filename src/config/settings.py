@@ -43,7 +43,6 @@ INSTALLED_APPS = [
     "usuarios.apps.UsuariosConfig",
     "edicoes.apps.EdicoesConfig",
     "django.contrib.auth",
-    "django.contrib.admin",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
@@ -161,7 +160,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "SME Recreio Nas Ferias Backend API",
-    "DESCRIPTION": "Documentacao OpenAPI dos endpoints de usuarios e autenticacao.",
+    "DESCRIPTION": "Documentacao OpenAPI dos endpoints da aplicacao.",
     "VERSION": "1.0.0",
     # Aplica security global para que o Swagger UI mostre o campo de token.
     "SECURITY": [{"bearerAuth": []}],

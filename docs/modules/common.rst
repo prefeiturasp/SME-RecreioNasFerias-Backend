@@ -14,3 +14,11 @@ Models abstratos compartilhados entre apps.
 .. automodule:: common.models.base
    :members:
    :show-inheritance:
+
+.. automodule:: common.paginacao
+   :members:
+   :show-inheritance:
+
+.. automodule:: common.respostas_http
+   :members:
+   :show-inheritance:
