@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from caminhos_qualidade import comando_flake8, comando_pydocstyle, comando_pytest
+
 
 def executar_comando(comando: list[str], diretorio_raiz: Path) -> None:
     """Executa um comando de validação e falha se houver erro.
@@ -42,25 +44,12 @@ def main() -> int:
         Não propaga exceções; converte falhas em código de saída ``1``.
     """
     raiz_projeto = Path(__file__).resolve().parents[1]
+    executavel = sys.executable
     comandos = [
-        [sys.executable, "-m", "mypy"],
-        [
-            sys.executable,
-            "-m",
-            "pydocstyle",
-            "src/edicoes",
-            "tests/edicoes",
-            "tests/scripts/test_pep440_versions.py",
-            "scripts",
-        ],
-        [
-            sys.executable,
-            "-m",
-            "pytest",
-            "tests/edicoes/test_views.py",
-            "tests/edicoes/test_models.py",
-            "tests/scripts/test_pep440_versions.py",
-        ],
+        [executavel, "-m", "mypy"],
+        comando_pydocstyle(executavel),
+        comando_flake8(executavel),
+        comando_pytest(executavel),
     ]
 
     try:

@@ -9,7 +9,7 @@ from django.apps import AppConfig
 
 
 class EdicoesConfig(AppConfig):
-    """Metadados do app ``edicoes`` (models, admin e migrações).
+    """Metadados do app ``edicoes`` (models, views e migrações).
 
     Referenciado em ``config.settings.INSTALLED_APPS`` como
     ``edicoes.apps.EdicoesConfig``.

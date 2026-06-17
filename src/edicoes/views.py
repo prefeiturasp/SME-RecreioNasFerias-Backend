@@ -6,17 +6,14 @@ com validações de negócio aplicadas no modelo.
 """
 
 import json
-import math
 from typing import Any
 from uuid import UUID
 
 from django.core.exceptions import ValidationError
 from django.db import DatabaseError
-from django.db.models import QuerySet
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import (
-    OpenApiParameter,
     OpenApiResponse,
     extend_schema,
     extend_schema_view,
@@ -26,12 +23,14 @@ from rest_framework import serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
+from common.paginacao import (
+    parametros_paginacao_openapi,
+    schema_resposta_lista_paginada,
+    serializar_lista_paginada,
+)
+from common.respostas_http import JSON_DUMPS_PARAMS, resposta_erro_interno
 from edicoes.models import Edicao
 
-_JSON = {"ensure_ascii": False, "indent": 2}
-_PAGINA_PADRAO = 1
-_TAMANHO_PAGINA_PADRAO = 10
-_TAMANHO_PAGINA_MAXIMO = 100
 _ERROS_PERSISTENCIA = (DatabaseError, TypeError, ValueError)
 
 
@@ -60,41 +59,6 @@ def _schema_periodo(nome: str, *, obrigatorio: bool) -> serializers.Serializer:
         fields={
             "de": serializers.DateField(required=obrigatorio),
             "ate": serializers.DateField(required=obrigatorio),
-        },
-    )
-
-
-def _parametros_paginacao_openapi() -> list[OpenApiParameter]:
-    """Montar parâmetros de paginação documentados no OpenAPI."""
-    return [
-        OpenApiParameter(
-            name="page",
-            type=int,
-            location=OpenApiParameter.QUERY,
-            description="Número da página (inicia em 1).",
-        ),
-        OpenApiParameter(
-            name="pageSize",
-            type=int,
-            location=OpenApiParameter.QUERY,
-            description=(
-                f"Tamanho da página (padrão {_TAMANHO_PAGINA_PADRAO}, "
-                f"máximo {_TAMANHO_PAGINA_MAXIMO})."
-            ),
-        ),
-    ]
-
-
-def _schema_resposta_lista_paginada(nome: str) -> serializers.Serializer:
-    """Montar schema OpenAPI da resposta paginada de edições."""
-    return inline_serializer(
-        name=nome,
-        fields={
-            "results": serializers.ListField(child=serializers.DictField()),
-            "page": serializers.IntegerField(),
-            "pageSize": serializers.IntegerField(),
-            "total": serializers.IntegerField(),
-            "totalPages": serializers.IntegerField(),
         },
     )
 
@@ -131,84 +95,6 @@ def _schema_update_request(nome: str) -> serializers.Serializer:
             ),
         },
     )
-
-
-def _resposta_erro_interno(erro: Exception) -> JsonResponse:
-    """Converter falha inesperada de persistência em resposta HTTP 500."""
-    return JsonResponse(
-        {"error": str(erro)},
-        status=500,
-        json_dumps_params=_JSON,
-    )
-
-
-def _extrair_parametro_inteiro(
-    request: HttpRequest,
-    nome: str,
-    *,
-    padrao: int,
-    minimo: int = 1,
-) -> int | None:
-    """Ler parâmetro inteiro da query string com validação básica.
-
-    Args:
-        request (HttpRequest): Requisição HTTP com query string.
-        nome (str): Nome do parâmetro a ser lido.
-        padrao (int): Valor usado quando o parâmetro não é informado.
-        minimo (int): Menor valor aceito para o parâmetro.
-
-    Returns:
-        int | None: Valor válido ou ``None`` quando o parâmetro é inválido.
-    """
-    valor_bruto = request.GET.get(nome)
-    if valor_bruto in (None, ""):
-        return padrao
-    try:
-        valor = int(valor_bruto)
-    except (TypeError, ValueError):
-        return None
-    if valor < minimo:
-        return None
-    return valor
-
-
-def _serializar_lista_paginada(
-    request: HttpRequest,
-    queryset: QuerySet[Edicao],
-) -> dict[str, Any] | None:
-    """Montar payload paginado da listagem de edições.
-
-    Args:
-        request (HttpRequest): Requisição GET com parâmetros de paginação.
-        queryset (QuerySet[Edicao]): Consulta base ordenada por criação.
-
-    Returns:
-        dict[str, Any] | None: Payload paginado ou ``None`` se parâmetros
-            forem inválidos.
-    """
-    pagina = _extrair_parametro_inteiro(request, "page", padrao=_PAGINA_PADRAO)
-    tamanho_pagina = _extrair_parametro_inteiro(
-        request,
-        "pageSize",
-        padrao=_TAMANHO_PAGINA_PADRAO,
-    )
-    if pagina is None or tamanho_pagina is None:
-        return None
-    if tamanho_pagina > _TAMANHO_PAGINA_MAXIMO:
-        tamanho_pagina = _TAMANHO_PAGINA_MAXIMO
-
-    total = queryset.count()
-    total_paginas = math.ceil(total / tamanho_pagina) if total else 0
-    inicio = (pagina - 1) * tamanho_pagina
-    fim = inicio + tamanho_pagina
-
-    return {
-        "results": [_serializar_edicao(edicao) for edicao in queryset[inicio:fim]],
-        "page": pagina,
-        "pageSize": tamanho_pagina,
-        "total": total,
-        "totalPages": total_paginas,
-    }
 
 
 _CAMPOS_QUANTIDADE_CRIACAO = (
@@ -385,7 +271,7 @@ def criar_edicao(request: HttpRequest) -> JsonResponse:
         return JsonResponse(
             {"error": "Payload JSON inválido"},
             status=400,
-            json_dumps_params=_JSON,
+            json_dumps_params=JSON_DUMPS_PARAMS,
         )
 
     try:
@@ -402,23 +288,23 @@ def criar_edicao(request: HttpRequest) -> JsonResponse:
         return JsonResponse(
             _serializar_edicao(edicao),
             status=201,
-            json_dumps_params=_JSON,
+            json_dumps_params=JSON_DUMPS_PARAMS,
         )
     except ValidationError as erro:
         return JsonResponse(
             {"error": _extrair_mensagem_erro(erro)},
             status=400,
-            json_dumps_params=_JSON,
+            json_dumps_params=JSON_DUMPS_PARAMS,
         )
     except _ERROS_PERSISTENCIA as erro:
-        return _resposta_erro_interno(erro)
+        return resposta_erro_interno(erro)
 
 
 @extend_schema(
     tags=["Edições"],
-    parameters=_parametros_paginacao_openapi(),
+    parameters=parametros_paginacao_openapi(),
     responses={
-        200: _schema_resposta_lista_paginada("ListEdicoesResponse"),
+        200: schema_resposta_lista_paginada("ListEdicoesResponse"),
         400: OpenApiResponse(description="Parâmetros de paginação inválidos"),
     },
 )
@@ -435,14 +321,18 @@ def listar_edicoes(request: HttpRequest) -> JsonResponse:
     Raises:
         Exception: Se ocorrer falha inesperada durante a consulta ao banco.
     """
-    payload = _serializar_lista_paginada(request, Edicao.objects.all())
+    payload = serializar_lista_paginada(
+        request,
+        Edicao.objects.all(),
+        _serializar_edicao,
+    )
     if payload is None:
         return JsonResponse(
             {"error": "Parâmetros de paginação inválidos"},
             status=400,
-            json_dumps_params=_JSON,
+            json_dumps_params=JSON_DUMPS_PARAMS,
         )
-    return JsonResponse(payload, status=200, json_dumps_params=_JSON)
+    return JsonResponse(payload, status=200, json_dumps_params=JSON_DUMPS_PARAMS)
 
 
 @csrf_exempt
@@ -476,7 +366,7 @@ def atualizar_edicao(request: HttpRequest, edicao_id: str) -> JsonResponse:
         return JsonResponse(
             {"error": "Edição não encontrada"},
             status=404,
-            json_dumps_params=_JSON,
+            json_dumps_params=JSON_DUMPS_PARAMS,
         )
 
     try:
@@ -485,14 +375,14 @@ def atualizar_edicao(request: HttpRequest, edicao_id: str) -> JsonResponse:
         return JsonResponse(
             {"error": "Payload JSON inválido"},
             status=400,
-            json_dumps_params=_JSON,
+            json_dumps_params=JSON_DUMPS_PARAMS,
         )
 
     if not _aplicar_atualizacao(edicao, corpo):
         return JsonResponse(
             {"error": "Informe ao menos um campo para atualização"},
             status=400,
-            json_dumps_params=_JSON,
+            json_dumps_params=JSON_DUMPS_PARAMS,
         )
 
     try:
@@ -500,16 +390,16 @@ def atualizar_edicao(request: HttpRequest, edicao_id: str) -> JsonResponse:
         return JsonResponse(
             _serializar_edicao(edicao),
             status=200,
-            json_dumps_params=_JSON,
+            json_dumps_params=JSON_DUMPS_PARAMS,
         )
     except ValidationError as erro:
         return JsonResponse(
             {"error": _extrair_mensagem_erro(erro)},
             status=400,
-            json_dumps_params=_JSON,
+            json_dumps_params=JSON_DUMPS_PARAMS,
         )
     except _ERROS_PERSISTENCIA as erro:
-        return _resposta_erro_interno(erro)
+        return resposta_erro_interno(erro)
 
 
 @csrf_exempt
@@ -538,20 +428,20 @@ def deletar_edicao(_: HttpRequest, edicao_id: str) -> JsonResponse:
         return JsonResponse(
             {"error": "Edição não encontrada"},
             status=404,
-            json_dumps_params=_JSON,
+            json_dumps_params=JSON_DUMPS_PARAMS,
         )
 
     edicao.delete()
-    return JsonResponse({}, status=204, json_dumps_params=_JSON)
+    return JsonResponse({}, status=204, json_dumps_params=JSON_DUMPS_PARAMS)
 
 
 @csrf_exempt
 @extend_schema_view(
     get=extend_schema(
         tags=["Edições"],
-        parameters=_parametros_paginacao_openapi(),
+        parameters=parametros_paginacao_openapi(),
         responses={
-            200: _schema_resposta_lista_paginada("ListEdicoesResponseView"),
+            200: schema_resposta_lista_paginada("ListEdicoesResponseView"),
             400: OpenApiResponse(description="Parâmetros de paginação inválidos"),
         },
     ),

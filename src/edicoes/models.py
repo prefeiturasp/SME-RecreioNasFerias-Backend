@@ -71,7 +71,7 @@ class Edicao(ModeloBase):
         """Retorna representação textual amigável da edição.
 
         Returns:
-            str: Nome da edição para exibição no admin e logs.
+            str: Nome da edição para exibição em listagens e logs.
         """
         return self.nome
 

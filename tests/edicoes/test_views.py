@@ -2,8 +2,10 @@
 
 import json
 from datetime import date
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.db import DatabaseError
 from django.test import TestCase
 
 from edicoes.models import Edicao
@@ -542,3 +544,25 @@ class EdicoesViewTests(TestCase):
 
         self.assertEqual(resposta.status_code, 404)
         self.assertEqual(resposta.json(), {"error": "Edição não encontrada"})
+
+    def test_deve_retornar_500_quando_persistencia_falhar_no_cadastro(self) -> None:
+        """Garante resposta 500 para falha inesperada ao criar edição."""
+        payload = {
+            "nome": "Edição com falha",
+            "periodoEdicao": {"de": "2026-12-01", "ate": "2026-12-31"},
+            "periodoInscricoes": {"de": "2026-11-01", "ate": "2026-11-20"},
+        }
+
+        with patch(
+            "edicoes.views.Edicao.objects.create",
+            side_effect=DatabaseError("falha no banco"),
+        ):
+            resposta = self.client.post(
+                "/api/edicoes/",
+                data=json.dumps(payload),
+                content_type="application/json",
+                **self.auth_headers,
+            )
+
+        self.assertEqual(resposta.status_code, 500)
+        self.assertEqual(resposta.json(), {"error": "falha no banco"})

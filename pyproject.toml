@@ -21,5 +21,12 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 check_untyped_defs = true
 disallow_incomplete_defs = true
-files = ["src/edicoes", "tests/edicoes", "scripts"]
+files = [
+    "src/edicoes",
+    "src/common/paginacao.py",
+    "src/common/respostas_http.py",
+    "tests/edicoes",
+    "tests/common",
+    "scripts",
+]
 exclude = "(?x)(^src/.*/migrations/)"
