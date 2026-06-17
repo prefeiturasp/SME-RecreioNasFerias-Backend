@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from caminhos_qualidade import comando_flake8, comando_pydocstyle, comando_pytest
+
 
 def executar_comando(comando: list[str], diretorio_raiz: Path) -> None:
     """Executa um comando de validação e falha se houver erro.
@@ -42,45 +44,12 @@ def main() -> int:
         Não propaga exceções; converte falhas em código de saída ``1``.
     """
     raiz_projeto = Path(__file__).resolve().parents[1]
+    executavel = sys.executable
     comandos = [
-        [sys.executable, "-m", "mypy"],
-        [
-            sys.executable,
-            "-m",
-            "pydocstyle",
-            "src/edicoes",
-            "src/common/paginacao.py",
-            "src/common/respostas_http.py",
-            "tests/edicoes",
-            "tests/common/test_paginacao.py",
-            "tests/scripts/test_pep440_versions.py",
-            "scripts",
-        ],
-        [
-            sys.executable,
-            "-m",
-            "flake8",
-            "src/edicoes",
-            "src/usuarios/urls.py",
-            "src/common/paginacao.py",
-            "src/common/respostas_http.py",
-            "tests/edicoes",
-            "tests/common/test_paginacao.py",
-        ],
-        [
-            sys.executable,
-            "-m",
-            "pytest",
-            "tests/edicoes/test_views.py",
-            "tests/edicoes/test_models.py",
-            "tests/common/test_paginacao.py",
-            "tests/scripts/test_pep440_versions.py",
-            "--cov=edicoes.views",
-            "--cov=common.paginacao",
-            "--cov=common.respostas_http",
-            "--cov-report=term-missing",
-            "--cov-fail-under=90",
-        ],
+        [executavel, "-m", "mypy"],
+        comando_pydocstyle(executavel),
+        comando_flake8(executavel),
+        comando_pytest(executavel),
     ]
 
     try:
