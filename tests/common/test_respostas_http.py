@@ -6,6 +6,7 @@ from django.test import SimpleTestCase
 
 from common.respostas_http import (
     JSON_DUMPS_PARAMS,
+    resposta_edicao_nao_encontrada,
     resposta_erro_interno,
     resposta_paginacao_invalida,
 )
@@ -32,6 +33,16 @@ class RespostasHttpTests(SimpleTestCase):
         self.assertEqual(
             json.loads(resposta.content),
             {"error": "Parâmetros de paginação inválidos"},
+        )
+
+    def test_resposta_edicao_nao_encontrada_deve_retornar_status_404(self) -> None:
+        """Garante mensagem padronizada para edição inexistente."""
+        resposta = resposta_edicao_nao_encontrada()
+
+        self.assertEqual(resposta.status_code, 404)
+        self.assertEqual(
+            json.loads(resposta.content),
+            {"error": "Edição não encontrada"},
         )
 
     def test_json_dumps_params_deve_preservar_acentuacao(self) -> None:
