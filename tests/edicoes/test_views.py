@@ -13,7 +13,7 @@ from usuarios.auth_tokens import gerar_token_acesso
 
 
 class EdicoesViewTests(TestCase):
-    """Valida fluxo HTTP de listagem, criação, atualização e exclusão de edições."""
+    """Valida fluxo HTTP de listagem, consulta, criação, atualização e exclusão."""
 
     def setUp(self) -> None:
         """Configura um usuário autenticado para chamadas aos endpoints protegidos."""
@@ -372,6 +372,62 @@ class EdicoesViewTests(TestCase):
             resposta.json(),
             {"error": "Erro: já existe edição no período cadastrado"},
         )
+
+    def test_deve_retornar_401_quando_buscar_edicao_sem_autenticacao(self) -> None:
+        """Garante que a consulta por ID exige autenticação."""
+        edicao = Edicao.objects.create(
+            nome="Edição Protegida",
+            periodo_edicao_inicio=date(2026, 4, 1),
+            periodo_edicao_fim=date(2026, 4, 30),
+            periodo_inscricoes_inicio=date(2026, 3, 1),
+            periodo_inscricoes_fim=date(2026, 3, 20),
+        )
+
+        resposta = self.client.get(f"/api/edicoes/{edicao.id}/")
+
+        self.assertIn(resposta.status_code, (401, 403))
+        self.assertIn("detail", resposta.json())
+
+    def test_deve_buscar_edicao_por_id(self) -> None:
+        """Garante consulta de edição via ``GET /api/edicoes/<uuid>/``."""
+        edicao = Edicao.objects.create(
+            nome="Edição Consulta 2026",
+            periodo_edicao_inicio=date(2026, 3, 1),
+            periodo_edicao_fim=date(2026, 3, 31),
+            periodo_inscricoes_inicio=date(2026, 2, 1),
+            periodo_inscricoes_fim=date(2026, 2, 20),
+            quantidade_inscritos=50,
+            quantidade_atendimento_efetivo=40,
+            quantidade_passeios=5,
+            quantidade_apresentacoes=2,
+        )
+
+        resposta = self.client.get(f"/api/edicoes/{edicao.id}/", **self.auth_headers)
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(
+            resposta.json(),
+            {
+                "id": str(edicao.id),
+                "nome": "Edição Consulta 2026",
+                "periodoEdicao": {"de": "2026-03-01", "ate": "2026-03-31"},
+                "periodoInscricoes": {"de": "2026-02-01", "ate": "2026-02-20"},
+                "quantidadeInscritos": 50,
+                "quantidadeAtendimentoEfetivo": 40,
+                "quantidadePasseios": 5,
+                "quantidadeApresentacoes": 2,
+            },
+        )
+
+    def test_deve_retornar_404_quando_buscar_edicao_inexistente(self) -> None:
+        """Garante 404 ao consultar UUID inexistente."""
+        resposta = self.client.get(
+            "/api/edicoes/11111111-1111-1111-1111-111111111111/",
+            **self.auth_headers,
+        )
+
+        self.assertEqual(resposta.status_code, 404)
+        self.assertEqual(resposta.json(), {"error": "Edição não encontrada"})
 
     def test_deve_atualizar_edicao_com_sucesso(self) -> None:
         """Garante atualização parcial via ``PUT /api/edicoes/<uuid>/``.

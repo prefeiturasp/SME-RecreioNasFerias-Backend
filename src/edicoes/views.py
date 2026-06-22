@@ -1,7 +1,7 @@
 """
 Views HTTP para gestão de edições.
 
-Expõe endpoints para criação, listagem, atualização e exclusão de edições,
+Expõe endpoints para criação, listagem, consulta, atualização e exclusão de edições,
 com validações de negócio aplicadas no modelo.
 """
 
@@ -335,6 +335,41 @@ def listar_edicoes(request: HttpRequest) -> JsonResponse:
     return JsonResponse(payload, status=200, json_dumps_params=JSON_DUMPS_PARAMS)
 
 
+@extend_schema(
+    tags=["Edições"],
+    responses={
+        200: OpenApiResponse(description="Edição encontrada"),
+        404: OpenApiResponse(description="Edição não encontrada"),
+    },
+)
+def buscar_edicao(_: HttpRequest, edicao_id: str) -> JsonResponse:
+    """Buscar uma edição pelo identificador UUID.
+
+    Args:
+        _ (HttpRequest): Requisição GET.
+        edicao_id (str): UUID da edição na URL.
+
+    Returns:
+        JsonResponse: Edição encontrada (200) ou não encontrada (404).
+
+    Raises:
+        Não propaga exceções: falhas são convertidas em resposta JSON.
+    """
+    edicao = _obter_edicao(edicao_id)
+    if edicao is None:
+        return JsonResponse(
+            {"error": "Edição não encontrada"},
+            status=404,
+            json_dumps_params=_JSON,
+        )
+
+    return JsonResponse(
+        _serializar_edicao(edicao),
+        status=200,
+        json_dumps_params=_JSON,
+    )
+
+
 @csrf_exempt
 @extend_schema(
     tags=["Edições"],
@@ -472,6 +507,13 @@ def edicoes(request: HttpRequest) -> JsonResponse:
 
 @csrf_exempt
 @extend_schema_view(
+    get=extend_schema(
+        tags=["Edições"],
+        responses={
+            200: OpenApiResponse(description="Edição encontrada"),
+            404: OpenApiResponse(description="Edição não encontrada"),
+        },
+    ),
     put=extend_schema(
         tags=["Edições"],
         request=_schema_update_request("UpdateEdicaoRequestView"),
@@ -482,13 +524,13 @@ def edicoes(request: HttpRequest) -> JsonResponse:
         responses={204: OpenApiResponse(description="Edição removida")},
     ),
 )
-@api_view(["PUT", "DELETE"])
+@api_view(["GET", "PUT", "DELETE"])
 @permission_classes([IsAuthenticated])
 def edicao_por_id(request: HttpRequest, edicao_id: str) -> JsonResponse:
-    """Despachar atualização ou exclusão em ``/api/edicoes/<uuid>/``.
+    """Despachar consulta, atualização ou exclusão em ``/api/edicoes/<uuid>/``.
 
     Args:
-        request (HttpRequest): Requisição HTTP ``PUT`` ou ``DELETE``.
+        request (HttpRequest): Requisição HTTP ``GET``, ``PUT`` ou ``DELETE``.
         edicao_id (str): UUID da edição na URL.
 
     Returns:
@@ -497,6 +539,8 @@ def edicao_por_id(request: HttpRequest, edicao_id: str) -> JsonResponse:
     Raises:
         Não propaga exceções: handlers encapsulam erros em respostas HTTP.
     """
+    if request.method == "GET":
+        return buscar_edicao(request, str(edicao_id))
     if request.method == "PUT":
         return atualizar_edicao(request, str(edicao_id))
     return deletar_edicao(request, str(edicao_id))

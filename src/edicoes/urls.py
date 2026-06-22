@@ -1,7 +1,7 @@
 """
 Mapeamento de rotas HTTP do app de edições.
 
-Expõe endpoints de cadastro, listagem, atualização e exclusão sob ``/api/``.
+Expõe endpoints de cadastro, listagem, consulta, atualização e exclusão sob ``/api/``.
 """
 
 from django.urls import path
