@@ -470,13 +470,13 @@ def buscar_edicao(_: HttpRequest, edicao_id: str) -> JsonResponse:
         return JsonResponse(
             {"error": "Edição não encontrada"},
             status=404,
-            json_dumps_params=JSON_DUMPS_PARAMS,
+            json_dumps_params=_JSON,
         )
 
     return JsonResponse(
         _serializar_edicao(edicao),
         status=200,
-        json_dumps_params=JSON_DUMPS_PARAMS,
+        json_dumps_params=_JSON,
     )
 
 
