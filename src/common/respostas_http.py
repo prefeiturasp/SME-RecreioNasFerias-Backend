@@ -38,3 +38,16 @@ def resposta_paginacao_invalida() -> JsonResponse:
         status=400,
         json_dumps_params=JSON_DUMPS_PARAMS,
     )
+
+
+def resposta_edicao_nao_encontrada() -> JsonResponse:
+    """Retornar erro padronizado para edição inexistente.
+
+    Returns:
+        JsonResponse: Corpo com mensagem de erro e status 404.
+    """
+    return JsonResponse(
+        {"error": "Edição não encontrada"},
+        status=404,
+        json_dumps_params=JSON_DUMPS_PARAMS,
+    )

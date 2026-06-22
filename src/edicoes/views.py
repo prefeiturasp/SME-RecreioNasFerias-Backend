@@ -28,7 +28,12 @@ from common.paginacao import (
     schema_resposta_lista_paginada,
     serializar_lista_paginada,
 )
-from common.respostas_http import JSON_DUMPS_PARAMS, resposta_erro_interno
+from common.respostas_http import (
+    JSON_DUMPS_PARAMS,
+    resposta_edicao_nao_encontrada,
+    resposta_erro_interno,
+    resposta_paginacao_invalida,
+)
 from edicoes.models import Edicao
 
 _ERROS_PERSISTENCIA = (DatabaseError, TypeError, ValueError)
@@ -327,11 +332,7 @@ def listar_edicoes(request: HttpRequest) -> JsonResponse:
         _serializar_edicao,
     )
     if payload is None:
-        return JsonResponse(
-            {"error": "Parâmetros de paginação inválidos"},
-            status=400,
-            json_dumps_params=JSON_DUMPS_PARAMS,
-        )
+        return resposta_paginacao_invalida()
     return JsonResponse(payload, status=200, json_dumps_params=JSON_DUMPS_PARAMS)
 
 
@@ -357,16 +358,12 @@ def buscar_edicao(_: HttpRequest, edicao_id: str) -> JsonResponse:
     """
     edicao = _obter_edicao(edicao_id)
     if edicao is None:
-        return JsonResponse(
-            {"error": "Edição não encontrada"},
-            status=404,
-            json_dumps_params=_JSON,
-        )
+        return resposta_edicao_nao_encontrada()
 
     return JsonResponse(
         _serializar_edicao(edicao),
         status=200,
-        json_dumps_params=_JSON,
+        json_dumps_params=JSON_DUMPS_PARAMS,
     )
 
 
@@ -398,11 +395,7 @@ def atualizar_edicao(request: HttpRequest, edicao_id: str) -> JsonResponse:
     """
     edicao = _obter_edicao(edicao_id)
     if edicao is None:
-        return JsonResponse(
-            {"error": "Edição não encontrada"},
-            status=404,
-            json_dumps_params=JSON_DUMPS_PARAMS,
-        )
+        return resposta_edicao_nao_encontrada()
 
     try:
         corpo = json.loads(request.body)
@@ -460,11 +453,7 @@ def deletar_edicao(_: HttpRequest, edicao_id: str) -> JsonResponse:
     """
     edicao = _obter_edicao(edicao_id)
     if edicao is None:
-        return JsonResponse(
-            {"error": "Edição não encontrada"},
-            status=404,
-            json_dumps_params=JSON_DUMPS_PARAMS,
-        )
+        return resposta_edicao_nao_encontrada()
 
     edicao.delete()
     return JsonResponse({}, status=204, json_dumps_params=JSON_DUMPS_PARAMS)
