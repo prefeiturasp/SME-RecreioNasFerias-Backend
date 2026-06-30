@@ -23,9 +23,11 @@ check_untyped_defs = true
 disallow_incomplete_defs = true
 files = [
     "src/edicoes",
+    "src/polos_parceiros",
     "src/common/paginacao.py",
     "src/common/respostas_http.py",
     "tests/edicoes",
+    "tests/polos_parceiros",
     "tests/common",
     "scripts",
 ]

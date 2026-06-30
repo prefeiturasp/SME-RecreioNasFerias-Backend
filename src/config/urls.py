@@ -23,4 +23,5 @@ urlpatterns = [
     ),
     path("api/", include("usuarios.urls")),
     path("api/", include("edicoes.urls")),
+    path("api/", include("polos_parceiros.urls")),
 ]

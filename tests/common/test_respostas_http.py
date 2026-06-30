@@ -9,6 +9,7 @@ from common.respostas_http import (
     resposta_edicao_nao_encontrada,
     resposta_erro_interno,
     resposta_paginacao_invalida,
+    resposta_polo_parceiro_nao_encontrado,
 )
 
 
@@ -43,6 +44,16 @@ class RespostasHttpTests(SimpleTestCase):
         self.assertEqual(
             json.loads(resposta.content),
             {"error": "Edição não encontrada"},
+        )
+
+    def test_resposta_polo_parceiro_nao_encontrado_retorna_404(self) -> None:
+        """Garante mensagem padronizada para polo parceiro inexistente."""
+        resposta = resposta_polo_parceiro_nao_encontrado()
+
+        self.assertEqual(resposta.status_code, 404)
+        self.assertEqual(
+            json.loads(resposta.content),
+            {"error": "Polo parceiro não encontrado"},
         )
 
     def test_json_dumps_params_deve_preservar_acentuacao(self) -> None:
