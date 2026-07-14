@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
     """Inclui status ``ativo``/``inativo`` com padrão ``ativo``."""
 
     dependencies = [
-        ("polos_parceiros", "0001_initial"),
+        ("polos", "0001_initial"),
     ]
 
     operations = [

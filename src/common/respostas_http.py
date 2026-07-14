@@ -53,14 +53,14 @@ def resposta_edicao_nao_encontrada() -> JsonResponse:
     )
 
 
-def resposta_polo_parceiro_nao_encontrado() -> JsonResponse:
-    """Retornar erro padronizado para polo parceiro inexistente.
+def resposta_polo_nao_encontrado() -> JsonResponse:
+    """Retornar erro padronizado para polo inexistente.
 
     Returns:
         JsonResponse: Corpo com mensagem de erro e status 404.
     """
     return JsonResponse(
-        {"error": "Polo parceiro não encontrado"},
+        {"error": "Polo não encontrado"},
         status=404,
         json_dumps_params=JSON_DUMPS_PARAMS,
     )

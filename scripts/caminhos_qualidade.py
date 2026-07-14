@@ -9,17 +9,17 @@ from __future__ import annotations
 
 TESTES_COMMON = "tests/common"
 TESTES_EDICOES = "tests/edicoes"
-TESTES_POLOS_PARCEIROS = "tests/polos_parceiros"
+TESTES_POLOS = "tests/polos"
 TESTES_SCRIPTS = "tests/scripts"
 TESTES_EDICOES_VIEWS = "tests/edicoes/test_views.py"
 TESTES_EDICOES_MODELS = "tests/edicoes/test_models.py"
-TESTES_POLOS_PARCEIROS_VIEWS = "tests/polos_parceiros/test_views.py"
-TESTES_POLOS_PARCEIROS_MODELS = "tests/polos_parceiros/test_models.py"
+TESTES_POLOS_VIEWS = "tests/polos/test_views.py"
+TESTES_POLOS_MODELS = "tests/polos/test_models.py"
 TESTES_PEP440 = "tests/scripts/test_pep440_versions.py"
 COMMON_PAGINACAO = "src/common/paginacao.py"
 COMMON_RESPOSTAS_HTTP = "src/common/respostas_http.py"
 SRC_EDICOES = "src/edicoes"
-SRC_POLOS_PARCEIROS = "src/polos_parceiros"
+SRC_POLOS = "src/polos"
 SRC_USUARIOS_URLS = "src/usuarios/urls.py"
 SCRIPTS = "scripts"
 
@@ -38,11 +38,11 @@ def comando_pydocstyle(executavel: str) -> list[str]:
         "-m",
         "pydocstyle",
         SRC_EDICOES,
-        SRC_POLOS_PARCEIROS,
+        SRC_POLOS,
         COMMON_PAGINACAO,
         COMMON_RESPOSTAS_HTTP,
         TESTES_EDICOES,
-        TESTES_POLOS_PARCEIROS,
+        TESTES_POLOS,
         TESTES_COMMON,
         TESTES_PEP440,
         SCRIPTS,
@@ -63,12 +63,12 @@ def comando_flake8(executavel: str) -> list[str]:
         "-m",
         "flake8",
         SRC_EDICOES,
-        SRC_POLOS_PARCEIROS,
+        SRC_POLOS,
         SRC_USUARIOS_URLS,
         COMMON_PAGINACAO,
         COMMON_RESPOSTAS_HTTP,
         TESTES_EDICOES,
-        TESTES_POLOS_PARCEIROS,
+        TESTES_POLOS,
         TESTES_COMMON,
     ]
 
@@ -88,13 +88,13 @@ def comando_pytest(executavel: str) -> list[str]:
         "pytest",
         TESTES_EDICOES_VIEWS,
         TESTES_EDICOES_MODELS,
-        TESTES_POLOS_PARCEIROS_VIEWS,
-        TESTES_POLOS_PARCEIROS_MODELS,
+        TESTES_POLOS_VIEWS,
+        TESTES_POLOS_MODELS,
         TESTES_COMMON,
         TESTES_SCRIPTS,
         "--cov=edicoes.views",
-        "--cov=polos_parceiros.views",
-        "--cov=polos_parceiros.models",
+        "--cov=polos.views",
+        "--cov=polos.models",
         "--cov=common.paginacao",
         "--cov=common.respostas_http",
         "--cov=caminhos_qualidade",

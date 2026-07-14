@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-    """Migração inicial do app ``polos_parceiros``."""
+    """Migração inicial do app ``polos``."""
 
     initial = True
 

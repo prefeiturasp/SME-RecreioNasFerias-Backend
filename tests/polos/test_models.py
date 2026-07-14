@@ -3,16 +3,19 @@
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from polos_parceiros.models import (
-    PoloParceiro,
+from polos.models import (
+    GESTAO_DIRETA,
+    GESTAO_PARCEIRA,
+    Polo,
     STATUS_ATIVO,
     STATUS_INATIVO,
-    TIPO_POLO_PARCEIRO,
+    TIPO_POLO_OFICIAL,
+    TIPO_POLO_PENDENTE,
 )
 
 
-class PoloParceiroModelTests(TestCase):
-    """Garante regras de domínio e metadados do modelo ``PoloParceiro``."""
+class PoloModelTests(TestCase):
+    """Garante regras de domínio e metadados do modelo ``Polo``."""
 
     def _dados_validos(self, **sobrescrever: object) -> dict[str, object]:
         """Montar payload válido para criação de polo parceiro nos testes.
@@ -38,26 +41,27 @@ class PoloParceiroModelTests(TestCase):
         dados.update(sobrescrever)
         return dados
 
-    def _criar_polo_valido(self, **sobrescrever: object) -> PoloParceiro:
+    def _criar_polo_valido(self, **sobrescrever: object) -> Polo:
         """Cria e persiste um polo parceiro válido para os cenários de teste.
 
         Args:
             **sobrescrever: Campos do modelo a substituir no payload base.
 
         Returns:
-            PoloParceiro: Instância salva no banco com dados válidos.
+            Polo: Instância salva no banco com dados válidos.
 
         Raises:
             ValidationError: Se algum campo informado for inválido.
         """
-        return PoloParceiro.objects.create(**self._dados_validos(**sobrescrever))
+        return Polo.objects.create(**self._dados_validos(**sobrescrever))
 
-    def test_cria_polo_parceiro_com_campos_obrigatorios(self) -> None:
+    def test_cria_polo_com_campos_obrigatorios(self) -> None:
         """Garante criação com todos os campos obrigatórios preenchidos."""
         polo = self._criar_polo_valido()
 
         self.assertIsNotNone(polo.id)
-        self.assertEqual(polo.tipo, TIPO_POLO_PARCEIRO)
+        self.assertEqual(polo.tipo, TIPO_POLO_PENDENTE)
+        self.assertEqual(polo.gestao, GESTAO_PARCEIRA)
         self.assertEqual(polo.nome_polo, "Polo Centro")
         self.assertEqual(polo.status, STATUS_ATIVO)
 
@@ -73,7 +77,7 @@ class PoloParceiroModelTests(TestCase):
 
         with self.assertRaisesMessage(
             ValidationError,
-            "Erro: já existe polo parceiro com o nome cadastrado",
+            "Erro: já existe polo com o nome cadastrado",
         ):
             self._criar_polo_valido(nome_polo="polo centro")
 
@@ -83,7 +87,7 @@ class PoloParceiroModelTests(TestCase):
             ValidationError,
             "Erro: a quantidade máxima de alunos deve ser maior que zero",
         ):
-            PoloParceiro.objects.create(
+            Polo.objects.create(
                 **self._dados_validos(
                     nome_polo="Polo Quantidade Zero",
                     quantidade_maxima_alunos=0,
@@ -96,7 +100,7 @@ class PoloParceiroModelTests(TestCase):
             ValidationError,
             "Erro: informe um e-mail válido para o polo",
         ):
-            PoloParceiro.objects.create(
+            Polo.objects.create(
                 **self._dados_validos(
                     nome_polo="Polo Email Inválido",
                     email_polo="email-invalido",
@@ -109,7 +113,7 @@ class PoloParceiroModelTests(TestCase):
             ValidationError,
             "Erro: o campo nome da OSC é obrigatório",
         ):
-            PoloParceiro.objects.create(
+            Polo.objects.create(
                 **self._dados_validos(
                     nome_polo="Polo Sem OSC",
                     nome_osc="",
@@ -122,14 +126,31 @@ class PoloParceiroModelTests(TestCase):
 
         self.assertEqual(polo.observacoes_gerais, "")
 
-    def test_tipo_e_sempre_parceiro(self) -> None:
-        """Garante que o tipo do polo seja sempre ``Parceiro``."""
+    def test_tipo_padrao_e_pendente(self) -> None:
+        """Garante que novos polos sejam persistidos com tipo Pendente."""
         polo = self._criar_polo_valido()
-        polo.tipo = "Outro"
+
+        self.assertEqual(polo.tipo, TIPO_POLO_PENDENTE)
+
+    def test_permite_alterar_tipo_para_opcoes_validas(self) -> None:
+        """Garante persistência das opções oficiais de tipo de polo."""
+        polo = self._criar_polo_valido()
+        polo.tipo = TIPO_POLO_OFICIAL
         polo.save()
 
         polo.refresh_from_db()
-        self.assertEqual(polo.tipo, TIPO_POLO_PARCEIRO)
+        self.assertEqual(polo.tipo, TIPO_POLO_OFICIAL)
+
+    def test_nao_permite_tipo_invalido(self) -> None:
+        """Garante bloqueio de tipo fora das opções permitidas."""
+        polo = self._criar_polo_valido()
+        polo.tipo = "Sede"
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Erro: o tipo deve ser Pendente, Polo oficial ou Polo reserva",
+        ):
+            polo.save()
 
     def test_status_padrao_e_ativo_na_criacao(self) -> None:
         """Garante que novos polos sejam persistidos com status ativo."""
@@ -162,3 +183,61 @@ class PoloParceiroModelTests(TestCase):
 
         polo.refresh_from_db()
         self.assertEqual(polo.status, STATUS_ATIVO)
+
+    def test_gestao_padrao_e_parceira_na_criacao(self) -> None:
+        """Garante que novos polos manuais sejam persistidos com gestão Parceira."""
+        polo = self._criar_polo_valido(nome_polo="Polo Gestão Padrão")
+
+        self.assertEqual(polo.gestao, GESTAO_PARCEIRA)
+
+    def test_permite_gestao_direta(self) -> None:
+        """Garante persistência de polos com gestão Direta (integração)."""
+        polo = self._criar_polo_valido(
+            nome_polo="Polo Gestão Direta",
+            gestao=GESTAO_DIRETA,
+            codigo_eol="019999",
+        )
+
+        self.assertEqual(polo.gestao, GESTAO_DIRETA)
+        self.assertEqual(polo.codigo_eol, "019999")
+        self.assertEqual(polo.tipo, TIPO_POLO_PENDENTE)
+
+    def test_direta_exige_codigo_eol(self) -> None:
+        """Garante bloqueio de gestão Direta sem código EOL."""
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Erro: o código EOL é obrigatório para polos de gestão Direta",
+        ):
+            Polo.objects.create(
+                **self._dados_validos(
+                    nome_polo="Polo Direta Sem EOL",
+                    gestao=GESTAO_DIRETA,
+                    codigo_eol="",
+                ),
+            )
+
+    def test_parceira_exige_campos_complementares(self) -> None:
+        """Garante obrigatoriedade dos campos específicos de gestão Parceira."""
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Erro: o campo CEP é obrigatório",
+        ):
+            Polo.objects.create(
+                **self._dados_validos(
+                    nome_polo="Polo Parceira Sem CEP",
+                    cep="",
+                ),
+            )
+
+    def test_nao_permite_gestao_invalida(self) -> None:
+        """Garante bloqueio de persistência com gestão fora dos valores permitidos."""
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Erro: a gestão deve ser Parceira ou Direta",
+        ):
+            Polo.objects.create(
+                **self._dados_validos(
+                    nome_polo="Polo Gestão Inválida",
+                    gestao="Indireta",
+                ),
+            )

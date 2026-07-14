@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "usuarios.apps.UsuariosConfig",
     "edicoes.apps.EdicoesConfig",
-    "polos_parceiros.apps.PolosParceirosConfig",
+    "polos.apps.PolosConfig",
     "django.contrib.auth",
     "django.contrib.sessions",
     "django.contrib.messages",
