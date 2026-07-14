@@ -12,6 +12,7 @@ from infrastructure.services.escolas_integracao_service import (
     EscolasIntegracaoService,
     SIGLAS_TIPO_UE_RECREIO,
     _inteiro_do_ambiente,
+    codigo_cargo_diretor_escola,
 )
 
 
@@ -32,6 +33,31 @@ class InteiroDoAmbienteTests(SimpleTestCase):
         """Garante que valores zero/negativos viram 1."""
         with patch.dict("os.environ", {"VAR_INT_TESTE": "0"}, clear=False):
             self.assertEqual(_inteiro_do_ambiente("VAR_INT_TESTE", 7), 1)
+
+
+class CodigoCargoDiretorEscolaTests(SimpleTestCase):
+    """Valida origem configurável do código de cargo Diretor de Escola."""
+
+    def test_usa_padrao_documentado_quando_env_ausente(self) -> None:
+        """Garante fallback 3360 (DIRETOR DE ESCOLA no catálogo SME)."""
+        with patch.dict(
+            "os.environ",
+            {"AUTH_API_CODIGO_CARGO_DIRETOR_ESCOLA": ""},
+            clear=False,
+        ):
+            self.assertEqual(
+                codigo_cargo_diretor_escola(),
+                CODIGO_CARGO_DIRETOR_ESCOLA,
+            )
+
+    def test_le_valor_do_ambiente(self) -> None:
+        """Garante override via AUTH_API_CODIGO_CARGO_DIRETOR_ESCOLA."""
+        with patch.dict(
+            "os.environ",
+            {"AUTH_API_CODIGO_CARGO_DIRETOR_ESCOLA": "9999"},
+            clear=False,
+        ):
+            self.assertEqual(codigo_cargo_diretor_escola(), 9999)
 
 
 class EscolasIntegracaoServiceTests(SimpleTestCase):

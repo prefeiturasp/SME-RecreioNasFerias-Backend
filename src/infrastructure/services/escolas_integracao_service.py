@@ -15,7 +15,12 @@ from typing import Any
 import requests  # type: ignore[import-untyped]
 from requests import exceptions as excecoes_requests
 
-CODIGO_CARGO_DIRETOR_ESCOLA = 3360
+# Origem: campo ``codigoCargo`` do catálogo oficial de cargos SME
+# (retorno da API SIGPAE / CoreSSO — ``nomeCargo`` = ``DIRETOR DE ESCOLA``).
+# Mesmo código seedado em ``usuarios.migrations.0008_cargopermitidomodel``.
+# Usado em ``GET /api/escolas/{eol}/funcionarios/cargos/{codigo}``.
+# Configurável no ``.env`` via ``AUTH_API_CODIGO_CARGO_DIRETOR_ESCOLA``.
+_CODIGO_CARGO_DIRETOR_ESCOLA_PADRAO = 3360
 
 SIGLAS_TIPO_UE_RECREIO = frozenset(
     {
@@ -53,6 +58,22 @@ def _inteiro_do_ambiente(nome: str, padrao: int) -> int:
         return max(1, int(bruto))
     except ValueError:
         return padrao
+
+
+def codigo_cargo_diretor_escola() -> int:
+    """Código do cargo Diretor de Escola usado na SME Integração API.
+
+    Lê ``AUTH_API_CODIGO_CARGO_DIRETOR_ESCOLA`` do ambiente (``.env``);
+    se ausente, usa o padrão documentado do catálogo SME (3360).
+    """
+    return _inteiro_do_ambiente(
+        "AUTH_API_CODIGO_CARGO_DIRETOR_ESCOLA",
+        _CODIGO_CARGO_DIRETOR_ESCOLA_PADRAO,
+    )
+
+
+# Alias do padrão documentado (útil em asserts de teste).
+CODIGO_CARGO_DIRETOR_ESCOLA = _CODIGO_CARGO_DIRETOR_ESCOLA_PADRAO
 
 
 class EscolasIntegracaoService:
@@ -234,13 +255,15 @@ class EscolasIntegracaoService:
     def obter_nome_diretor(
         self,
         codigo_eol: str,
-        codigo_cargo: int = CODIGO_CARGO_DIRETOR_ESCOLA,
+        codigo_cargo: int | None = None,
     ) -> str:
         """Consulta o nome do diretor da unidade pelo cargo informado.
 
         Args:
             codigo_eol: Código EOL da unidade.
-            codigo_cargo: Código do cargo (padrão 3360 — Diretor de Escola).
+            codigo_cargo: Código do cargo. Se ``None``, usa
+                ``codigo_cargo_diretor_escola()`` (``.env`` ou padrão 3360 —
+                Diretor de Escola no catálogo SME).
 
         Returns:
             Nome do primeiro servidor encontrado ou string vazia se ausente
@@ -252,8 +275,13 @@ class EscolasIntegracaoService:
         """
         self._garantir_configuracao()
         codigo = str(codigo_eol).strip()
+        cargo = (
+            codigo_cargo_diretor_escola()
+            if codigo_cargo is None
+            else codigo_cargo
+        )
         url = (
-            f"{self.base_url}/api/escolas/{codigo}/funcionarios/cargos/{codigo_cargo}"
+            f"{self.base_url}/api/escolas/{codigo}/funcionarios/cargos/{cargo}"
         )
         resposta = self._requisicao("GET", url)
 
@@ -449,7 +477,8 @@ class EscolasIntegracaoService:
         Fluxo:
             1. ``GET /api/escolas/todas-unidades``
             2. Filtro pelas siglas de tipo de UE do programa
-            3. Para cada unidade: dados + diretor (cargo 3360), em paralelo
+            3. Para cada unidade: dados + diretor
+               (``codigo_cargo_diretor_escola()``), em paralelo
 
         Args:
             limite: Quando informado, limita a quantidade de unidades
