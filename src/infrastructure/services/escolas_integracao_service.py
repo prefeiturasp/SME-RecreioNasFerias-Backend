@@ -306,58 +306,97 @@ class EscolasIntegracaoService:
         digitos = digitos.zfill(8)[-8:]
         return f"{digitos[:5]}-{digitos[5:]}"
 
+    @staticmethod
+    def _texto(valor: Any) -> str:
+        """Converte valor em string já sem espaços nas bordas."""
+        return str(valor or "").strip()
+
+    @staticmethod
+    def _escolher_campo(
+        dados: dict[str, Any] | None,
+        chave_dados: str,
+        unidade: dict[str, Any],
+        chave_unidade: str,
+    ) -> str:
+        """Prefere o campo detalhado; usa o básico de ``todas-unidades``."""
+        if dados and dados.get(chave_dados):
+            return EscolasIntegracaoService._texto(dados.get(chave_dados))
+        return EscolasIntegracaoService._texto(unidade.get(chave_unidade))
+
+    def _consultar_dados_unidade_seguro(
+        self,
+        codigo_eol: str,
+    ) -> dict[str, Any] | None:
+        """Consulta dados da unidade sem propagar falha pontual."""
+        try:
+            return self.obter_dados_unidade(codigo_eol)
+        except EscolasIntegracaoIndisponivelError:
+            return None
+
+    def _consultar_diretor_seguro(self, codigo_eol: str) -> str:
+        """Consulta o diretor sem propagar falha pontual."""
+        try:
+            return self.obter_nome_diretor(codigo_eol)
+        except EscolasIntegracaoIndisponivelError:
+            return ""
+
+    def _payload_basico_unidade(self, unidade: dict[str, Any]) -> dict[str, Any]:
+        """Monta payload mínimo a partir dos dados de ``todas-unidades``."""
+        return {
+            "codigoEol": self._texto(unidade.get("codigoEscola")),
+            "nomeEscola": self._texto(unidade.get("nomeEscola")),
+            "siglaTipoEscola": self._texto(unidade.get("siglaTipoEscola")),
+            "nomeDre": self._texto(unidade.get("nomeDRE")),
+            "siglaDre": self._texto(unidade.get("siglaDRE")),
+            "codigoDre": self._texto(unidade.get("codigoDRE")),
+            "email": "",
+            "telefone": "",
+            "cep": "",
+            "endereco": "",
+            "nomeDiretor": "",
+            "gestao": "Direta",
+        }
+
     def _enriquecer_unidade(self, unidade: dict[str, Any]) -> dict[str, Any]:
         """Agrega dados detalhados e nome do diretor a uma unidade filtrada.
 
         Falhas pontuais na API de dados/diretor não interrompem a sincronização:
         nesse caso, usa os dados básicos de ``todas-unidades``.
         """
-        codigo_eol = str(unidade.get("codigoEscola") or "").strip()
+        codigo_eol = self._texto(unidade.get("codigoEscola"))
         dados: dict[str, Any] | None = None
         nome_diretor = ""
 
         if codigo_eol:
-            try:
-                dados = self.obter_dados_unidade(codigo_eol)
-            except EscolasIntegracaoIndisponivelError:
-                dados = None
-            try:
-                nome_diretor = self.obter_nome_diretor(codigo_eol)
-            except EscolasIntegracaoIndisponivelError:
-                nome_diretor = ""
-
-        sigla_tipo = str(
-            (dados or {}).get("siglaTipoEscola")
-            or unidade.get("siglaTipoEscola")
-            or "",
-        ).strip()
-        nome_escola = str(
-            (dados or {}).get("nome")
-            or unidade.get("nomeEscola")
-            or "",
-        ).strip()
-        email = str((dados or {}).get("email") or "").strip()
-        telefone = str((dados or {}).get("telefone") or "").strip()
-        cep = self._formatar_cep((dados or {}).get("cep")) if dados else ""
-        endereco = self._montar_endereco(dados) if dados else ""
+            dados = self._consultar_dados_unidade_seguro(codigo_eol)
+            nome_diretor = self._consultar_diretor_seguro(codigo_eol)
 
         return {
             "codigoEol": codigo_eol,
-            "nomeEscola": nome_escola,
-            "siglaTipoEscola": sigla_tipo,
-            "nomeDre": str(
-                (dados or {}).get("nomeDRE") or unidade.get("nomeDRE") or "",
-            ).strip(),
-            "siglaDre": str(
-                (dados or {}).get("siglaDRE") or unidade.get("siglaDRE") or "",
-            ).strip(),
-            "codigoDre": str(
-                (dados or {}).get("codigoDRE") or unidade.get("codigoDRE") or "",
-            ).strip(),
-            "email": email,
-            "telefone": telefone,
-            "cep": cep,
-            "endereco": endereco,
+            "nomeEscola": self._escolher_campo(
+                dados,
+                "nome",
+                unidade,
+                "nomeEscola",
+            ),
+            "siglaTipoEscola": self._escolher_campo(
+                dados,
+                "siglaTipoEscola",
+                unidade,
+                "siglaTipoEscola",
+            ),
+            "nomeDre": self._escolher_campo(dados, "nomeDRE", unidade, "nomeDRE"),
+            "siglaDre": self._escolher_campo(dados, "siglaDRE", unidade, "siglaDRE"),
+            "codigoDre": self._escolher_campo(
+                dados,
+                "codigoDRE",
+                unidade,
+                "codigoDRE",
+            ),
+            "email": self._texto((dados or {}).get("email")),
+            "telefone": self._texto((dados or {}).get("telefone")),
+            "cep": self._formatar_cep((dados or {}).get("cep")) if dados else "",
+            "endereco": self._montar_endereco(dados) if dados else "",
             "nomeDiretor": nome_diretor,
             "gestao": "Direta",
         }
@@ -390,32 +429,7 @@ class EscolasIntegracaoService:
                     enriquecidas.append(futuro.result())
                 except Exception:
                     # Garante persistência mínima mesmo com falha inesperada.
-                    enriquecidas.append(
-                        {
-                            "codigoEol": str(
-                                unidade_origem.get("codigoEscola") or "",
-                            ).strip(),
-                            "nomeEscola": str(
-                                unidade_origem.get("nomeEscola") or "",
-                            ).strip(),
-                            "siglaTipoEscola": str(
-                                unidade_origem.get("siglaTipoEscola") or "",
-                            ).strip(),
-                            "nomeDre": str(unidade_origem.get("nomeDRE") or "").strip(),
-                            "siglaDre": str(
-                                unidade_origem.get("siglaDRE") or "",
-                            ).strip(),
-                            "codigoDre": str(
-                                unidade_origem.get("codigoDRE") or "",
-                            ).strip(),
-                            "email": "",
-                            "telefone": "",
-                            "cep": "",
-                            "endereco": "",
-                            "nomeDiretor": "",
-                            "gestao": "Direta",
-                        },
-                    )
+                    enriquecidas.append(self._payload_basico_unidade(unidade_origem))
 
         enriquecidas.sort(
             key=lambda item: (
