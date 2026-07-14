@@ -10,17 +10,22 @@ from __future__ import annotations
 
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 import requests  # type: ignore[import-untyped]
 from requests import exceptions as excecoes_requests
 
-# Origem: campo ``codigoCargo`` do catálogo oficial de cargos SME
-# (retorno da API SIGPAE / CoreSSO — ``nomeCargo`` = ``DIRETOR DE ESCOLA``).
-# Mesmo código seedado em ``usuarios.migrations.0008_cargopermitidomodel``.
-# Usado em ``GET /api/escolas/{eol}/funcionarios/cargos/{codigo}``.
-# Configurável no ``.env`` via ``AUTH_API_CODIGO_CARGO_DIRETOR_ESCOLA``.
+# Fallback alinhado a ``config/escolas_integracao.properties``
+# (``codigo.cargo.diretor.escola``). Ver documentação nesse arquivo.
 _CODIGO_CARGO_DIRETOR_ESCOLA_PADRAO = 3360
+_CHAVE_CODIGO_CARGO_DIRETOR = "codigo.cargo.diretor.escola"
+_ARQUIVO_PROPERTIES = (
+    Path(__file__).resolve().parents[2]
+    / "config"
+    / "escolas_integracao.properties"
+)
 
 SIGLAS_TIPO_UE_RECREIO = frozenset(
     {
@@ -60,16 +65,38 @@ def _inteiro_do_ambiente(nome: str, padrao: int) -> int:
         return padrao
 
 
+def _carregar_properties(caminho: Path) -> dict[str, str]:
+    """Lê arquivo ``.properties`` no formato ``chave=valor`` (ignora ``#``)."""
+    propriedades: dict[str, str] = {}
+    if not caminho.is_file():
+        return propriedades
+    for linha in caminho.read_text(encoding="utf-8").splitlines():
+        bruto = linha.strip()
+        if not bruto or bruto.startswith("#") or "=" not in bruto:
+            continue
+        chave, valor = bruto.split("=", 1)
+        propriedades[chave.strip()] = valor.strip()
+    return propriedades
+
+
+@lru_cache(maxsize=1)
 def codigo_cargo_diretor_escola() -> int:
     """Código do cargo Diretor de Escola usado na SME Integração API.
 
-    Lê ``AUTH_API_CODIGO_CARGO_DIRETOR_ESCOLA`` do ambiente (``.env``);
-    se ausente, usa o padrão documentado do catálogo SME (3360).
+    Lê ``codigo.cargo.diretor.escola`` de
+    ``config/escolas_integracao.properties``. Se a chave ou o arquivo
+    estiverem ausentes/inválidos, usa o padrão documentado (3360).
     """
-    return _inteiro_do_ambiente(
-        "AUTH_API_CODIGO_CARGO_DIRETOR_ESCOLA",
-        _CODIGO_CARGO_DIRETOR_ESCOLA_PADRAO,
+    bruto = _carregar_properties(_ARQUIVO_PROPERTIES).get(
+        _CHAVE_CODIGO_CARGO_DIRETOR,
+        "",
     )
+    if not bruto:
+        return _CODIGO_CARGO_DIRETOR_ESCOLA_PADRAO
+    try:
+        return max(1, int(bruto))
+    except ValueError:
+        return _CODIGO_CARGO_DIRETOR_ESCOLA_PADRAO
 
 
 # Alias do padrão documentado (útil em asserts de teste).
@@ -262,7 +289,7 @@ class EscolasIntegracaoService:
         Args:
             codigo_eol: Código EOL da unidade.
             codigo_cargo: Código do cargo. Se ``None``, usa
-                ``codigo_cargo_diretor_escola()`` (``.env`` ou padrão 3360 —
+                ``codigo_cargo_diretor_escola()`` (properties ou padrão 3360 —
                 Diretor de Escola no catálogo SME).
 
         Returns:

@@ -11,6 +11,7 @@ from infrastructure.services.escolas_integracao_service import (
     EscolasIntegracaoIndisponivelError,
     EscolasIntegracaoService,
     SIGLAS_TIPO_UE_RECREIO,
+    _carregar_properties,
     _inteiro_do_ambiente,
     codigo_cargo_diretor_escola,
 )
@@ -36,28 +37,67 @@ class InteiroDoAmbienteTests(SimpleTestCase):
 
 
 class CodigoCargoDiretorEscolaTests(SimpleTestCase):
-    """Valida origem configurável do código de cargo Diretor de Escola."""
+    """Valida leitura do código via arquivo ``.properties``."""
 
-    def test_usa_padrao_documentado_quando_env_ausente(self) -> None:
-        """Garante fallback 3360 (DIRETOR DE ESCOLA no catálogo SME)."""
-        with patch.dict(
-            "os.environ",
-            {"AUTH_API_CODIGO_CARGO_DIRETOR_ESCOLA": ""},
-            clear=False,
+    def tearDown(self) -> None:
+        """Limpa cache entre testes que alteram o arquivo/mocked path."""
+        codigo_cargo_diretor_escola.cache_clear()
+
+    def test_le_valor_do_arquivo_properties(self) -> None:
+        """Garante leitura de ``codigo.cargo.diretor.escola`` no properties."""
+        self.assertEqual(
+            codigo_cargo_diretor_escola(),
+            CODIGO_CARGO_DIRETOR_ESCOLA,
+        )
+
+    def test_usa_padrao_quando_arquivo_ausente(self) -> None:
+        """Garante fallback 3360 quando o arquivo não existe."""
+        from pathlib import Path
+
+        with patch(
+            "infrastructure.services.escolas_integracao_service._ARQUIVO_PROPERTIES",
+            Path("/tmp/arquivo-inexistente-escolas.properties"),
         ):
+            codigo_cargo_diretor_escola.cache_clear()
             self.assertEqual(
                 codigo_cargo_diretor_escola(),
                 CODIGO_CARGO_DIRETOR_ESCOLA,
             )
 
-    def test_le_valor_do_ambiente(self) -> None:
-        """Garante override via AUTH_API_CODIGO_CARGO_DIRETOR_ESCOLA."""
-        with patch.dict(
-            "os.environ",
-            {"AUTH_API_CODIGO_CARGO_DIRETOR_ESCOLA": "9999"},
-            clear=False,
+    def test_usa_padrao_quando_valor_invalido(self) -> None:
+        """Garante fallback quando a chave não é inteira."""
+        with patch(
+            "infrastructure.services.escolas_integracao_service._carregar_properties",
+            return_value={"codigo.cargo.diretor.escola": "abc"},
         ):
-            self.assertEqual(codigo_cargo_diretor_escola(), 9999)
+            codigo_cargo_diretor_escola.cache_clear()
+            self.assertEqual(
+                codigo_cargo_diretor_escola(),
+                CODIGO_CARGO_DIRETOR_ESCOLA,
+            )
+
+    def test_carregar_properties_ignora_comentarios(self) -> None:
+        """Garante parser de chave=valor ignorando linhas ``#``."""
+        from pathlib import Path
+        from tempfile import NamedTemporaryFile
+
+        with NamedTemporaryFile(
+            "w",
+            suffix=".properties",
+            encoding="utf-8",
+            delete=False,
+        ) as tmp:
+            tmp.write("# comentario\n")
+            tmp.write("codigo.cargo.diretor.escola=9999\n")
+            caminho = Path(tmp.name)
+
+        try:
+            self.assertEqual(
+                _carregar_properties(caminho),
+                {"codigo.cargo.diretor.escola": "9999"},
+            )
+        finally:
+            caminho.unlink(missing_ok=True)
 
 
 class EscolasIntegracaoServiceTests(SimpleTestCase):
