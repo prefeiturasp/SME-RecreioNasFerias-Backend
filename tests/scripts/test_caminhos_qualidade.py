@@ -35,10 +35,10 @@ def test_comando_pydocstyle_deve_incluir_alvos_estaticos() -> None:
     comando = caminhos_qualidade.comando_pydocstyle("python")
 
     assert caminhos_qualidade.SRC_EDICOES in comando
-    assert caminhos_qualidade.SRC_POLOS_PARCEIROS in comando
+    assert caminhos_qualidade.SRC_POLOS in comando
     assert caminhos_qualidade.COMMON_PAGINACAO in comando
     assert caminhos_qualidade.TESTES_COMMON in comando
-    assert caminhos_qualidade.TESTES_POLOS_PARCEIROS in comando
+    assert caminhos_qualidade.TESTES_POLOS in comando
     assert caminhos_qualidade.SCRIPTS in comando
 
 
@@ -56,12 +56,12 @@ def test_comando_pytest_deve_incluir_cobertura_minima() -> None:
 
     assert caminhos_qualidade.TESTES_EDICOES_VIEWS in comando
     assert caminhos_qualidade.TESTES_EDICOES_MODELS in comando
-    assert caminhos_qualidade.TESTES_POLOS_PARCEIROS_VIEWS in comando
-    assert caminhos_qualidade.TESTES_POLOS_PARCEIROS_MODELS in comando
+    assert caminhos_qualidade.TESTES_POLOS_VIEWS in comando
+    assert caminhos_qualidade.TESTES_POLOS_MODELS in comando
     assert caminhos_qualidade.TESTES_SCRIPTS in comando
     assert "--cov=edicoes.views" in comando
-    assert "--cov=polos_parceiros.views" in comando
-    assert "--cov=polos_parceiros.models" in comando
+    assert "--cov=polos.views" in comando
+    assert "--cov=polos.models" in comando
     assert "--cov=common.respostas_http" in comando
     assert "--cov=caminhos_qualidade" in comando
     assert "--cov=verificar_qualidade" in comando
