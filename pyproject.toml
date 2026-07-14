@@ -24,6 +24,7 @@ disallow_incomplete_defs = true
 files = [
     "src/edicoes",
     "src/polos",
+    "src/infrastructure/services/escolas_integracao_service.py",
     "src/common/paginacao.py",
     "src/common/respostas_http.py",
     "tests/edicoes",

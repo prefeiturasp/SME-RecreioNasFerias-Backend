@@ -12,7 +12,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
-import requests
+import requests  # type: ignore[import-untyped]
 from requests import exceptions as excecoes_requests
 
 CODIGO_CARGO_DIRETOR_ESCOLA = 3360
