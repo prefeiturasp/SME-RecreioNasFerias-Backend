@@ -36,9 +36,11 @@ def test_comando_pydocstyle_deve_incluir_alvos_estaticos() -> None:
 
     assert caminhos_qualidade.SRC_EDICOES in comando
     assert caminhos_qualidade.SRC_POLOS in comando
+    assert caminhos_qualidade.SRC_INFRASTRUCTURE_ESCOLAS in comando
     assert caminhos_qualidade.COMMON_PAGINACAO in comando
     assert caminhos_qualidade.TESTES_COMMON in comando
     assert caminhos_qualidade.TESTES_POLOS in comando
+    assert caminhos_qualidade.TESTES_ESCOLA_INTEGRACAO in comando
     assert caminhos_qualidade.SCRIPTS in comando
 
 
@@ -47,6 +49,7 @@ def test_comando_flake8_deve_incluir_urls_de_usuarios() -> None:
     comando = caminhos_qualidade.comando_flake8("python")
 
     assert caminhos_qualidade.SRC_USUARIOS_URLS in comando
+    assert caminhos_qualidade.SRC_INFRASTRUCTURE_ESCOLAS in comando
     assert caminhos_qualidade.TESTES_COMMON in comando
 
 
@@ -56,12 +59,14 @@ def test_comando_pytest_deve_incluir_cobertura_minima() -> None:
 
     assert caminhos_qualidade.TESTES_EDICOES_VIEWS in comando
     assert caminhos_qualidade.TESTES_EDICOES_MODELS in comando
-    assert caminhos_qualidade.TESTES_POLOS_VIEWS in comando
-    assert caminhos_qualidade.TESTES_POLOS_MODELS in comando
+    assert caminhos_qualidade.TESTES_POLOS in comando
+    assert caminhos_qualidade.TESTES_ESCOLA_INTEGRACAO in comando
     assert caminhos_qualidade.TESTES_SCRIPTS in comando
     assert "--cov=edicoes.views" in comando
     assert "--cov=polos.views" in comando
     assert "--cov=polos.models" in comando
+    assert "--cov=polos.sincronizacao" in comando
+    assert "--cov=infrastructure.services.escolas_integracao_service" in comando
     assert "--cov=common.respostas_http" in comando
     assert "--cov=caminhos_qualidade" in comando
     assert "--cov=verificar_qualidade" in comando

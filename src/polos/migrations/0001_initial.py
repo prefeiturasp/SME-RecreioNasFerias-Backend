@@ -18,11 +18,17 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "atualizado_em",
-                    models.DateTimeField(auto_now=True, verbose_name="atualizado em"),
+                    models.DateTimeField(
+                        auto_now=True,
+                        verbose_name="atualizado em",
+                    ),
                 ),
                 (
                     "criado_em",
-                    models.DateTimeField(auto_now_add=True, verbose_name="criado em"),
+                    models.DateTimeField(
+                        auto_now_add=True,
+                        verbose_name="criado em",
+                    ),
                 ),
                 (
                     "id",
@@ -44,7 +50,10 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "nome_osc",
-                    models.CharField(max_length=255, verbose_name="nome da OSC"),
+                    models.CharField(
+                        max_length=255,
+                        verbose_name="nome da OSC",
+                    ),
                 ),
                 (
                     "nome_polo",
@@ -54,10 +63,16 @@ class Migration(migrations.Migration):
                         verbose_name="nome do polo",
                     ),
                 ),
-                ("dre", models.CharField(max_length=255, verbose_name="DRE")),
+                (
+                    "dre",
+                    models.CharField(max_length=255, verbose_name="DRE"),
+                ),
                 (
                     "tipo_ue",
-                    models.CharField(max_length=255, verbose_name="tipo de UE"),
+                    models.CharField(
+                        max_length=255,
+                        verbose_name="tipo de UE",
+                    ),
                 ),
                 (
                     "quantidade_maxima_alunos",
@@ -65,22 +80,37 @@ class Migration(migrations.Migration):
                         verbose_name="quantidade máxima de alunos",
                     ),
                 ),
-                ("cep", models.CharField(max_length=9, verbose_name="CEP")),
+                (
+                    "cep",
+                    models.CharField(max_length=9, verbose_name="CEP"),
+                ),
                 (
                     "endereco",
-                    models.CharField(max_length=500, verbose_name="endereço"),
+                    models.CharField(
+                        max_length=500,
+                        verbose_name="endereço",
+                    ),
                 ),
                 (
                     "nome_gestor",
-                    models.CharField(max_length=255, verbose_name="nome do gestor"),
+                    models.CharField(
+                        max_length=255,
+                        verbose_name="nome do gestor",
+                    ),
                 ),
                 (
                     "email_polo",
-                    models.EmailField(max_length=255, verbose_name="e-mail do polo"),
+                    models.EmailField(
+                        max_length=255,
+                        verbose_name="e-mail do polo",
+                    ),
                 ),
                 (
                     "telefone_polo",
-                    models.CharField(max_length=20, verbose_name="telefone do polo"),
+                    models.CharField(
+                        max_length=20,
+                        verbose_name="telefone do polo",
+                    ),
                 ),
                 (
                     "observacoes_gerais",

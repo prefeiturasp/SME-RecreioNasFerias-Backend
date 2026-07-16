@@ -10,16 +10,20 @@ from __future__ import annotations
 TESTES_COMMON = "tests/common"
 TESTES_EDICOES = "tests/edicoes"
 TESTES_POLOS = "tests/polos"
+TESTES_ESCOLA_INTEGRACAO = (
+    "tests/infrastructure/services/test_escolas_integracao_service.py"
+)
 TESTES_SCRIPTS = "tests/scripts"
 TESTES_EDICOES_VIEWS = "tests/edicoes/test_views.py"
 TESTES_EDICOES_MODELS = "tests/edicoes/test_models.py"
-TESTES_POLOS_VIEWS = "tests/polos/test_views.py"
-TESTES_POLOS_MODELS = "tests/polos/test_models.py"
 TESTES_PEP440 = "tests/scripts/test_pep440_versions.py"
 COMMON_PAGINACAO = "src/common/paginacao.py"
 COMMON_RESPOSTAS_HTTP = "src/common/respostas_http.py"
 SRC_EDICOES = "src/edicoes"
 SRC_POLOS = "src/polos"
+SRC_INFRASTRUCTURE_ESCOLAS = (
+    "src/infrastructure/services/escolas_integracao_service.py"
+)
 SRC_USUARIOS_URLS = "src/usuarios/urls.py"
 SCRIPTS = "scripts"
 
@@ -39,10 +43,12 @@ def comando_pydocstyle(executavel: str) -> list[str]:
         "pydocstyle",
         SRC_EDICOES,
         SRC_POLOS,
+        SRC_INFRASTRUCTURE_ESCOLAS,
         COMMON_PAGINACAO,
         COMMON_RESPOSTAS_HTTP,
         TESTES_EDICOES,
         TESTES_POLOS,
+        TESTES_ESCOLA_INTEGRACAO,
         TESTES_COMMON,
         TESTES_PEP440,
         SCRIPTS,
@@ -64,11 +70,13 @@ def comando_flake8(executavel: str) -> list[str]:
         "flake8",
         SRC_EDICOES,
         SRC_POLOS,
+        SRC_INFRASTRUCTURE_ESCOLAS,
         SRC_USUARIOS_URLS,
         COMMON_PAGINACAO,
         COMMON_RESPOSTAS_HTTP,
         TESTES_EDICOES,
         TESTES_POLOS,
+        TESTES_ESCOLA_INTEGRACAO,
         TESTES_COMMON,
     ]
 
@@ -88,13 +96,15 @@ def comando_pytest(executavel: str) -> list[str]:
         "pytest",
         TESTES_EDICOES_VIEWS,
         TESTES_EDICOES_MODELS,
-        TESTES_POLOS_VIEWS,
-        TESTES_POLOS_MODELS,
+        TESTES_POLOS,
+        TESTES_ESCOLA_INTEGRACAO,
         TESTES_COMMON,
         TESTES_SCRIPTS,
         "--cov=edicoes.views",
         "--cov=polos.views",
         "--cov=polos.models",
+        "--cov=polos.sincronizacao",
+        "--cov=infrastructure.services.escolas_integracao_service",
         "--cov=common.paginacao",
         "--cov=common.respostas_http",
         "--cov=caminhos_qualidade",
