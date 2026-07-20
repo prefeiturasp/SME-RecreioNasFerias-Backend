@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: recreionasferias_web
     restart: always
-    command: sh -c "python src/manage.py migrate && python src/manage.py runserver 0.0.0.0:8000"
+    command: sh scripts/run.sh
     ports:
       - "8000:8000"
     env_file:

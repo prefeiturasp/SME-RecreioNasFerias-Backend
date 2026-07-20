@@ -86,6 +86,7 @@ class MigracaoPolosTests(TransactionTestCase):
         self._criar_tabela_legada_polos_parceiros()
 
         call_command("preparar_migracao_polos_legado", verbosity=0)
+        call_command("migrate", "polos", verbosity=0)
 
         with connection.cursor() as cursor:
             cursor.execute("SELECT to_regclass('public.polos')")
@@ -102,3 +103,47 @@ class MigracaoPolosTests(TransactionTestCase):
                 ["polos"],
             )
             self.assertGreaterEqual(cursor.fetchone()[0], 8)
+
+    def test_preparar_migracao_em_banco_limpo_nao_altera_historico(self) -> None:
+        """Garante no-op quando não há tabela legada polos_parceiros."""
+        self._limpar_estado_polos()
+
+        call_command("preparar_migracao_polos_legado", verbosity=0)
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT COUNT(*) FROM django_migrations WHERE app = %s",
+                ["polos"],
+            )
+            self.assertEqual(cursor.fetchone()[0], 0)
+            cursor.execute("SELECT to_regclass('public.polos_parceiros')")
+            self.assertIsNone(cursor.fetchone()[0])
+
+    def test_preparar_migracao_com_historico_atual_nao_faz_fake(self) -> None:
+        """Garante no-op quando polos.0001 já consta no histórico."""
+        self._limpar_estado_polos()
+        self._criar_tabela_legada_polos_parceiros()
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM django_migrations WHERE app = %s",
+                ["polos_parceiros"],
+            )
+            cursor.execute(
+                "INSERT INTO django_migrations (app, name, applied) "
+                "VALUES (%s, %s, NOW())",
+                ["polos", "0001_initial"],
+            )
+
+        call_command("preparar_migracao_polos_legado", verbosity=0)
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT COUNT(*)
+                FROM django_migrations
+                WHERE app = %s AND name = %s
+                """,
+                ["polos", "0002_poloparceiro_status"],
+            )
+            self.assertEqual(cursor.fetchone()[0], 0)
