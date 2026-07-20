@@ -86,6 +86,7 @@ class MigracaoPolosTests(TransactionTestCase):
         self._criar_tabela_legada_polos_parceiros()
 
         call_command("preparar_migracao_polos_legado", verbosity=0)
+        call_command("migrate", "polos", verbosity=0)
 
         with connection.cursor() as cursor:
             cursor.execute("SELECT to_regclass('public.polos')")

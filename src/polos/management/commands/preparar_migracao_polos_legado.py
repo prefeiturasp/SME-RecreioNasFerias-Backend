@@ -4,7 +4,7 @@ Prepara ambientes legados antes de ``migrate`` do app ``polos``.
 Quando a tabela ``polos_parceiros`` já existe (app antigo) e as migrações
 ``polos.0001``/``0002`` ainda não constam no histórico, marca-as como
 aplicadas com ``--fake`` e remove o histórico residual de ``polos_parceiros``.
-Em seguida aplica as migrações restantes normalmente.
+Deve ser executado antes de ``migrate`` no startup do container.
 """
 
 from __future__ import annotations
@@ -19,11 +19,11 @@ class Command(BaseCommand):
 
     help = (
         "Faz fake de polos.0001/0002 quando a tabela polos_parceiros "
-        "já existe e aplica o restante das migrações."
+        "já existe, para permitir migrate normal em bancos legados."
     )
 
     def handle(self, *args: object, **options: object) -> None:
-        """Detecta legado, aplica ``--fake`` se necessário e roda ``migrate``.
+        """Detecta legado e aplica ``--fake`` quando necessário.
 
         Args:
             *args: Argumentos posicionais do Django.
@@ -45,8 +45,7 @@ class Command(BaseCommand):
                 "Nenhum ajuste de legado necessário para polos.0001/0002.",
             )
 
-        call_command("migrate", "polos", verbosity=1)
-        self.stdout.write(self.style.SUCCESS("Migrate de polos concluído."))
+        self.stdout.write(self.style.SUCCESS("Preparação de polos concluída."))
 
     def _precisa_fake_legado(self) -> bool:
         """Indica se o banco exige ``--fake`` das migrações iniciais.
