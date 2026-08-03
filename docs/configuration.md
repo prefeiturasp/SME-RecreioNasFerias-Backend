@@ -11,9 +11,12 @@ tratada como `sem padrão`.
 - O Django lê `.env` na raiz do repositório quando o arquivo existe.
 - O `docker-compose-dev.yml` e o `docker-compose.yml` também usam `.env` como
   fonte de configuração do ambiente local.
-- Em testes, `config/settings.py` ignora o Postgres e usa SQLite em memória.
-  Testes marcados com `@pytest.mark.postgres` são skipados por padrão; para
-  rodá-los em Postgres, defina `PYTEST_USE_POSTGRES=1`.
+- Em execução normal e em testes, `config/settings.py` usa sempre Postgres.
+- Em `make test` e `make coverage`, o Django cria um banco temporário separado
+  no mesmo servidor definido por `POSTGRES_HOST`, `POSTGRES_PORT`,
+  `POSTGRES_DB`, `POSTGRES_USER` e `POSTGRES_PASSWORD`, aplica as migrations,
+  executa a suíte e remove esse banco ao final. Em geral, o nome desse banco é
+  `test_<POSTGRES_DB>`.
 - O Compose usa `.env` como única fonte das variáveis de banco
   (`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`,
   `POSTGRES_PASSWORD`). O `POSTGRES_HOST` no `.env.example` já vem com `db`
@@ -29,15 +32,16 @@ tratada como `sem padrão`.
 
 ## Resumo rápido sobre banco de dados
 
-- a aplicação roda sempre em Postgres, em qualquer ambiente (dev ou prod);
-- testes automatizados usam SQLite em memória, em qualquer ambiente;
-- não existe fallback de SQLite fora dos testes — `POSTGRES_HOST` é obrigatório
-  quando a aplicação sobe fora do Compose.
+- a aplicação roda sempre em Postgres, em qualquer ambiente (dev, teste ou
+  prod);
+- testes automatizados usam um banco temporário separado no mesmo servidor
+  configurado por `POSTGRES_*`;
+- não existe fallback de SQLite no projeto.
 
-`make up` e `make up-prod` validam a aplicação sobre Postgres, enquanto
-`make test` e `make coverage` privilegiam velocidade e isolamento. Essa
-decisão não cobre diferenças específicas de Postgres automaticamente; vale
-revisitá-la quando surgirem queries, índices ou tipos nativos do banco.
+`make up` e `make up-prod` usam o banco principal da aplicação. `make test` e
+`make coverage` usam esse mesmo servidor de Postgres, mas em um banco
+temporário criado só para a suíte. Por isso, o `.env` de testes deve apontar
+para um Postgres isolado de produção.
 
 ## Arquivos de referência
 
@@ -85,6 +89,9 @@ Variáveis de conexão com o Postgres, lidas em `config/settings.py`. O `.env`
 é a única fonte desses valores — o Compose não sobrescreve nada. O default de
 `POSTGRES_HOST` no `settings.py` é `db` (nome do serviço Docker); para rodar
 sem Docker, ajuste no `.env` para `localhost` ou o IP do Postgres.
+
+Essas mesmas variáveis também são usadas pela suíte de testes para abrir a
+conexão com o servidor e criar o banco temporário da execução.
 
 | Variável | Padrão | Descrição |
 | --- | --- | --- |
@@ -134,19 +141,21 @@ container contém `manage.py runserver`.
 
 ## Testes
 
-| Variável | Padrão | Descrição |
-| --- | --- | --- |
-| `PYTEST_USE_POSTGRES` | vazio (`0`) | Quando `1`, o pytest roda contra o Postgres ao invés de SQLite em memória. Testes marcados com `@pytest.mark.postgres` só executam quando esta variável é `1`; caso contrário são skipados. |
+Os testes não introduzem variáveis de ambiente próprias. A suíte reutiliza
+`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` e
+`POSTGRES_PASSWORD` para conectar ao servidor configurado e criar um banco
+temporário separado para a execução.
 
-Exemplos de uso:
+Na prática, o fluxo padrão é:
 
 ```bash
-# testes normais (SQLite em memória, testes @postgres skipados)
 make test
-
-# testes marcados @pytest.mark.postgres (Postgres)
-PYTEST_USE_POSTGRES=1 make coverage -- -m postgres
+make coverage
 ```
+
+Em geral, o banco temporário recebe o nome `test_<POSTGRES_DB>`. Ele não usa
+as tabelas do banco principal da aplicação, mas continua no mesmo servidor de
+Postgres configurado no `.env`.
 
 ## Variáveis internas e comportamento por ambiente
 
@@ -156,22 +165,18 @@ influenciam diretamente a forma como o ambiente sobe.
 | Item | Valor padrão | Descrição |
 | --- | --- | --- |
 | `DJANGO_SETTINGS_MODULE` | `config.settings` | Definida na imagem de produção e também pelos entrypoints Django (`manage.py`, `wsgi.py`, `asgi.py`). Em geral não precisa ser configurada manualmente. |
-| Banco em testes | SQLite em memória | Sempre que o processo é iniciado para testes, `config/settings.py` troca a configuração do banco para `:memory:`. Vale em qualquer ambiente de CI, dev ou prod. |
-| Banco da aplicação | Postgres | Fora dos testes a aplicação usa Postgres, lido do `.env`. Default de `POSTGRES_HOST` é `db` (serviço do Compose). Sem Docker, ajuste para `localhost` ou o IP do Postgres. Não existe fallback de SQLite fora dos testes. |
+| Banco em testes | Postgres temporário | O Django cria um banco temporário separado no mesmo servidor configurado por `POSTGRES_*`, aplica as migrations, executa a suíte e remove esse banco ao final. Em geral o nome é `test_<POSTGRES_DB>`. |
+| Banco da aplicação | Postgres principal | Fora dos testes a aplicação usa `POSTGRES_DB` normalmente. O default de `POSTGRES_HOST` é `db` (serviço do Compose). Sem Docker, ajuste para `localhost` ou o IP do Postgres. |
 | Healthcheck dos containers | `GET /api/v1/health/` | Tanto a imagem de desenvolvimento quanto a de produção usam esse endpoint para validar a saúde local do serviço. |
 
-## Quando o SQLite em testes é suficiente
+## Cuidados com o ambiente de testes
 
-Na estrutura atual, o uso de SQLite em memória é coerente porque a aplicação
-ainda está concentrada em base de projeto, contratos de API, organização das
-integrações e comportamento operacional. A suíte ganha velocidade e reduz a
-dependência de infraestrutura externa.
-
-Essa decisão deve ser revisitada quando surgirem:
-
-- queries específicas de Postgres;
-- uso de índices, constraints ou tipos nativos do banco;
-- comportamento transacional que precise ser validado contra Postgres.
+- Nunca aponte o `.env` usado em `make test` ou `make coverage` para um
+  servidor produtivo.
+- Garanta que o usuário configurado em `POSTGRES_USER` tenha permissão para
+  criar o banco temporário de testes.
+- No fluxo local padrão, `make test` e `make coverage` sobem o serviço `db` do
+  `docker-compose-dev.yml`, então esse isolamento já vem pronto no repositório.
 
 ## Exemplo recomendado para Docker Compose local
 

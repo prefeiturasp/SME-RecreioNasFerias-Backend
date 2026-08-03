@@ -23,7 +23,7 @@ help:
 	@echo "  make schema       - gera schema OpenAPI em docs/_build/schema.yml"
 	@echo ""
 	@echo "Qualidade:"
-	@echo "  make test         - executa pytest em container"
+	@echo "  make test         - executa pytest em container com Postgres"
 	@echo "  make coverage     - gera relatorio de coverage"
 	@echo "  make lint         - executa black --check e ruff"
 	@echo "  make typecheck    - executa mypy"
@@ -64,10 +64,10 @@ migrate: ensure-env
 	$(RUN_API) python manage.py migrate --noinput
 
 test: ensure-env
-	$(RUN_API_NODEPS) python -m pytest $(PYTEST_ARGS)
+	$(RUN_API) python -m pytest $(PYTEST_ARGS)
 
 coverage: ensure-env
-	$(RUN_API_NODEPS) sh -c 'rm -rf docs/_cov && COVERAGE_FILE=/tmp/.coverage python -m coverage erase && COVERAGE_FILE=/tmp/.coverage python -m coverage run --source=apps -m pytest $(PYTEST_ARGS) && COVERAGE_FILE=/tmp/.coverage python -m coverage report -m && COVERAGE_FILE=/tmp/.coverage python -m coverage html -d docs/_cov'
+	$(RUN_API) sh -c 'rm -rf docs/_cov && COVERAGE_FILE=/tmp/.coverage python -m coverage erase && COVERAGE_FILE=/tmp/.coverage python -m coverage run --source=apps -m pytest $(PYTEST_ARGS) && COVERAGE_FILE=/tmp/.coverage python -m coverage report -m && COVERAGE_FILE=/tmp/.coverage python -m coverage html -d docs/_cov'
 
 lint: ensure-env
 	$(RUN_API_NODEPS) sh -c 'RUFF_CACHE_DIR=/tmp/.ruff_cache python -m black --check apps config manage.py && RUFF_CACHE_DIR=/tmp/.ruff_cache python -m ruff check apps config manage.py'

@@ -83,34 +83,23 @@ Nesse modo:
 
 ## Banco de dados nos testes
 
-Os ambientes `make up` e `make up-prod` usam Postgres. Já `make test` e
-`make coverage` executam a suíte com SQLite em memória.
+Os ambientes `make up`, `make up-prod`, `make test` e `make coverage` usam
+Postgres.
 
-Hoje essa decisão vem de `config/settings.py`: quando o processo é iniciado
-para testes, o Django ignora o Postgres e troca o banco por SQLite em memória.
-O ganho é uma suíte mais rápida, previsível e independente do banco do Compose.
-A contrapartida é que diferenças específicas de Postgres não são validadas
-automaticamente pela suíte atual.
-
-Para rodar um teste específico em Postgres, marque com `@pytest.mark.postgres`
-e execute com `PYTEST_USE_POSTGRES=1`:
-
-```bash
-PYTEST_USE_POSTGRES=1 make test -- -m postgres
-```
-
-Sem `PYTEST_USE_POSTGRES=1`, testes marcados com `@pytest.mark.postgres` são
-skipados — nunca caem em SQLite silenciosamente.
+Durante os testes, o Django não reutiliza as tabelas da aplicação. Ele cria um
+banco temporário separado no mesmo servidor configurado por `POSTGRES_HOST`,
+`POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` e `POSTGRES_PASSWORD`, aplica
+as migrations, executa a suíte e remove esse banco ao final. Em geral, o nome
+desse banco é `test_<POSTGRES_DB>`.
 
 Resumo prático:
 
-- testes usam SQLite em memória e não criam `db.sqlite3` local;
 - desenvolvimento usa Postgres em volume Docker;
+- testes usam um banco temporário próprio no mesmo servidor configurado;
 - `make down` derruba os containers sem apagar o volume do banco.
 
-Se o projeto passar a depender de SQL específico de Postgres, índices próprios
-do banco ou tipos nativos mais avançados, vale complementar a estratégia com
-uma trilha dedicada de testes em Postgres.
+Importante: como a suíte usa o mesmo servidor configurado no `.env`, o
+ambiente de testes precisa apontar para um Postgres isolado de produção.
 
 ## Operação do dia a dia
 
@@ -140,6 +129,33 @@ Resumo prático dos alvos mais usados:
 - `make logs`: acompanha os logs do serviço `api`
 - `make migrate`: aplica migrations no banco do Compose de desenvolvimento
 - `make quality`: executa lint, typecheck, testes e build da docs
+
+## Pre-commit
+
+O projeto já versiona `.pre-commit-config.yaml`. Existem duas formas de usar
+os hooks.
+
+Para instalar o hook automático no Git da máquina host:
+
+```bash
+python3 -m pip install --user pre-commit
+pre-commit install
+```
+
+Depois disso, cada `git commit` executa os hooks apenas nos arquivos staged.
+
+Para rodar todos os hooks manualmente na máquina host:
+
+```bash
+pre-commit run --all-files
+```
+
+Se quiser validar os mesmos hooks sem instalar `pre-commit` no host, use o
+alvo Dockerizado do projeto:
+
+```bash
+make precommit
+```
 
 ## Validações do repositório
 

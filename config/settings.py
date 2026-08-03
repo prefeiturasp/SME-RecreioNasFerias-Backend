@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import environ
@@ -14,31 +13,14 @@ arquivo_env = BASE_DIR / ".env"
 if arquivo_env.exists():
     environ.Env.read_env(str(arquivo_env))
 
-
-def _executando_testes() -> bool:
-    """Indica se o processo atual foi iniciado para testes."""
-    marcadores_teste = ("pytest", "py.test", "test")
-    return any(
-        marcador in argumento
-        for argumento in sys.argv
-        for marcador in marcadores_teste
-    )
-
-
-if _executando_testes() and not env.bool("PYTEST_USE_POSTGRES", default=False):
-    database_config = {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
-    }
-else:
-    database_config = {
-        "ENGINE": "django.db.backends.postgresql",
-        "HOST": env("POSTGRES_HOST", default="db"),
-        "PORT": env.str("POSTGRES_PORT", default="5432"),
-        "NAME": env("POSTGRES_DB"),
-        "USER": env("POSTGRES_USER"),
-        "PASSWORD": env("POSTGRES_PASSWORD"),
-    }
+database_config = {
+    "ENGINE": "django.db.backends.postgresql",
+    "HOST": env("POSTGRES_HOST", default="db"),
+    "PORT": env.str("POSTGRES_PORT", default="5432"),
+    "NAME": env("POSTGRES_DB"),
+    "USER": env("POSTGRES_USER"),
+    "PASSWORD": env("POSTGRES_PASSWORD"),
+}
 
 
 SECRET_KEY = env(

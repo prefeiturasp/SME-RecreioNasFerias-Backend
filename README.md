@@ -121,24 +121,52 @@ As variáveis mais importantes para iniciar o ambiente são:
 A referência completa das variáveis e dos comportamentos por ambiente está em
 `docs/configuration.md`.
 
+## Pre-commit
+
+O repositório já versiona a configuração em `.pre-commit-config.yaml`.
+
+Para instalar o hook automático na máquina host, use:
+
+```bash
+python3 -m pip install --user pre-commit
+pre-commit install
+```
+
+Depois disso, cada `git commit` executa os hooks apenas nos arquivos staged.
+
+Para rodar todos os hooks manualmente na máquina host:
+
+```bash
+pre-commit run --all-files
+```
+
+Se preferir validar os mesmos hooks sem instalar o `pre-commit` no host, use o
+alvo Dockerizado do projeto:
+
+```bash
+make precommit
+```
+
 ## Banco de dados em testes
 
-Os ambientes `make up` e `make up-prod` usam Postgres via Compose. Já
-`make test` e `make coverage` executam a suíte com SQLite em memória.
+Os ambientes `make up`, `make up-prod`, `make test` e `make coverage` usam
+Postgres.
 
-Essa troca acontece em `config/settings.py`: quando o processo é iniciado para
-testes, o Django ignora o Postgres configurado e substitui o banco por SQLite
-em memória. Hoje isso deixa a suíte mais rápida e isolada, mas não cobre
-diferenças específicas de Postgres. Se o projeto passar a depender de SQL
-específico, tipos nativos ou otimizações do banco, vale adicionar uma trilha
-complementar de testes em Postgres.
+Quando o pytest roda, o Django cria um banco temporário separado no mesmo
+servidor configurado pelas variáveis `POSTGRES_*`, aplica as migrations,
+executa a suíte e remove esse banco ao final. Na prática, o nome costuma ser
+`test_<POSTGRES_DB>`.
 
 Resumo prático:
 
-- o SQLite dos testes existe só em memória durante a execução e não gera
-  arquivo local no repositório;
 - o desenvolvimento usa Postgres persistido em volume Docker;
+- os testes não usam as tabelas da aplicação; usam um banco temporário próprio
+  no mesmo servidor configurado;
 - `make down` derruba os containers, mas preserva o volume do banco.
+
+Importante: os testes não usam o banco principal da aplicação, mas usam o
+mesmo servidor configurado no `.env`. Por isso, o ambiente de testes deve
+apontar para um Postgres isolado de produção.
 
 ## Ambiente local semelhante à produção
 
