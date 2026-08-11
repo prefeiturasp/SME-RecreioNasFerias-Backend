@@ -1,0 +1,4 @@
+-r base.txt
+
+# Servidor HTTP de produção
+gunicorn==23.0.0
