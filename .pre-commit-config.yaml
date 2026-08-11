@@ -16,9 +16,11 @@ repos:
         additional_dependencies:
           - django
           - django-stubs
+          - django-cors-headers
           - django-environ
           - djangorestframework
           - djangorestframework-stubs
+          - djangorestframework-simplejwt
           - drf-spectacular
           - psycopg2-binary
           - whitenoise

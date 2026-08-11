@@ -6,6 +6,7 @@ from drf_spectacular.utils import (
     extend_schema_view,
 )
 from rest_framework import status, viewsets
+from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -22,6 +23,8 @@ from rest_framework.response import Response
 )
 class EdicaoViewSet(viewsets.ViewSet):
     """Expõe o endpoint placeholder das edições."""
+
+    permission_classes = [AllowAny]
 
     def list(self, request: Request) -> Response:
         """Retorna a resposta temporária do domínio em construção."""
