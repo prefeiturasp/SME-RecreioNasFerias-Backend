@@ -26,7 +26,7 @@ RUN chmod +x /entrypoint.sh
 
 COPY . .
 
-RUN python manage.py collectstatic --noinput \
+RUN python manage.py collectstatic --noinput || true \
     && chown -R app:app /app /home/app
 
 EXPOSE 8000
