@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "recreio-ferias-backend"
+version = "0.1.0"
+description = "Backend do SME Recreio nas Ferias com API em Django."
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "SME" }]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["apps*", "config*"]
+
+[tool.black]
+line-length = 79
+target-version = ["py312"]
+exclude = "/migrations/"
+extend-exclude = '''
+/(\
+		\.venv\
+	| \.mypy_cache\
+	| \.pytest_cache\
+	| \.ruff_cache\
+	| docs/_build\
+	| staticfiles\
+	| recreio_ferias_backend\.egg-info\
+)/
+'''
+
+[tool.ruff]
+line-length = 79
+target-version = "py312"
+exclude = [
+		"migrations",
+		".venv",
+		".mypy_cache",
+		".pytest_cache",
+		".ruff_cache",
+		"docs/_build",
+		"staticfiles",
+		"recreio_ferias_backend.egg-info",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "D"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["D104"]
+"**/admin.py" = ["D100"]
+"**/tests.py" = ["D100", "D101", "D102", "D103"]
+"**/tests/**/*.py" = ["D100", "D101", "D102", "D103"]
+"**/testes/**/*.py" = ["D100", "D101", "D102", "D103"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 120
+
+[tool.mypy]
+python_version = "3.12"
+exclude = ".*/migrations/.*"
+plugins = ["mypy_django_plugin.main"]
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+pythonpath = ["."]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+testpaths = ["apps"]
+
+[tool.coverage.run]
+source = ["apps"]
+omit = ["*/migrations/*", "manage.py"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
