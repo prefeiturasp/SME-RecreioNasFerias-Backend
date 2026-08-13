@@ -139,6 +139,3 @@ Integração CoreSSO:
 - ``AUTH_API_CONNECT_TIMEOUT_SECONDS``
 - ``AUTH_API_TIMEOUT_SECONDS``
 - ``AUTH_CODIGO_SISTEMA``
-
-Pontos de atenção para produção
--------------------------------
