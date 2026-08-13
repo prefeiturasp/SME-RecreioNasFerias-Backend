@@ -378,6 +378,65 @@ def test_refresh_view_le_cookie_e_retorna_token(
     assert response.cookies["refresh_token"].value == "novo-refresh-token"
 
 
+def test_verify_view_retorna_200_para_token_valido(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Confirma 200 quando o token informado e valido."""
+
+    class FakeTokenVerifySerializer:
+        def __init__(self, data: dict[str, str]) -> None:
+            self.initial_data = data
+            self.validated_data: dict[str, str] = {}
+
+        def is_valid(self, raise_exception: bool = False) -> bool:
+            return True
+
+    from apps.core.api.views import auth
+
+    monkeypatch.setattr(
+        auth, "TokenVerifySerializer", FakeTokenVerifySerializer
+    )
+    request = APIRequestFactory().post(
+        "/api/v1/auth/token/verify/",
+        {"token": "token-valido"},
+        format="json",
+    )
+
+    response = auth.VerifyView.as_view()(request)
+
+    assert response.status_code == status.HTTP_200_OK
+
+
+def test_verify_view_retorna_401_para_token_expirado(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Traduz token expirado ou invalido em 401 no endpoint de verify."""
+    from rest_framework_simplejwt.exceptions import TokenError
+
+    class FakeTokenVerifySerializer:
+        def __init__(self, data: dict[str, str]) -> None:
+            self.initial_data = data
+
+        def is_valid(self, raise_exception: bool = False) -> bool:
+            raise TokenError("Token expirado")
+
+    from apps.core.api.views import auth
+
+    monkeypatch.setattr(
+        auth, "TokenVerifySerializer", FakeTokenVerifySerializer
+    )
+    request = APIRequestFactory().post(
+        "/api/v1/auth/token/verify/",
+        {"token": "token-expirado"},
+        format="json",
+    )
+
+    response = auth.VerifyView.as_view()(request)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.data == {"detalhe": "Token invalido ou expirado."}
+
+
 def test_logout_view_limpa_cookie(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

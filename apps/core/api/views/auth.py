@@ -311,5 +311,11 @@ class VerifyView(APIView):
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Verifica a validade de um access token emitido pela API."""
         serializer = TokenVerifySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except (InvalidToken, TokenError):
+            return _error_response(
+                "Token invalido ou expirado.",
+                status.HTTP_401_UNAUTHORIZED,
+            )
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
