@@ -1,17 +1,15 @@
 """Serviços do app `core`."""
 
+from apps.core.services.auth_audit_service import AuthAuditService
 from apps.core.services.auth_service import (
+    AuthenticatedSessionData,
     AuthService,
-    LoginResponsePayload,
-    gerar_token,
-    normalizar_permissoes,
-    validar_token,
+    CargoNaoAutorizadoError,
 )
 
 __all__ = [
+    "AuthAuditService",
     "AuthService",
-    "gerar_token",
-    "LoginResponsePayload",
-    "normalizar_permissoes",
-    "validar_token",
+    "AuthenticatedSessionData",
+    "CargoNaoAutorizadoError",
 ]

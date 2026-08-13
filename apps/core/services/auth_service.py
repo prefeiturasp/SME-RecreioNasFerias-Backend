@@ -1,144 +1,130 @@
-"""Serviço e helpers do fluxo de autenticação institucional.
-
-Este módulo concentra o contrato interno do login institucional e a ligação
-esperada com a integração CoreSSO.
-"""
+"""Serviço de autenticação institucional do app `core`."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TypedDict
+from dataclasses import dataclass
+from typing import Any
 
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
+
+from apps.core.models import CargoPermitido
 from apps.integracoes.coresso.adapter import CoressoAdapter
-from apps.integracoes.coresso.port import CoressoPort
+from apps.integracoes.coresso.port import (
+    CargoCoresso,
+    CoressoIdentity,
+    CoressoPort,
+)
 
 
-class LoginResponsePayload(TypedDict):
-    """Representa o contrato legado previsto para a resposta de login.
+@dataclass(frozen=True, slots=True)
+class AuthenticatedSessionData:
+    """Snapshot interno do usuário autenticado após o login."""
 
-    Attributes:
-        usuarioId: Identificador do usuário autenticado no sistema.
-        status: Código numérico de retorno do fluxo de login.
-        nome: Nome completo retornado pelo fluxo institucional.
-        codigoRf: Registro funcional do usuário autenticado.
-    """
-
-    usuarioId: str
-    status: int
+    usuario: Any
+    rf: str
     nome: str
-    codigoRf: str
+    email: str | None
+    cpf: str | None
+    cargo: CargoPermitido
 
 
-def gerar_token(payload: dict) -> str:
-    """Gera o token de autenticação institucional.
-
-    Args:
-        payload: Dados que serão serializados no token futuro.
-
-    Returns:
-        Token textual pronto para ser devolvido ao cliente.
-
-    Raises:
-        NotImplementedError: Enquanto a geracao real nao existir.
-    """
-    raise NotImplementedError(
-        "Geracao de token institucional ainda nao esta disponivel."
-    )
-
-
-def validar_token(token: str) -> dict:
-    """Valida um token de autenticação institucional.
-
-    Args:
-        token: Token informado pelo cliente na requisição.
-
-    Returns:
-        Dados do usuário ou claims extraídos do token validado.
-
-    Raises:
-        NotImplementedError: Enquanto a validacao real nao existir.
-    """
-    raise NotImplementedError(
-        "Validacao de token institucional ainda nao esta disponivel."
-    )
-
-
-def normalizar_permissoes(permissoes: Iterable[str]) -> set[str]:
-    """Normaliza a lista de permissões recebida de fontes externas.
-
-    Args:
-        permissoes: Coleção de permissões em formato textual.
-
-    Returns:
-        Conjunto sem duplicações, sem espaços laterais e com conteúdo em
-        minúsculas.
-    """
-    return {
-        permissao.strip().lower()
-        for permissao in permissoes
-        if permissao and permissao.strip()
-    }
+class CargoNaoAutorizadoError(Exception):
+    """Indica que nenhum cargo efetivo do usuário está autorizado."""
 
 
 class AuthService:
-    """Orquestra o fluxo futuro de autenticação institucional.
-
-    A responsabilidade desta classe é manter o contrato de login/logout do
-    `core` desacoplado da implementação HTTP concreta do CoreSSO.
-    """
+    """Orquestra o login via CoreSSO e a sincronização local do usuário."""
 
     def __init__(self, coresso: CoressoPort | None = None) -> None:
-        """Inicializa a dependência da borda externa de autenticação.
-
-        Args:
-            coresso: Implementação do contrato de autenticação institucional.
-                Quando omitida, usa o adaptador padrão do projeto.
-        """
+        """Inicializa a dependência da borda externa de autenticação."""
         self.coresso = coresso or CoressoAdapter()
 
-    def login(self, login: str, senha: str) -> LoginResponsePayload:
-        """Autentica um usuário institucional via CoreSSO.
-
-        Args:
-            login: Identificador institucional usado no login legado.
-            senha: Senha informada pelo usuário.
-
-        Returns:
-            Payload de sucesso do login com os campos previstos pelo legado.
-
-        Raises:
-            NotImplementedError: Enquanto a autenticação real não existir.
-        """
-        raise NotImplementedError(
-            "Login institucional via CoreSSO ainda nao esta disponivel."
+    def login(self, login: str, senha: str) -> AuthenticatedSessionData:
+        """Autentica no CoreSSO, valida cargos e sincroniza o usuário local."""
+        identidade = self.coresso.autenticar(login, senha)
+        cargo_permitido = self._obter_cargo_autorizado(
+            identidade.cargos_efetivos
         )
 
-    def resolve_token(self, token: str) -> dict:
-        """Resolve o usuário a partir de um token institucional.
+        if cargo_permitido is None:
+            raise CargoNaoAutorizadoError(
+                "Cargo nao autorizado para o sistema."
+            )
 
-        Args:
-            token: Token enviado pelo cliente autenticado.
+        usuario = self._persistir_usuario(identidade, cargo_permitido)
 
-        Returns:
-            Dados do usuário necessários para o contexto autenticado.
-
-        Raises:
-            NotImplementedError: Enquanto a resolução real não existir.
-        """
-        raise NotImplementedError(
-            "Resolucao de token via CoreSSO ainda nao esta disponivel."
+        return AuthenticatedSessionData(
+            usuario=usuario,
+            rf=identidade.rf,
+            nome=identidade.nome,
+            email=identidade.email,
+            cpf=identidade.cpf,
+            cargo=cargo_permitido,
         )
 
-    def logout(self, authorization: str | None = None) -> None:
-        """Encerra a sessão atual quando o fluxo real existir.
+    @staticmethod
+    def _extrair_codigos_cargo(
+        cargos: Iterable[CargoCoresso],
+    ) -> list[int]:
+        """Extrai os códigos válidos dos cargos efetivos na ordem recebida."""
+        return [
+            cargo.codigo_cargo
+            for cargo in cargos
+            if cargo.codigo_cargo is not None
+        ]
 
-        Args:
-            authorization: Conteúdo do header Authorization recebido pelo
-                endpoint de logout.
+    @staticmethod
+    def _obter_cargo_autorizado(
+        cargos: Iterable[CargoCoresso],
+    ) -> CargoPermitido | None:
+        """Seleciona o cargo autorizado que deve vincular o usuário local."""
+        codigos_cargo = AuthService._extrair_codigos_cargo(cargos)
+        if not codigos_cargo:
+            return None
 
-        Raises:
-            NotImplementedError: Enquanto o logout real não existir.
-        """
-        raise NotImplementedError(
-            "Logout institucional ainda nao esta disponivel."
+        cargos_autorizados = CargoPermitido.objects.filter(
+            codigo_cargo__in=codigos_cargo,
         )
+        cargos_por_codigo = {
+            cargo.codigo_cargo: cargo for cargo in cargos_autorizados
+        }
+
+        for codigo_cargo in codigos_cargo:
+            cargo_permitido = cargos_por_codigo.get(codigo_cargo)
+            if cargo_permitido is not None:
+                return cargo_permitido
+
+        return None
+
+    def _persistir_usuario(
+        self,
+        identidade: CoressoIdentity,
+        cargo_permitido: CargoPermitido,
+    ) -> Any:
+        """Cria ou atualiza o usuário local sincronizado pelo login."""
+        usuario_model = get_user_model()
+        usuario = usuario_model.objects.filter(
+            Q(rf=identidade.rf) | Q(username=identidade.rf)
+        ).first()
+
+        if usuario is None:
+            usuario = usuario_model(username=identidade.rf, rf=identidade.rf)
+
+        usuario.username = identidade.rf
+        usuario.rf = identidade.rf
+        usuario.nome_completo = identidade.nome
+        usuario.email = identidade.email or ""
+        usuario.cpf = identidade.cpf or ""
+        usuario.cargo_permitido = cargo_permitido
+        usuario.is_active = True
+        usuario.last_login = timezone.now()
+
+        with transaction.atomic():
+            usuario.set_unusable_password()
+            usuario.save()
+
+        return usuario
