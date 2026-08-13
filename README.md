@@ -8,11 +8,12 @@
 
 Este repositório entrega a base técnica do backend, com estrutura Django
 organizada, operação local por Docker Compose, endpoint de saúde, schema
-OpenAPI, stack de qualidade e documentação operacional.
+OpenAPI, autenticação institucional via CoreSSO, sessão JWT local, stack de
+qualidade e documentação operacional.
 
-O backend ainda não implementa autenticação funcional, integrações HTTP reais
-nem regras de negócio de `edicoes` e `polos`. Esses pontos permanecem como
-evoluções previstas do sistema.
+O backend já implementa o fluxo de autenticação institucional e o
+gerenciamento local de sessão. A integração EOL e as regras reais de negócio
+de `edicoes` e `polos` seguem como evoluções previstas do sistema.
 
 ## O que o projeto entrega hoje
 
@@ -20,9 +21,12 @@ evoluções previstas do sistema.
   validação;
 - endpoint público de saúde em `/api/v1/health/`;
 - schema OpenAPI em `/api/v1/schema/` e Swagger UI em `/api/v1/docs/`;
+- autenticação via CoreSSO em `/api/v1/auth/login/`;
+- renovação, verificação, logout e perfil do usuário em `/api/v1/auth/`;
 - apps `core`, `edicoes` e `polos` com estrutura inicial para evolução do
   domínio;
-- integrações `coresso` e `eol` mantidas como contratos iniciais;
+- integração `coresso` funcional para autenticação e `eol` mantida como
+  contrato inicial;
 - `mypy` estrito, cobertura com `fail_under = 80` e documentação Sphinx
   ativos.
 
@@ -38,6 +42,7 @@ make up
 Pontos de acesso no ambiente de desenvolvimento:
 
 - API: `http://localhost:8000/api/v1/health/`
+- Login: `http://localhost:8000/api/v1/auth/login/`
 - Schema OpenAPI: `http://localhost:8000/api/v1/schema/`
 - Swagger UI: `http://localhost:8000/api/v1/docs/`
 - Debug remoto: porta `5678`
@@ -57,11 +62,11 @@ Nesse modo, a API sobe com Gunicorn e usa o entrypoint de produção.
 ```text
 .
 |-- apps/
-|   |-- core/                 # base compartilhada, saúde da aplicação e usuário customizado
+|   |-- core/                 # base compartilhada, saúde, auth e usuário customizado
 |   |-- edicoes/              # estrutura inicial do domínio de edições
 |   |-- polos/                # estrutura inicial do domínio de polos
 |   `-- integracoes/
-|       |-- coresso/          # contratos e stubs da integração CoreSSO
+|       |-- coresso/          # integração real de autenticação com o CoreSSO
 |       `-- eol/              # contratos e stubs da integração EOL
 |-- config/                   # settings, URLs, ASGI e WSGI
 |-- docs/                     # documentação Sphinx do projeto
@@ -110,11 +115,13 @@ projeto. O arquivo `.env` deve ser usado apenas localmente.
 
 As variáveis mais importantes para iniciar o ambiente são:
 
-- `DJANGO_SECRET_KEY`, `DJANGO_DEBUG` e `DJANGO_ALLOWED_HOSTS`
-- `CSRF_TRUSTED_ORIGINS` quando houver acesso por origem externa
+- `DJANGO_SECRET_KEY`, `DEBUG` e `ALLOWED_HOSTS`
+- `CORS_ALLOW_CREDENTIALS`, `CORS_ALLOWED_ORIGINS` e `CSRF_TRUSTED_ORIGINS`
 - `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` e
   `POSTGRES_PASSWORD`
 - `PORT_WEB` e `PORT_DEBUGPY`
+- `AUTH_API_BASE_URL` e `AUTH_API_EOL_KEY`
+- `AUTH_REFRESH_COOKIE_SECURE`
 - `RUN_MIGRATIONS` e `RUN_MIGRATIONS_MODE`
 - `GUNICORN_WORKERS` e `GUNICORN_TIMEOUT`
 
@@ -201,6 +208,9 @@ Páginas principais:
 - `docs/configuration.md` para variáveis de ambiente e runtime
 - `docs/arquitetura.md` para a organização da estrutura do projeto
 
+Para documentação mais aprofundada por área, a pasta `docs/` também pode usar
+subárvores temáticas em `docs/dominios/`.
+
 Build local da documentação:
 
 ```bash
@@ -209,8 +219,7 @@ make docs
 
 ## Fora do escopo atual
 
-- autenticação funcional via CoreSSO
-- integração HTTP real com CoreSSO
 - integração HTTP real com EOL
-- regras de negócio de `edicoes` e `polos`
+- publicação efetiva das rotas de negócio de `edicoes` e `polos` em `/api/v1/`
+- regras reais de negócio de `edicoes` e `polos`
 - pipeline final de deploy com Jenkins e DevOps
