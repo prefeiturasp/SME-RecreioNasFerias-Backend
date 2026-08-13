@@ -13,14 +13,18 @@ repos:
     rev: v1.18.2
     hooks:
       - id: mypy
+        stages: [pre-push]
+        pass_filenames: false
+        args: ["--cache-dir=/tmp/.mypy_cache", "apps", "config"]
         additional_dependencies:
-          - django
-          - django-stubs
-          - django-cors-headers
-          - django-environ
-          - djangorestframework
-          - djangorestframework-stubs
-          - djangorestframework-simplejwt
-          - drf-spectacular
-          - psycopg2-binary
-          - whitenoise
+          - django==5.2.16
+          - django-stubs==5.2.9
+          - django-cors-headers==4.9.0
+          - django-environ==0.12.1
+          - djangorestframework==3.17.1
+          - djangorestframework-stubs==3.16.9
+          - djangorestframework-simplejwt==5.5.1
+          - drf-spectacular==0.29.0
+          - psycopg2-binary==2.9.12
+          - types-requests
+          - whitenoise==6.12.0
