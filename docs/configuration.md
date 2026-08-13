@@ -80,6 +80,10 @@ Pontos fixos no código atual:
 O detalhamento do fluxo de autenticação e da normalização do CoreSSO fica em
 `docs/dominios/integracoes/coresso/index.rst`.
 
+A integração EOL de escolas reutiliza essa mesma família `AUTH_API_*`
+(`AUTH_API_BASE_URL`, `AUTH_API_EOL_KEY` e os timeouts). O detalhamento dessa
+borda fica em `docs/dominios/integracoes/eol/index.rst`.
+
 ## Runtime de produção
 
 | Variável | Padrão | Descrição |

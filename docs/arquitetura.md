@@ -109,7 +109,8 @@ Estrutura típica:
 Estado atual:
 
 - `apps/integracoes/coresso/` já executa o login real e normaliza o payload
-- `apps/integracoes/eol/` continua em estrutura inicial
+- `apps/integracoes/eol/` já consome os três endpoints de escolas da integração EOL,
+  normalizando, filtrando e enriquecendo as unidades elegíveis
 
 ## Regras de organização
 

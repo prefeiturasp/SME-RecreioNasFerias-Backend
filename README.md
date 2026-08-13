@@ -11,9 +11,9 @@ organizada, operação local por Docker Compose, endpoint de saúde, schema
 OpenAPI, autenticação institucional via CoreSSO, sessão JWT local, stack de
 qualidade e documentação operacional.
 
-O backend já implementa o fluxo de autenticação institucional e o
-gerenciamento local de sessão. A integração EOL e as regras reais de negócio
-de `edicoes` e `polos` seguem como evoluções previstas do sistema.
+O backend já implementa o fluxo de autenticação institucional, o
+gerenciamento local de sessão e a integração EOL de escolas. As regras reais
+de negócio de `edicoes` e `polos` seguem como evoluções previstas do sistema.
 
 ## O que o projeto entrega hoje
 
@@ -25,8 +25,8 @@ de `edicoes` e `polos` seguem como evoluções previstas do sistema.
 - renovação, verificação, logout e perfil do usuário em `/api/v1/auth/`;
 - apps `core`, `edicoes` e `polos` com estrutura inicial para evolução do
   domínio;
-- integração `coresso` funcional para autenticação e `eol` mantida como
-  contrato inicial;
+- integração `coresso` funcional para autenticação e `eol` funcional para
+  consulta de unidades escolares;
 - `mypy` estrito, cobertura com `fail_under = 80` e documentação Sphinx
   ativos.
 
@@ -67,7 +67,7 @@ Nesse modo, a API sobe com Gunicorn e usa o entrypoint de produção.
 |   |-- polos/                # estrutura inicial do domínio de polos
 |   `-- integracoes/
 |       |-- coresso/          # integração real de autenticação com o CoreSSO
-|       `-- eol/              # contratos e stubs da integração EOL
+|       `-- eol/              # integração real de escolas com EOL
 |-- config/                   # settings, URLs, ASGI e WSGI
 |-- docs/                     # documentação Sphinx do projeto
 |-- requirements/             # dependências separadas por ambiente
@@ -219,7 +219,6 @@ make docs
 
 ## Fora do escopo atual
 
-- integração HTTP real com EOL
 - publicação efetiva das rotas de negócio de `edicoes` e `polos` em `/api/v1/`
 - regras reais de negócio de `edicoes` e `polos`
-- pipeline final de deploy com Jenkins e DevOps
+

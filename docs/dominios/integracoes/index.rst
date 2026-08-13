@@ -7,3 +7,4 @@ Esta seção organiza a documentação aprofundada das bordas externas do projet
    :maxdepth: 2
 
    coresso/index
+   eol/index
