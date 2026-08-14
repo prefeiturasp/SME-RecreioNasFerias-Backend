@@ -100,3 +100,85 @@ def test_adapter_rejeita_payload_sem_codigo_rf() -> None:
 
     with pytest.raises(CoressoContratoError, match="codigoRf"):
         CoressoAdapter(client=client).autenticar(TEST_RF, TEST_AUTH_INPUT)
+
+
+def test_adapter_campos_opcionais_ausentes() -> None:
+    """Trata payload mínimo sem campos opcionais do CoreSSO."""
+    client = FakeClient({"nome": TEST_NOME, "codigoRf": TEST_RF})
+
+    identidade = CoressoAdapter(client=client).autenticar(
+        TEST_RF, TEST_AUTH_INPUT
+    )
+
+    assert identidade.usuario_id_externo is None
+    assert identidade.email is None
+    assert identidade.cpf is None
+    assert identidade.perfis == ()
+    assert identidade.cargos == ()
+    assert identidade.cargos_sobrepostos == ()
+    assert identidade.cargos_efetivos == ()
+    assert identidade.unidades_lotacao == ()
+    assert identidade.unidade_exercicio is None
+
+
+def test_adapter_normaliza_perfis() -> None:
+    """Normaliza perfis ignorando itens vazios."""
+    client = FakeClient(
+        {
+            "nome": TEST_NOME,
+            "codigoRf": TEST_RF,
+            "perfis": ["DIRETOR", "  "],
+        }
+    )
+
+    identidade = CoressoAdapter(client=client).autenticar(
+        TEST_RF, TEST_AUTH_INPUT
+    )
+
+    assert identidade.perfis == ("DIRETOR",)
+
+
+@pytest.mark.parametrize("cargos", ["nao-lista", [123]])
+def test_adapter_rejeita_cargos_invalidos(cargos: object) -> None:
+    """Falha quando o campo de cargos foge do contrato esperado."""
+    client = FakeClient(
+        {"nome": TEST_NOME, "codigoRf": TEST_RF, "cargos": cargos}
+    )
+
+    with pytest.raises(CoressoContratoError, match="cargos"):
+        CoressoAdapter(client=client).autenticar(TEST_RF, TEST_AUTH_INPUT)
+
+
+@pytest.mark.parametrize("unidades", ["nao-lista", [123]])
+def test_adapter_rejeita_unidades_invalidas(unidades: object) -> None:
+    """Falha quando o campo de unidades foge do contrato esperado."""
+    client = FakeClient(
+        {
+            "nome": TEST_NOME,
+            "codigoRf": TEST_RF,
+            "unidadesLotacao": unidades,
+        }
+    )
+
+    with pytest.raises(CoressoContratoError, match="unidadesLotacao"):
+        CoressoAdapter(client=client).autenticar(TEST_RF, TEST_AUTH_INPUT)
+
+
+@pytest.mark.parametrize(
+    ("valor", "esperado"),
+    [
+        (None, None),
+        ("", None),
+        (True, None),
+        (3344, 3344),
+        ("3344", 3344),
+        ("abc", None),
+        ([], None),
+    ],
+)
+def test_adapter_inteiro_opcional(
+    valor: object,
+    esperado: int | None,
+) -> None:
+    """Converte valores numéricos textuais em inteiro quando possível."""
+    assert CoressoAdapter._inteiro_opcional(valor) == esperado
