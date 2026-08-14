@@ -135,35 +135,52 @@ class CoressoClient:
 
     @staticmethod
     def _extrair_mensagem_erro(response: ResponseLike) -> str:
-        """Extrai uma mensagem legivel de erro da resposta HTTP."""
+        """Extrai uma mensagem legível de erro da resposta HTTP."""
         try:
             dados = response.json()
         except ValueError:
-            texto = response.text.strip()
-            return texto or "Falha ao autenticar no CoreSSO."
+            return CoressoClient._texto_ou_padrao(response.text)
 
         if isinstance(dados, dict):
-            for chave in (
-                "mensagem",
-                "message",
-                "detail",
-                "erro",
-                "error",
-                "title",
-            ):
-                valor = dados.get(chave)
-                if isinstance(valor, str) and valor.strip():
-                    return valor.strip()
-
-            for valor in dados.values():
-                if isinstance(valor, str) and valor.strip():
-                    return valor.strip()
-                if isinstance(valor, list) and valor:
-                    primeiro_item = valor[0]
-                    if (
-                        isinstance(primeiro_item, str)
-                        and primeiro_item.strip()
-                    ):
-                        return primeiro_item.strip()
+            mensagem = CoressoClient._buscar_mensagem(dados)
+            if mensagem:
+                return mensagem
 
         return "Falha ao autenticar no CoreSSO."
+
+    @staticmethod
+    def _buscar_mensagem(dados: dict[str, Any]) -> str | None:
+        """Procura a primeira mensagem útil dentro do dicionário de erro."""
+        for chave in (
+            "mensagem",
+            "message",
+            "detail",
+            "erro",
+            "error",
+            "title",
+        ):
+            mensagem = CoressoClient._texto_valido(dados.get(chave))
+            if mensagem:
+                return mensagem
+
+        for valor in dados.values():
+            mensagem = CoressoClient._texto_valido(valor)
+            if mensagem:
+                return mensagem
+            if isinstance(valor, list) and valor:
+                mensagem = CoressoClient._texto_valido(valor[0])
+                if mensagem:
+                    return mensagem
+        return None
+
+    @staticmethod
+    def _texto_valido(valor: object) -> str | None:
+        """Retorna o texto do valor quando houver conteúdo útil."""
+        if isinstance(valor, str) and valor.strip():
+            return valor.strip()
+        return None
+
+    @staticmethod
+    def _texto_ou_padrao(texto: str) -> str:
+        """Retorna o texto informado ou a mensagem padrão quando vazio."""
+        return texto.strip() or "Falha ao autenticar no CoreSSO."
