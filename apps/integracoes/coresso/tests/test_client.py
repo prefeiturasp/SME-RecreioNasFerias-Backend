@@ -65,6 +65,8 @@ def test_client_autenticar_envia_payload_esperado(settings: Any) -> None:
     """Garante o request HTTP esperado do endpoint unificado."""
     settings.AUTH_API_BASE_URL = "https://auth.exemplo.gov.br"
     settings.AUTH_API_EOL_KEY = "api-key"
+    settings.AUTH_API_CONNECT_TIMEOUT_SECONDS = 5
+    settings.AUTH_API_AUTH_TIMEOUT_SECONDS = 10
 
     response = FakeResponse(status_code=200, data={"codigoRf": TEST_RF})
     session = FakeSession(response)
