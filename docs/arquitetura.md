@@ -1,20 +1,21 @@
 # Arquitetura
 
-Este documento descreve a organização da estrutura atual e o papel de cada
-área do repositório.
+Este documento descreve a organização do repositório e as responsabilidades de
+cada área. O detalhamento profundo de domínios e integrações deve evoluir em
+`docs/dominios/`, para evitar repetição nas páginas gerais.
 
 ## Princípio adotado
 
-O projeto segue uma organização orientada por domínio de aplicação, com um
-monolito Django na raiz e isolamento explícito das integrações externas.
+O projeto segue uma organização orientada por domínio, com um monolito Django
+na raiz e isolamento explícito das integrações externas.
 
 Na prática, isso significa:
 
-- `core` concentra a infraestrutura compartilhada do projeto;
-- cada domínio possui seu próprio app Django;
-- integrações externas ficam separadas em `apps/integracoes/`;
-- configuração, runtime e documentação não disputam responsabilidade com os
-  apps de domínio.
+- `core` concentra o que é compartilhado pelo sistema
+- cada domínio principal evolui em seu próprio app Django
+- integrações externas ficam em `apps/integracoes/`
+- `config/`, `requirements/` e `scripts/` tratam configuração e runtime, não
+  regra de negócio
 
 ## Estrutura principal
 
@@ -36,152 +37,92 @@ Na prática, isso significa:
 
 ## Responsabilidades por área
 
-### Visão resumida
-
 | Área | Papel no projeto |
 | --- | --- |
-| `apps/core/` | infraestrutura compartilhada, modelos base, usuário customizado, healthcheck e componentes iniciais de autenticação |
-| `apps/edicoes/` | estrutura inicial do domínio de edições |
-| `apps/polos/` | estrutura inicial do domínio de polos |
-| `apps/integracoes/coresso/` | contrato e stub da integração CoreSSO |
-| `apps/integracoes/eol/` | contrato e stub da integração EOL |
+| `apps/core/` | infraestrutura compartilhada, autenticação, modelos base, usuário local e healthcheck |
+| `apps/edicoes/` | domínio de edições |
+| `apps/polos/` | domínio de polos |
+| `apps/integracoes/` | bordas externas, como CoreSSO e EOL |
 | `config/` | settings, URLs, ASGI e WSGI |
 | `scripts/` | entrypoints e bootstrap dos containers |
 | `requirements/` | dependências separadas por ambiente |
-| `docs/` | documentação operacional e estrutural |
-| `testes/` | espaço reservado para suítes E2E, smoke ou BDD |
+| `docs/` | documentação geral e navegação Sphinx |
+| `testes/` | espaço reservado para E2E, smoke ou BDD |
 
-### `apps/core/`
+As páginas gerais desta documentação devem responder rápido três perguntas:
 
-Infraestrutura compartilhada do projeto, modelos base, usuário customizado,
-healthcheck e componentes iniciais de autenticação.
+- como o repositório está organizado
+- como o projeto sobe e é validado
+- quais configurações variam por ambiente
 
-O `core` existe para evitar duplicação do que é transversal ao sistema. Nesta
-etapa ele concentra o que precisa estar pronto desde o primeiro dia, sem tentar
-resolver antecipadamente regras de negócio que pertencem a outros apps.
+Quando um assunto exigir fluxo detalhado, contrato externo ou regra mais
+específica, o aprofundamento deve acontecer em `docs/dominios/`.
 
-Também fica em `core` o tratamento centralizado de exceções REST em
-`exception_handler.py`, responsável por traduzir respostas padrão do DRF para
-pt-BR nos cenários comuns de autenticação, permissão e validação de request.
+## Core
 
-A organização de autenticação foi simplificada em cinco pontos centrais:
+O app `core` reúne o que hoje é transversal ao sistema.
 
-- `apps/core/services/auth_service.py` concentra o fluxo de login, resolução
-  de token, logout e helpers diretamente ligados à autenticação;
-- `apps/core/authentication.py` concentra a integração DRF da autenticação por
-  token;
-- `apps/core/api/serializers/auth_serializer.py` concentra o contrato HTTP do
-  login;
-- `apps/core/api/views/auth.py` concentra o contrato HTTP do login e do
-  logout;
-- `apps/core/models/identidade.py` concentra os modelos locais ligados a
-  identidade e auditoria (`Usuario`, `CargoPermitido` e `LogLogin`).
+Nesta etapa ele concentra:
 
-### `apps/edicoes/` e `apps/polos/`
+- autenticação institucional via CoreSSO com sessão JWT local
+- usuário local e vínculo ao cargo permitido autorizado
+- auditoria simples de login
+- healthcheck e contratos HTTP de autenticação
+- tradução centralizada de exceções REST para respostas mais consistentes
 
-Apps de domínio do projeto. No estado atual, a estrutura existe, mas as regras
-de negócio e os modelos ORM concretos ainda não foram implementados.
+Os pontos centrais do fluxo atual ficam distribuídos em:
 
-Esses apps já possuem `api/`, `models/`, `services/`, testes e `migrations`
-para que a evolução posterior aconteça sem reorganização estrutural.
+- `apps/core/services/auth_service.py`
+- `apps/core/authentication.py`
+- `apps/core/api/serializers/auth_serializer.py`
+- `apps/core/api/views/auth.py`
+- `apps/core/models/identidade.py`
 
-Arquivos como `admin.py` e `repository.py` deixam de fazer parte da estrutura
-padrão e passam a existir apenas sob demanda.
+## Apps de domínio
 
-### `apps/integracoes/coresso/` e `apps/integracoes/eol/`
+`edicoes` e `polos` já possuem a estrutura base do app, com `api/`, `models/`,
+`services/`, testes e migrations. No estado atual, esses apps ainda não
+concentram a regra real de negócio do produto nem foram publicados como parte
+principal da API.
 
-Estruturas iniciais das integrações externas em formato hexagonal, com
-contratos e stubs preparados para evolução futura.
+Quando esses domínios crescerem, o detalhamento arquitetural deve evoluir em
+`docs/dominios/` em vez de inflar esta página.
 
-O objetivo aqui é separar desde cedo a borda com sistemas externos. Mesmo sem
-HTTP real nesta etapa, a árvore já deixa explícito onde ficam contrato,
-adaptador, client e exceções da integração.
+Em outras palavras: esta página explica a forma do sistema; a árvore de
+domínios explica o conteúdo específico de cada área.
 
-### `config/`
+## Integrações externas
 
-Configuração central do Django, incluindo settings, ASGI, WSGI e URLs.
+As integrações ficam separadas do domínio de negócio e seguem uma organização
+hexagonal simples.
 
-Essa pasta governa o comportamento da aplicação inteira e não deve receber
-regra de negócio de domínio.
-
-### `requirements/`
-
-Dependências separadas por ambiente.
-
-- `base.txt` concentra o runtime comum
-- `local.txt` adiciona dependências de desenvolvimento, testes, docs e tipagem
-- `production.txt` mantém o runtime enxuto da imagem final
-
-### `scripts/`
-
-Entrypoints usados pelos containers de desenvolvimento e produção.
-
-Os scripts controlam detalhes de bootstrap, como migrations no startup,
-escolha do comando final e execução de Gunicorn no runtime de produção.
-
-### `docs/`
-
-Documentação navegável do projeto, gerada com Sphinx.
-
-Ela complementa o `README.md` com guias mais estruturados de início,
-configuração e arquitetura.
-
-### `testes/`
-
-Espaço reservado para suítes E2E, smoke ou BDD quando essas camadas entrarem
-no escopo.
-
-## Regras de dependência
-
-Para a estrutura continuar coerente nas próximas evoluções, o fluxo de
-responsabilidades precisa permanecer previsível.
-
-Regras práticas para revisão de código:
-
-- `config/` configura a aplicação, mas não concentra regra de negócio
-- `core` oferece base compartilhada, mas não deve absorver tudo por
-  conveniência
-- `edicoes` e `polos` devem evoluir a própria regra de negócio dentro de seus
-  apps
-- integrações externas devem permanecer isoladas em `apps/integracoes/`
-- scripts de container cuidam de bootstrap e runtime, não de comportamento de
-  domínio
-
-## Estrutura das integrações
-
-As integrações externas foram organizadas para explicitar papéis desde o
-início.
+Estrutura típica:
 
 | Arquivo | Responsabilidade |
 | --- | --- |
-| `port.py` | contrato público que o resto da aplicação consome |
-| `adapter.py` | implementação que adapta o contrato para o client externo |
-| `client.py` | camada de acesso ao serviço remoto |
+| `port.py` | contrato público consumido pelo restante da aplicação |
+| `adapter.py` | adaptação entre contrato interno e client externo |
+| `client.py` | acesso HTTP ao serviço remoto |
 | `exceptions.py` | exceções específicas da integração |
 | `tests/` | testes da borda de integração |
 
-Essa separação ajuda a evitar que chamadas HTTP, tratamento de erro e regra de
-aplicação fiquem misturados no mesmo ponto do código.
+Estado atual:
 
-## Decisões de escopo atuais
+- `apps/integracoes/coresso/` já executa o login real e normaliza o payload
+- `apps/integracoes/eol/` já consome os três endpoints de escolas da integração EOL,
+  normalizando, filtrando e enriquecendo as unidades elegíveis
 
-- autenticação funcional permanece como evolução futura
-- integrações HTTP reais com CoreSSO e EOL permanecem como evolução futura
-- regras reais de negócio de `edicoes` e `polos` permanecem em aberto para a
-  evolução do domínio
+## Regras de organização
 
-## Como evoluir a arquitetura sem gerar retrabalho
+- `config/` configura a aplicação inteira, mas não recebe regra de negócio
+- `core` não deve virar depósito genérico de código por conveniência
+- regra de negócio nova deve nascer no app de domínio correspondente
+- chamadas HTTP externas e contratos remotos devem permanecer em
+  `apps/integracoes/`
+- testes devem ficar o mais perto possível do código que exercitam
 
-Ao adicionar comportamento novo nas próximas iterações, alguns critérios ajudam
-a manter a árvore coerente:
-
-1. Coloque cada regra de negócio no app de domínio correspondente.
-2. Use `core` apenas para o que for realmente compartilhado.
-3. Mantenha adaptadores externos fora dos apps de domínio.
-4. Adicione testes no mesmo app ou pacote que recebeu a alteração.
-5. Evite mover código para camadas genéricas sem necessidade concreta.
-
-## Organização da documentação
+## Documentação
 
 - `README.md` cobre onboarding rápido e comandos do dia a dia
-- `docs/` concentra os guias navegáveis do projeto
+- `docs/` cobre visão geral, configuração e operação
+- `docs/dominios/` cobre aprofundamento por domínio e integração

@@ -11,6 +11,7 @@ Compose e estrutura técnica validada localmente.
    getting_started
    configuration
    arquitetura
+   dominios/index
 
 Visão geral
 -----------
@@ -35,6 +36,8 @@ Os pontos de entrada da documentação ficaram organizados assim:
 - ``getting_started`` para subida, validação e operação local.
 - ``configuration`` para variáveis de ambiente e comportamento de runtime.
 - ``arquitetura`` para a organização da estrutura e os critérios de evolução.
+- ``dominios`` para a documentação aprofundada de áreas específicas, como
+   integrações e regras que não cabem na visão geral.
 - ``README.md`` para entrada rápida na raiz do repositório.
 
 Índices e tabelas

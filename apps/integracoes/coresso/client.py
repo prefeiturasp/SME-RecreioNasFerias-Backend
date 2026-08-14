@@ -1,15 +1,58 @@
-"""Client HTTP placeholder do CoreSSO.
+"""Client HTTP do CoreSSO.
 
-Encapsula as futuras chamadas de rede necessárias para login institucional e
+Encapsula as chamadas de rede necessárias para login institucional e
 consulta de perfil do usuário autenticado.
 """
 
+from __future__ import annotations
+
+from typing import Any, Protocol, cast
+
+import requests
+from django.conf import settings
+
+from apps.integracoes.coresso.exceptions import (
+    CoressoAutenticacaoError,
+    CoressoConfigError,
+    CoressoContratoError,
+    CoressoIndisponivelError,
+)
+
+
+class RequestSession(Protocol):
+    """Protocolo mínimo da sessão HTTP usada pelo client."""
+
+    def request(
+        self,
+        method: str,
+        url: str,
+        **kwargs: Any,
+    ) -> ResponseLike:
+        """Executa uma requisição HTTP e retorna um response compatível."""
+
+
+class ResponseLike(Protocol):
+    """Protocolo mínimo da resposta HTTP usada pelo client."""
+
+    status_code: int
+    text: str
+
+    def json(self) -> object:
+        """Retorna o payload JSON bruto da resposta."""
+
 
 class CoressoClient:
-    """Encapsula futuras chamadas HTTP do CoreSSO."""
+    """Encapsula chamadas HTTP do CoreSSO."""
 
-    def autenticar(self, rf: str, senha: str) -> dict:
-        """Executa a chamada de autenticacao institucional quando existir.
+    def __init__(self, session: RequestSession | None = None) -> None:
+        """Inicializa o client com uma sessao HTTP reutilizavel."""
+        self.session: RequestSession = session or cast(
+            RequestSession,
+            requests.Session(),
+        )
+
+    def autenticar(self, rf: str, senha: str) -> dict[str, Any]:
+        """Executa a chamada HTTP do endpoint unificado de autenticacao.
 
         Args:
             rf: Registro funcional enviado pelo usuário.
@@ -19,20 +62,125 @@ class CoressoClient:
             Resposta bruta da autenticação institucional.
 
         Raises:
-            NotImplementedError: Enquanto o HTTP real não existir.
+            CoressoConfigError: Quando a configuração obrigatoria estiver
+                ausente.
+            CoressoAutenticacaoError: Quando o provedor rejeitar as
+                credenciais.
+            CoressoIndisponivelError: Quando houver erro de rede ou HTTP 5xx.
+            CoressoContratoError: Quando a resposta nao seguir o contrato
+                esperado.
         """
-        raise NotImplementedError("HTTP do CoreSSO ainda nao esta disponivel.")
+        self._validar_configuracao()
 
-    def obter_dados_usuario(self, token: str) -> dict:
-        """Executa a consulta de dados do usuario quando existir.
+        url = f"{settings.AUTH_API_BASE_URL}/api/v1/autenticacao/externa"
+        payload = {
+            "usuario": rf,
+            "senha": senha,
+            "codigoSistema": settings.AUTH_CODIGO_SISTEMA,
+        }
 
-        Args:
-            token: Token emitido após autenticação bem-sucedida.
+        try:
+            response = self.session.request(
+                "POST",
+                url,
+                json=cast(Any, payload),
+                headers=self._cabecalhos(),
+                timeout=self._timeout(),
+            )
+        except requests.RequestException as exc:
+            raise CoressoIndisponivelError() from exc
 
-        Returns:
-            Dados do usuário retornados pelo provedor institucional.
+        if response.status_code >= 500:
+            raise CoressoIndisponivelError(
+                self._extrair_mensagem_erro(response),
+                status_code=response.status_code,
+            )
 
-        Raises:
-            NotImplementedError: Enquanto o HTTP real não existir.
-        """
-        raise NotImplementedError("HTTP do CoreSSO ainda nao esta disponivel.")
+        if response.status_code >= 400:
+            raise CoressoAutenticacaoError(
+                self._extrair_mensagem_erro(response),
+                status_code=response.status_code,
+            )
+
+        try:
+            dados = response.json()
+        except ValueError as exc:
+            raise CoressoContratoError() from exc
+
+        if not isinstance(dados, dict):
+            raise CoressoContratoError()
+
+        return dados
+
+    @staticmethod
+    def _cabecalhos() -> dict[str, str]:
+        """Monta os headers obrigatorios do CoreSSO."""
+        return {"x-api-eol-key": settings.AUTH_API_EOL_KEY}
+
+    @staticmethod
+    def _timeout() -> tuple[int, int]:
+        """Retorna o timeout de conexao e leitura da integracao."""
+        return (
+            settings.AUTH_API_CONNECT_TIMEOUT_SECONDS,
+            settings.AUTH_API_AUTH_TIMEOUT_SECONDS,
+        )
+
+    @staticmethod
+    def _validar_configuracao() -> None:
+        """Valida a configuração mínima para autenticar no CoreSSO."""
+        if not settings.AUTH_API_BASE_URL:
+            raise CoressoConfigError("AUTH_API_BASE_URL nao configurada.")
+        if not settings.AUTH_API_EOL_KEY:
+            raise CoressoConfigError("AUTH_API_EOL_KEY nao configurada.")
+
+    @staticmethod
+    def _extrair_mensagem_erro(response: ResponseLike) -> str:
+        """Extrai uma mensagem legível de erro da resposta HTTP."""
+        try:
+            dados = response.json()
+        except ValueError:
+            return CoressoClient._texto_ou_padrao(response.text)
+
+        if isinstance(dados, dict):
+            mensagem = CoressoClient._buscar_mensagem(dados)
+            if mensagem:
+                return mensagem
+
+        return "Falha ao autenticar no CoreSSO."
+
+    @staticmethod
+    def _buscar_mensagem(dados: dict[str, Any]) -> str | None:
+        """Procura a primeira mensagem útil dentro do dicionário de erro."""
+        for chave in (
+            "mensagem",
+            "message",
+            "detail",
+            "erro",
+            "error",
+            "title",
+        ):
+            mensagem = CoressoClient._texto_valido(dados.get(chave))
+            if mensagem:
+                return mensagem
+
+        for valor in dados.values():
+            mensagem = CoressoClient._texto_valido(valor)
+            if mensagem:
+                return mensagem
+            if isinstance(valor, list) and valor:
+                mensagem = CoressoClient._texto_valido(valor[0])
+                if mensagem:
+                    return mensagem
+        return None
+
+    @staticmethod
+    def _texto_valido(valor: object) -> str | None:
+        """Retorna o texto do valor quando houver conteúdo útil."""
+        if isinstance(valor, str) and valor.strip():
+            return valor.strip()
+        return None
+
+    @staticmethod
+    def _texto_ou_padrao(texto: str) -> str:
+        """Retorna o texto informado ou a mensagem padrão quando vazio."""
+        return texto.strip() or "Falha ao autenticar no CoreSSO."
