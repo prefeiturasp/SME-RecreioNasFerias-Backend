@@ -10,3 +10,7 @@ class CoreConfig(AppConfig):
     name = "apps.core"
     label = "core"
     verbose_name = "Core"
+
+    def ready(self) -> None:
+        """Carrega extensões locais do drf-spectacular."""
+        from apps.core import spectacular_ext  # noqa: F401

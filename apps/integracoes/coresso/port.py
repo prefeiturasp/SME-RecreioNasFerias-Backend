@@ -7,13 +7,49 @@ acoplamento direto à implementação HTTP.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Any
+
+
+@dataclass(frozen=True, slots=True)
+class CargoCoresso:
+    """Representa um cargo retornado pelo CoreSSO."""
+
+    codigo_cargo: int | None
+    descricao_cargo: str
+
+
+@dataclass(frozen=True, slots=True)
+class UnidadeCoresso:
+    """Representa uma unidade retornada pelo CoreSSO."""
+
+    codigo: str
+    nome_unidade: str
+
+
+@dataclass(frozen=True, slots=True)
+class CoressoIdentity:
+    """Identidade normalizada retornada pelo fluxo de autenticação."""
+
+    usuario_id_externo: str | None
+    rf: str
+    nome: str
+    email: str | None
+    cpf: str | None
+    cargos: tuple[CargoCoresso, ...]
+    cargos_sobrepostos: tuple[CargoCoresso, ...]
+    cargos_efetivos: tuple[CargoCoresso, ...]
+    perfis: tuple[str, ...]
+    unidades_lotacao: tuple[UnidadeCoresso, ...]
+    unidade_exercicio: UnidadeCoresso | None
+    payload_bruto: dict[str, Any]
 
 
 class CoressoPort(ABC):
     """Define as operações esperadas para autenticação institucional."""
 
     @abstractmethod
-    def autenticar(self, rf: str, senha: str) -> dict:
+    def autenticar(self, rf: str, senha: str) -> CoressoIdentity:
         """Autentica um usuário institucional.
 
         Args:
@@ -21,16 +57,5 @@ class CoressoPort(ABC):
             senha: Senha institucional informada pelo usuário.
 
         Returns:
-            Payload bruto retornado pela autenticação institucional.
-        """
-
-    @abstractmethod
-    def obter_dados_usuario(self, token: str) -> dict:
-        """Obtém os dados do usuário autenticado.
-
-        Args:
-            token: Token emitido após autenticação bem-sucedida.
-
-        Returns:
-            Dados do usuário autenticado necessários ao domínio local.
+            Identidade normalizada retornada pela autenticação institucional.
         """
