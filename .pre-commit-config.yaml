@@ -1,0 +1,30 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.0
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.18.2
+    hooks:
+      - id: mypy
+        stages: [pre-push]
+        pass_filenames: false
+        args: ["--cache-dir=/tmp/.mypy_cache", "apps", "config"]
+        additional_dependencies:
+          - django==5.2.16
+          - django-stubs==5.2.9
+          - django-cors-headers==4.9.0
+          - django-environ==0.12.1
+          - djangorestframework==3.17.1
+          - djangorestframework-stubs==3.16.9
+          - djangorestframework-simplejwt==5.5.1
+          - drf-spectacular==0.29.0
+          - psycopg2-binary==2.9.12
+          - types-requests
+          - whitenoise==6.12.0
