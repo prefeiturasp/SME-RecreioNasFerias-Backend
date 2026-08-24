@@ -31,3 +31,5 @@ Thumbs.db
 .scannerwork/
 coverage.xml
 pytest-report.xml
+codex.md
+_material
