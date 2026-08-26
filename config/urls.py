@@ -13,4 +13,5 @@ urlpatterns = [
         name="docs",
     ),
     path("api/v1/", include("apps.core.api.urls")),
+    path("api/v1/", include("apps.edicoes.api.urls")),
 ]
