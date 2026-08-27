@@ -1,15 +1,21 @@
-"""Fixtures compartilhadas dos testes de edições."""
+"""Fixtures compartilhadas dos testes da aplicação."""
 
 import pytest
 from rest_framework.test import APIClient
 
-from apps.factories import EdicaoFactory, UsuarioFactory
+from apps.factories import EdicaoFactory, PoloFactory, UsuarioFactory
 
 
 @pytest.fixture
 def edicao_factory():
     """Disponibiliza a factory de edições para os testes."""
     return EdicaoFactory
+
+
+@pytest.fixture
+def polo_factory():
+    """Disponibiliza a factory de polos para os testes."""
+    return PoloFactory
 
 
 @pytest.fixture

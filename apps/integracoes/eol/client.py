@@ -3,6 +3,8 @@
 Encapsula as chamadas de rede dos três endpoints de escolas usados para
 alimentar a sincronização de polos de gestão direta:
 
+- ``GET /api/tiposEscolas``
+- ``GET /api/DREs``
 - ``GET /api/escolas/todas-unidades``
 - ``GET /api/escolas/dados/{eol}``
 - ``GET /api/escolas/{eol}/funcionarios/cargos/{codigo}``
@@ -54,6 +56,54 @@ class EolClient:
             RequestSession,
             requests.Session(),
         )
+
+    def listar_tipos_escola(self) -> list[dict[str, Any]]:
+        """Consulta o catálogo bruto de tipos de escola.
+
+        Returns:
+            Lista bruta de tipos de escola retornada pela integração.
+
+        Raises:
+            EolConfigError: Quando a configuração obrigatória estiver ausente.
+            EolIndisponivelError: Quando houver erro de rede ou HTTP 4xx/5xx.
+            EolContratoError: Quando a resposta não seguir o contrato esperado.
+        """
+        self._validar_configuracao()
+
+        url = f"{settings.AUTH_API_BASE_URL}/api/escolas/tiposEscolas"
+        response = self._requisicao("GET", url)
+        self._garantir_sucesso_http(response, "listar tipos de escola")
+
+        dados = self._parse_json(response)
+        if not isinstance(dados, list):
+            raise EolContratoError(
+                "Resposta de tipos de escola em formato inesperado."
+            )
+        return [item for item in dados if isinstance(item, dict)]
+
+    def listar_dres(self) -> list[dict[str, Any]]:
+        """Consulta o catálogo bruto de Diretorias Regionais de Educação.
+
+        Returns:
+            Lista bruta de DREs retornada pela integração.
+
+        Raises:
+            EolConfigError: Quando a configuração obrigatória estiver ausente.
+            EolIndisponivelError: Quando houver erro de rede ou HTTP 4xx/5xx.
+            EolContratoError: Quando a resposta não seguir o contrato esperado.
+        """
+        self._validar_configuracao()
+
+        url = f"{settings.AUTH_API_BASE_URL}/api/DREs"
+        response = self._requisicao("GET", url)
+        self._garantir_sucesso_http(response, "listar DREs")
+
+        dados = self._parse_json(response)
+        if not isinstance(dados, list):
+            raise EolContratoError(
+                "Resposta de DREs em formato inesperado."
+            )
+        return [item for item in dados if isinstance(item, dict)]
 
     def listar_todas_unidades(self) -> list[dict[str, Any]]:
         """Consulta o catálogo bruto de unidades escolares.
