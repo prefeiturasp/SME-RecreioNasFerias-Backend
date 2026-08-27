@@ -7,6 +7,6 @@ from apps.polos.api.views.polo_viewset import PoloViewSet
 app_name = "polos"
 
 router = DefaultRouter()
-router.register("", PoloViewSet, basename="polos")
+router.register("polos", PoloViewSet, basename="polos")
 
 urlpatterns = router.urls
