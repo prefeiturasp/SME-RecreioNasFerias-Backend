@@ -9,6 +9,8 @@ from apps.integracoes.eol.constants import CODIGO_CARGO_DIRETOR_ESCOLA
 from apps.integracoes.eol.exceptions import EolIndisponivelError
 from apps.integracoes.eol.port import (
     DadosUnidadeEol,
+    DreEol,
+    TipoEscolaEol,
     UnidadeEol,
     UnidadeRecreioEol,
 )
@@ -21,21 +23,35 @@ class FakeClient:
         self,
         *,
         unidades: list[dict[str, Any]] | None = None,
+        tipos_escola: list[dict[str, Any]] | None = None,
+        dres: list[dict[str, Any]] | None = None,
         dados: dict[str, dict[str, Any]] | None = None,
         diretores: dict[str, str] | None = None,
         falhas_dados: set[str] | None = None,
+        falhas_diretores: set[str] | None = None,
     ) -> None:
         """Inicializa o fake com os payloads que serão devolvidos."""
         self.unidades = unidades or []
+        self.tipos_escola = tipos_escola or []
+        self.dres = dres or []
         self.dados = dados or {}
         self.diretores = diretores or {}
         self.falhas_dados = falhas_dados or set()
+        self.falhas_diretores = falhas_diretores or set()
         self.calls_obter_dados: list[str] = []
         self.calls_obter_diretor: list[tuple[str, int]] = []
 
     def listar_todas_unidades(self) -> list[dict[str, Any]]:
         """Devolve o catalogo bruto configurado."""
         return self.unidades
+
+    def listar_tipos_escola(self) -> list[dict[str, Any]]:
+        """Devolve os tipos de escola configurados."""
+        return self.tipos_escola
+
+    def listar_dres(self) -> list[dict[str, Any]]:
+        """Devolve as DREs configuradas."""
+        return self.dres
 
     def obter_dados_unidade(self, codigo_eol: str) -> dict[str, Any] | None:
         """Devolve os dados brutos ou simula indisponibilidade pontual."""
@@ -51,6 +67,8 @@ class FakeClient:
     ) -> list[dict[str, Any]]:
         """Devolve o diretor configurado para a unidade."""
         self.calls_obter_diretor.append((codigo_eol, codigo_cargo))
+        if codigo_eol in self.falhas_diretores:
+            raise EolIndisponivelError()
         nome = self.diretores.get(codigo_eol)
         if not nome:
             return []
@@ -67,6 +85,46 @@ def _unidade_bruta(codigo: str, sigla: str) -> dict[str, Any]:
         "siglaDRE": "IP",
         "codigoDRE": "10",
     }
+
+
+def test_listar_tipos_escola_normaliza_catalogo() -> None:
+    """Converte o catálogo bruto de tipos no contrato tipado."""
+    client = FakeClient(
+        tipos_escola=[
+            {"codigo": "1", "descricaoSigla": " EMEF "},
+            {"codigo": 2, "descricaoSigla": "EMEI"},
+        ]
+    )
+
+    tipos = EolAdapter(client=client).listar_tipos_escola()
+
+    assert tipos == (
+        TipoEscolaEol(codigo=1, descricao_sigla="EMEF"),
+        TipoEscolaEol(codigo=2, descricao_sigla="EMEI"),
+    )
+
+
+def test_listar_dres_normaliza_catalogo() -> None:
+    """Converte o catálogo bruto de DREs no contrato tipado."""
+    client = FakeClient(
+        dres=[
+            {
+                "codigoDRE": "108100",
+                "nomeDRE": " DRE Butantã ",
+                "siglaDRE": "DRE - BT",
+            }
+        ]
+    )
+
+    dres = EolAdapter(client=client).listar_dres()
+
+    assert dres == (
+        DreEol(
+            codigo_dre="108100",
+            nome_dre="DRE Butantã",
+            sigla_dre="DRE - BT",
+        ),
+    )
 
 
 def test_listar_todas_unidades_normaliza_catalogo() -> None:
@@ -292,6 +350,53 @@ def test_enriquecer_unidades_tolera_falha_parcial() -> None:
     assert por_eol["094633"].nome_diretor == "Diretor Teste"
     assert por_eol["121000"].nome_escola == "Unidade 121000"
     assert por_eol["121000"].nome_diretor == ""
+
+
+def test_enriquecer_unidade_tolera_falha_na_consulta_do_diretor() -> None:
+    """Mantém dados da unidade quando a consulta do diretor falha."""
+    client = FakeClient(
+        dados={"094633": {"nome": "EMEF Teste"}},
+        falhas_diretores={"094633"},
+    )
+    unidade = UnidadeEol(
+        codigo_eol="094633",
+        nome_escola="Unidade 094633",
+        sigla_tipo_escola="EMEF",
+        nome_dre="DRE",
+        sigla_dre="DR",
+        codigo_dre="1",
+    )
+
+    enriquecida = EolAdapter(client=client).enriquecer_unidades((unidade,))
+
+    assert enriquecida[0].nome_escola == "EMEF Teste"
+    assert enriquecida[0].nome_diretor == ""
+
+
+def test_enriquecer_unidades_usa_fallback_para_falha_inesperada(
+    monkeypatch,
+) -> None:
+    """Mantém dados básicos quando o enriquecimento lança erro."""
+    unidade = UnidadeEol(
+        codigo_eol="094633",
+        nome_escola="Unidade 094633",
+        sigla_tipo_escola="EMEF",
+        nome_dre="DRE",
+        sigla_dre="DR",
+        codigo_dre="1",
+    )
+    adapter = EolAdapter(client=FakeClient())
+
+    def _falhar(_unidade: UnidadeEol) -> UnidadeRecreioEol:
+        raise RuntimeError("falha inesperada")
+
+    monkeypatch.setattr(adapter, "_enriquecer_unidade", _falhar)
+
+    enriquecida = adapter.enriquecer_unidades((unidade,))
+
+    assert enriquecida[0].codigo_eol == "094633"
+    assert enriquecida[0].nome_escola == "Unidade 094633"
+    assert enriquecida[0].email == ""
 
 
 def test_enriquecer_unidades_ordena_por_nome_e_codigo() -> None:

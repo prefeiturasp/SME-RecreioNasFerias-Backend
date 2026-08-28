@@ -70,6 +70,80 @@ def _configurar_ambiente(settings: Any) -> None:
     settings.AUTH_API_TIMEOUT_SECONDS = 60
 
 
+def test_listar_tipos_escola_envia_requisicao_esperada(
+    settings: Any,
+) -> None:
+    """Garante o request esperado para o catálogo de tipos de escola."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(
+        status_code=200,
+        data=[{"codigo": 1, "descricaoSigla": "EMEF"}],
+    )
+    session = FakeSession(response)
+
+    dados = EolClient(session=session).listar_tipos_escola()
+
+    assert dados == [{"codigo": 1, "descricaoSigla": "EMEF"}]
+    assert session.request_args == {
+        "method": "GET",
+        "url": "https://eol.exemplo.gov.br/api/escolas/tiposEscolas",
+        "headers": {"x-api-eol-key": "api-key"},
+        "timeout": (5, 60),
+    }
+
+
+def test_listar_tipos_escola_rejeita_resposta_invalida(settings: Any) -> None:
+    """Rejeita catálogo de tipos de escola fora do formato de lista."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolContratoError):
+        EolClient(
+            session=FakeSession(FakeResponse(status_code=200, data={}))
+        ).listar_tipos_escola()
+
+
+def test_listar_dres_envia_requisicao_esperada(settings: Any) -> None:
+    """Garante o request esperado para o catálogo de DREs."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(
+        status_code=200,
+        data=[
+            {
+                "codigoDRE": "108100",
+                "nomeDRE": "DRE Butantã",
+                "siglaDRE": "DRE - BT",
+            }
+        ],
+    )
+    session = FakeSession(response)
+
+    dados = EolClient(session=session).listar_dres()
+
+    assert dados == [
+        {
+            "codigoDRE": "108100",
+            "nomeDRE": "DRE Butantã",
+            "siglaDRE": "DRE - BT",
+        }
+    ]
+    assert session.request_args == {
+        "method": "GET",
+        "url": "https://eol.exemplo.gov.br/api/DREs",
+        "headers": {"x-api-eol-key": "api-key"},
+        "timeout": (5, 60),
+    }
+
+
+def test_listar_dres_rejeita_resposta_invalida(settings: Any) -> None:
+    """Rejeita catálogo de DREs fora do formato de lista."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolContratoError):
+        EolClient(
+            session=FakeSession(FakeResponse(status_code=200, data={}))
+        ).listar_dres()
+
+
 def test_listar_todas_unidades_envia_requisicao_esperada(
     settings: Any,
 ) -> None:
@@ -197,6 +271,17 @@ def test_client_falha_sem_configuracao(settings: Any) -> None:
         ).listar_todas_unidades()
 
 
+def test_client_falha_sem_chave_eol(settings: Any) -> None:
+    """Impede consulta quando somente a chave EOL está ausente."""
+    _configurar_ambiente(settings)
+    settings.AUTH_API_EOL_KEY = ""
+
+    with pytest.raises(EolConfigError):
+        EolClient(
+            session=FakeSession(FakeResponse(status_code=200, data=[]))
+        ).listar_dres()
+
+
 def test_client_mapeia_erro_de_rede_para_indisponibilidade(
     settings: Any,
 ) -> None:
@@ -247,3 +332,57 @@ def test_client_rejeita_dados_inesperados_na_unidade(settings: Any) -> None:
 
     with pytest.raises(EolContratoError):
         EolClient(session=FakeSession(response)).obter_dados_unidade(TEST_EOL)
+
+
+def test_client_rejeita_dados_inesperados_no_cargo(settings: Any) -> None:
+    """Rejeita resposta de funcionários que não seja uma lista."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(status_code=200, data={}, content=b"{}")
+
+    with pytest.raises(EolContratoError):
+        EolClient(
+            session=FakeSession(response)
+        ).obter_funcionarios_por_cargo(TEST_EOL, TEST_CARGO)
+
+
+def test_client_retorna_vazio_para_corpo_sem_conteudo(settings: Any) -> None:
+    """Trata resposta sem corpo como ausência de funcionários."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(status_code=200, content=b"")
+
+    funcionarios = EolClient(
+        session=FakeSession(response)
+    ).obter_funcionarios_por_cargo(TEST_EOL, TEST_CARGO)
+
+    assert funcionarios == []
+
+
+def test_client_extrai_texto_de_erro_nao_json(settings: Any) -> None:
+    """Usa o texto da resposta quando o erro HTTP não contém JSON."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(status_code=500, data=ValueError(), text=" falha ")
+
+    with pytest.raises(EolIndisponivelError, match="falha"):
+        EolClient(session=FakeSession(response)).listar_dres()
+
+
+def test_client_usa_mensagem_generica_para_erro_sem_campo_conhecido(
+    settings: Any,
+) -> None:
+    """Usa contexto quando o JSON de erro não possui mensagem conhecida."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(status_code=500, data={"codigo": 500})
+
+    with pytest.raises(EolIndisponivelError, match="listar DREs"):
+        EolClient(session=FakeSession(response)).listar_dres()
+
+
+def test_client_extrai_mensagem_de_campo_generico_de_erro(
+    settings: Any,
+) -> None:
+    """Extrai texto de um campo não padronizado da resposta de erro."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(status_code=500, data={"codigo": "falha"})
+
+    with pytest.raises(EolIndisponivelError, match="falha"):
+        EolClient(session=FakeSession(response)).listar_dres()
