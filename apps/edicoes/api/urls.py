@@ -7,6 +7,6 @@ from apps.edicoes.api.views.edicao_viewset import EdicaoViewSet
 app_name = "edicoes"
 
 router = DefaultRouter()
-router.register("", EdicaoViewSet, basename="edicoes")
+router.register("edicoes", EdicaoViewSet, basename="edicoes")
 
 urlpatterns = router.urls

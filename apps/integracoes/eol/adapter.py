@@ -22,6 +22,8 @@ from apps.integracoes.eol.exceptions import (
 )
 from apps.integracoes.eol.port import (
     DadosUnidadeEol,
+    TipoEscolaEol,
+    DreEol,
     EolPort,
     UnidadeEol,
     UnidadeRecreioEol,
@@ -30,6 +32,12 @@ from apps.integracoes.eol.port import (
 
 class EolEscolasClient(Protocol):
     """Protocolo mínimo do client HTTP usado pelo adaptador."""
+
+    def listar_tipos_escola(self) -> list[dict[str, Any]]:
+        """Devolve a lista bruta de tipos de escola do catálogo da EOL."""
+
+    def listar_dres(self) -> list[dict[str, Any]]:
+        """Devolve a lista bruta de Diretorias Regionais de Educação."""
 
     def listar_todas_unidades(self) -> list[dict[str, Any]]:
         """Devolve a lista bruta de unidades escolares."""
@@ -64,6 +72,19 @@ class EolAdapter(EolPort):
         """
         self.client = client or EolClient()
         self.max_workers = max_workers or MAX_WORKERS_PADRAO
+
+    def listar_tipos_escola(self) -> tuple[TipoEscolaEol, ...]:
+        """Normaliza o catálogo de tipos de escola da integração."""
+        return tuple(
+            self._normalizar_tipo_escola(tipo)
+            for tipo in self.client.listar_tipos_escola()
+        )
+
+    def listar_dres(self) -> tuple[DreEol, ...]:
+        """Normaliza o catálogo de DREs da integração."""
+        return tuple(
+            self._normalizar_dre(dre) for dre in self.client.listar_dres()
+        )
 
     def listar_todas_unidades(self) -> tuple[UnidadeEol, ...]:
         """Normaliza o catálogo bruto de unidades em contratos tipados."""
@@ -182,6 +203,21 @@ class EolAdapter(EolPort):
             nome_dre=self._texto(payload.get("nomeDRE")),
             sigla_dre=self._texto(payload.get("siglaDRE")),
             codigo_dre=self._texto(payload.get("codigoDRE")),
+        )
+
+    def _normalizar_tipo_escola(self, payload: dict[str, Any]) -> TipoEscolaEol:
+        """Converte um item do catálogo bruto em ``TipoEscolaEol``."""
+        return TipoEscolaEol(
+            codigo=int(payload.get("codigo", 0)),
+            descricao_sigla=self._texto(payload.get("descricaoSigla")),
+        )
+
+    def _normalizar_dre(self, payload: dict[str, Any]) -> DreEol:
+        """Converte uma DRE do payload externo para o contrato interno."""
+        return DreEol(
+            codigo_dre=self._texto(payload.get("codigoDRE")),
+            nome_dre=self._texto(payload.get("nomeDRE")),
+            sigla_dre=self._texto(payload.get("siglaDRE")),
         )
 
     def _normalizar_dados(self, payload: dict[str, Any]) -> DadosUnidadeEol:

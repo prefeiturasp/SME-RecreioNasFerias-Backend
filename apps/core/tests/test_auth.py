@@ -85,7 +85,7 @@ def test_permission_placeholder_sempre_bloqueia() -> None:
 
 
 def test_exception_handler_traduz_payload_drf() -> None:
-    """Traduz campos padrao de erro do DRF para pt-BR."""
+    """Retorna somente a primeira mensagem em formato padronizado."""
     excecao = ValidationError(
         {"detail": "erro", "non_field_errors": ["invalido"]}
     )
@@ -94,7 +94,7 @@ def test_exception_handler_traduz_payload_drf() -> None:
 
     assert isinstance(response, Response)
     assert response is not None
-    assert response.data == {"detalhe": "erro", "erros_gerais": ["invalido"]}
+    assert response.data == {"detalhe": "erro"}
 
 
 def test_exception_handler_traduz_nao_autenticado() -> None:

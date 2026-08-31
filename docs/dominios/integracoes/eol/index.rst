@@ -8,7 +8,10 @@ enriquecimento das unidades elegíveis ao programa.
 Visão resumida
 --------------
 
-- endpoints externos consumidos: ``GET /api/escolas/*``
+- endpoints externos consumidos:
+``GET /api/DREs``
+``GET /api/escolas/tiposEscolas``
+``GET /api/escolas/*``
 - app de integração: ``apps/integracoes/eol/``
 - contrato público consumido pelo domínio: ``EolPort``
 - consumo previsto: sincronização de polos de gestão direta
@@ -16,20 +19,32 @@ Visão resumida
 Contrato externo consumido
 --------------------------
 
-A integração consome três endpoints, todos com o header ``x-api-eol-key``:
+A integração consome quatro endpoints, todos com o header ``x-api-eol-key``:
 
+- ``GET /api/DREs`` — catálogo de Diretorias Regionais de Educação
+- ``GET /api/escolas/tiposEscolas`` — catálogo de tipos de escola
 - ``GET /api/escolas/todas-unidades`` — catálogo bruto de unidades escolares
 - ``GET /api/escolas/dados/{eol}`` — dados detalhados da unidade
 - ``GET /api/escolas/{eol}/funcionarios/cargos/{codigo}`` — funcionários no cargo
 
 Campos do catálogo bruto usados hoje:
 
+Para DREs:
+
+- ``codigoDRE``
+- ``nomeDRE``
+- ``siglaDRE``
 - ``codigoEscola``
 - ``nomeEscola``
 - ``siglaTipoEscola``
 - ``nomeDRE``
 - ``siglaDRE``
 - ``codigoDRE``
+
+Para tipos de escola:
+
+- ``codigo``
+- ``descricaoSigla``
 
 Campos dos dados detalhados usados hoje:
 
@@ -51,6 +66,8 @@ O backend não propaga os payloads brutos para o restante da aplicação. Ele os
 converte em contratos internos tipados em ``apps/integracoes/eol/port.py``:
 
 - ``UnidadeEol`` — unidade do catálogo bruto normalizada
+- ``DreEol`` — Diretoria Regional de Educação normalizada
+- ``TipoEscolaEol`` — tipo de unidade normalizado
 - ``DadosUnidadeEol`` — dados detalhados normalizados (com CEP e endereço)
 - ``UnidadeRecreioEol`` — unidade enriquecida pronta para a sincronização
 
@@ -109,6 +126,8 @@ Contrato público
 
 O ``EolPort`` expõe as operações que o domínio consome:
 
+- ``listar_dres()``
+- ``listar_tipos_escola()``
 - ``listar_todas_unidades()``
 - ``obter_dados_unidade(codigo_eol)``
 - ``obter_nome_diretor(codigo_eol, codigo_cargo=None)``

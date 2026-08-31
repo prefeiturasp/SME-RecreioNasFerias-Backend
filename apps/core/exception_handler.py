@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import (
     AuthenticationFailed,
     MethodNotAllowed,
@@ -32,6 +33,7 @@ def _traduzir_payload(payload: Any) -> Any:
         chaves = {
             "detail": "detalhe",
             "non_field_errors": "erros_gerais",
+            "__all__": "detalhe",
         }
         return {
             chaves.get(chave, chave): _traduzir_payload(valor)
@@ -42,6 +44,41 @@ def _traduzir_payload(payload: Any) -> Any:
         return [_traduzir_payload(item) for item in payload]
 
     return payload
+
+
+def _resposta_validation_error_django(
+    exc: DjangoValidationError,
+) -> Response:
+    """Converte uma validação do Django em resposta HTTP 400."""
+    if hasattr(exc, "message_dict"):
+        payload: Any = exc.message_dict
+    else:
+        payload = {"__all__": exc.messages}
+
+    return Response(
+        {"detalhe": _primeira_mensagem(_traduzir_payload(payload))},
+        status=400,
+    )
+
+
+def _primeira_mensagem(payload: Any) -> str:
+    """Extrai a primeira mensagem textual de um payload de erro."""
+    if isinstance(payload, str):
+        return payload
+
+    if isinstance(payload, dict):
+        for valor in payload.values():
+            mensagem = _primeira_mensagem(valor)
+            if mensagem:
+                return mensagem
+
+    if isinstance(payload, list):
+        for valor in payload:
+            mensagem = _primeira_mensagem(valor)
+            if mensagem:
+                return mensagem
+
+    return "Erro ao processar a requisição."
 
 
 def _normalizar_detalhe_portugues(exc: Exception, detalhe: Any) -> Any:
@@ -87,15 +124,20 @@ def tratar_excecoes_drf(
         Resposta tratada quando a exceção for conhecida pelo DRF, ou `None`
         para delegar o tratamento padrão do Django.
     """
+    if isinstance(exc, DjangoValidationError):
+        return _resposta_validation_error_django(exc)
+
     resposta = drf_exception_handler(exc, context)
     if resposta is None:
         return None
 
-    resposta.data = _traduzir_payload(resposta.data)
-    if isinstance(resposta.data, dict) and "detalhe" in resposta.data:
-        resposta.data["detalhe"] = _normalizar_detalhe_portugues(
+    payload = _traduzir_payload(resposta.data)
+    if isinstance(payload, dict) and "detalhe" in payload:
+        payload["detalhe"] = _normalizar_detalhe_portugues(
             exc,
-            resposta.data["detalhe"],
+            payload["detalhe"],
         )
+
+    resposta.data = {"detalhe": _primeira_mensagem(payload)}
 
     return resposta

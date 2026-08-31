@@ -85,7 +85,14 @@ testpaths = ["apps"]
 
 [tool.coverage.run]
 source = ["apps"]
-omit = ["*/migrations/*", "manage.py"]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/test_*.py",
+    "*/conftest.py",
+    "*/factories.py",
+    "manage.py",
+]
 
 [tool.coverage.report]
 show_missing = true

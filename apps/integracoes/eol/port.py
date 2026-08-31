@@ -12,6 +12,23 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
+class TipoEscolaEol:
+    """Tipo de escola normalizado a partir do catálogo bruto de tipos."""
+
+    codigo: int
+    descricao_sigla: str
+
+
+@dataclass(frozen=True, slots=True)
+class DreEol:
+    """Diretoria Regional de Educação normalizada da EOL."""
+
+    codigo_dre: str
+    nome_dre: str
+    sigla_dre: str
+
+
+@dataclass(frozen=True, slots=True)
 class UnidadeEol:
     """Unidade escolar normalizada a partir do catálogo bruto de unidades."""
 
@@ -57,6 +74,14 @@ class UnidadeRecreioEol:
 
 class EolPort(ABC):
     """Define as operações esperadas da integração de escolas da SME."""
+
+    @abstractmethod
+    def listar_tipos_escola(self) -> tuple[TipoEscolaEol, ...]:
+        """Lista os tipos de escola do catálogo bruto da EOL."""
+
+    @abstractmethod
+    def listar_dres(self) -> tuple[DreEol, ...]:
+        """Lista as Diretorias Regionais de Educação."""
 
     @abstractmethod
     def listar_todas_unidades(self) -> tuple[UnidadeEol, ...]:
