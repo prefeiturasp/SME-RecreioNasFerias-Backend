@@ -17,19 +17,39 @@ class EdicaoService:
     """Orquestra criação, consulta, alteração e exclusão de edições."""
 
     @staticmethod
+    @transaction.atomic
     def sincronizar_status() -> None:
-        """Atualiza os status conforme a data atual do sistema."""
+        """Atualiza os status conforme a data atual do sistema.
+
+        A ordem das transições é importante: uma edição que já terminou
+        precisa deixar de ser ativa antes que outra edição seja promovida.
+        O bloqueio das linhas serializa sincronizações concorrentes e a
+        transação impede que uma sincronização fique parcialmente aplicada.
+        """
         hoje = timezone.localdate()
+
+        # Avaliar o queryset mantém todas as edições bloqueadas até o fim da
+        # transação. A ordenação evita locks em ordens diferentes entre
+        # requisições concorrentes.
+        list(
+            Edicao.objects.select_for_update()
+            .order_by("pk")
+            .values_list("pk", flat=True)
+        )
+
+        # Primeiro libera a constraint de edição ativa para a nova edição.
+        Edicao.objects.filter(data_fim__lt=hoje).exclude(
+            status=StatusEdicao.ENCERRADA
+        ).update(status=StatusEdicao.ENCERRADA)
+
         Edicao.objects.filter(data_inicio__gt=hoje).exclude(
             status=StatusEdicao.PLANEJADA
         ).update(status=StatusEdicao.PLANEJADA)
+
         Edicao.objects.filter(
             data_inicio__lte=hoje,
             data_fim__gte=hoje,
         ).exclude(status=StatusEdicao.ATIVA).update(status=StatusEdicao.ATIVA)
-        Edicao.objects.filter(data_fim__lt=hoje).exclude(
-            status=StatusEdicao.ENCERRADA
-        ).update(status=StatusEdicao.ENCERRADA)
 
     def listar(self):
         """Sincroniza status e retorna as edições ordenadas."""
@@ -44,6 +64,7 @@ class EdicaoService:
     @transaction.atomic
     def criar(self, **dados: Any) -> Edicao:
         """Cria uma edição, sempre iniciando com status planejada."""
+        self.sincronizar_status()
         dados.pop("status", None)
         edicao = Edicao(status=StatusEdicao.PLANEJADA, **dados)
         edicao.save()
