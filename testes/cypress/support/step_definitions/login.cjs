@@ -1,4 +1,4 @@
-const { When, Then } = require('cypress-cucumber-preprocessor/steps')
+const { When, Then } = require('@badeball/cypress-cucumber-preprocessor')
 
 const autenticarNaApi = () => {
 	const configuredApiBaseUrl = Cypress.env('api_base_url')
@@ -64,4 +64,4 @@ Then('a API deve responder ao login com status 400', () => {
 	cy.get('@loginErrorResponse').its('status').should('eq', 400)
 })
 
-module.exports = { autenticarNaApi }
+exports.autenticarNaApi = autenticarNaApi

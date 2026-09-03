@@ -1,5 +1,5 @@
-const { Given, When, Then } = require('cypress-cucumber-preprocessor/steps')
-const { autenticarNaApi } = require('./login')
+const { Given, When, Then } = require('@badeball/cypress-cucumber-preprocessor')
+const { autenticarNaApi } = require('./login.cjs')
 
 Given('que o login institucional foi realizado para verificar o token', () => {
 	autenticarNaApi().its('body.token').should('be.a', 'string').and('not.be.empty').as('authToken')

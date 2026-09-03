@@ -1,4 +1,4 @@
-const { Given, When, Then } = require('cypress-cucumber-preprocessor/steps')
+const { Given, When, Then } = require('@badeball/cypress-cucumber-preprocessor')
 
 Given('que estou autenticado na API', () => {
 	const apiBaseUrl = Cypress.env('api_base_url')

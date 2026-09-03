@@ -1,4 +1,4 @@
-const { When, Then } = require('cypress-cucumber-preprocessor/steps')
+const { When, Then } = require('@badeball/cypress-cucumber-preprocessor')
 
 When('eu consulto o healthcheck da infraestrutura', () => {
 	const apiBaseUrl = (Cypress.env('api_base_url') || Cypress.config('baseUrl')).replace(/\/$/, '')
