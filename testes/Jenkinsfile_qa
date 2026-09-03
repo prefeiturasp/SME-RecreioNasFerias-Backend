@@ -81,7 +81,7 @@ pipeline {
                                 export PATH=\$JAVA_HOME/bin:/usr/local/bin:\$PATH; \
                                 allure generate ${ALLURE_PATH} --clean --output testes/ui/allure-report; \
                                 cd testes/ui; \
-                                zip -r allure-results-${BUILD_NUMBER}-\$(date +"%d-%m-%Y").zip allure-results
+                                zip -r allure-results-${BUILD_NUMBER}-\$(date +"%d-%m-%Y").zip allure-report
                             """
                         } else {
                             echo "⚠️ Nenhum resultado Allure encontrado em ${ALLURE_PATH}."
