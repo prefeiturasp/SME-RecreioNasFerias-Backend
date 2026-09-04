@@ -3,6 +3,52 @@ const { autenticarNaApi } = require('./login.cjs')
 
 const obterApiBaseUrl = () => Cypress.env('api_base_url').replace(/\/$/, '')
 
+const criarEdicaoExclusiva = (token, finalidade) => {
+	return cy
+		.request({
+			method: 'GET',
+			url: `${obterApiBaseUrl()}/api/v1/edicoes/`,
+			headers: { Authorization: `Bearer ${token}` },
+		})
+		.then((response) => {
+			const maiorDataFim = response.body.reduce((maiorData, edicao) => {
+				return edicao.data_fim > maiorData ? edicao.data_fim : maiorData
+			}, '2030-01-01')
+			const dataInicio = new Date(`${maiorDataFim}T00:00:00Z`)
+			dataInicio.setUTCDate(dataInicio.getUTCDate() + 1)
+			const dataFim = new Date(dataInicio)
+			dataFim.setUTCDate(dataFim.getUTCDate() + 7)
+			const formatarData = (data) => data.toISOString().slice(0, 10)
+
+			return cy
+				.request({
+					method: 'POST',
+					url: `${obterApiBaseUrl()}/api/v1/edicoes/`,
+					headers: { Authorization: `Bearer ${token}` },
+					body: {
+						nome: `Edicao para ${finalidade} ${Date.now()}`,
+						data_inicio: formatarData(dataInicio),
+						data_fim: formatarData(dataFim),
+						inscricoes_inicio: formatarData(dataInicio),
+						inscricoes_fim: formatarData(dataInicio),
+					},
+				})
+				.then((criacaoResponse) => {
+					expect(criacaoResponse.status, JSON.stringify(criacaoResponse.body)).to.eq(201)
+					return criacaoResponse.body
+				})
+		})
+}
+
+const excluirEdicaoExclusiva = (token, uuid) => {
+	return cy.request({
+		method: 'DELETE',
+		url: `${obterApiBaseUrl()}/api/v1/edicoes/${uuid}/`,
+		headers: { Authorization: `Bearer ${token}` },
+		failOnStatusCode: false,
+	})
+}
+
 Given('que o login institucional foi realizado para consultar edicoes', () => {
 	autenticarNaApi().its('body.token').should('be.a', 'string').and('not.be.empty').as('authToken')
 })
@@ -39,26 +85,13 @@ Then('a resposta deve conter uma lista de edicoes', () => {
 })
 
 Then('cada edicao deve possuir os campos principais', () => {
-	cy.get('@edicoesResponse').its('body').then((edicoes) => {
-		edicoes.forEach((edicao) => {
-			expect(edicao).to.have.all.keys(
-				'uuid',
-				'nome',
-				'data_inicio',
-				'data_fim',
-				'inscricoes_inicio',
-				'inscricoes_fim',
-				'quantidade_inscritos',
-				'quantidade_atendimento_efetivo',
-				'quantidade_passeios',
-				'quantidade_apresentacoes',
-				'status',
-				'ativo',
-				'criado_em',
-				'atualizado_em',
-			)
+	cy.get('@edicoesResponse')
+		.its('body')
+		.then((edicoes) => {
+			edicoes.forEach((edicao) => {
+				expect(edicao).to.have.all.keys('uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'quantidade_inscritos', 'quantidade_atendimento_efetivo', 'quantidade_passeios', 'quantidade_apresentacoes', 'status', 'ativo', 'criado_em', 'atualizado_em')
+			})
 		})
-	})
 })
 
 Then('a API deve responder a lista de edicoes com status 401', () => {
@@ -108,16 +141,7 @@ Then('a API deve responder ao detalhe da edicao com status 200', () => {
 })
 
 Then('a resposta deve conter os dados principais da edicao', () => {
-	cy.get('@edicaoResponse').its('body').should('include.all.keys', [
-		'uuid',
-		'nome',
-		'data_inicio',
-		'data_fim',
-		'inscricoes_inicio',
-		'inscricoes_fim',
-		'status',
-		'ativo',
-	])
+	cy.get('@edicaoResponse').its('body').should('include.all.keys', ['uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'status', 'ativo'])
 })
 
 Then('a API deve responder ao detalhe da edicao com status 401', () => {
@@ -135,33 +159,34 @@ When('eu envio os dados de uma nova edicao', () => {
 			url: `${obterApiBaseUrl()}/api/v1/edicoes/`,
 			headers: { Authorization: `Bearer ${token}` },
 		}).then((response) => {
-			const datasConfiguradas = [
-				Cypress.env('edicao_data_inicio'),
-				Cypress.env('edicao_data_fim'),
-				Cypress.env('edicao_inscricoes_inicio'),
-				Cypress.env('edicao_inscricoes_fim'),
-			].filter(Boolean)
+			const datasConfiguradas = [Cypress.env('edicao_data_inicio'), Cypress.env('edicao_data_fim'), Cypress.env('edicao_inscricoes_inicio'), Cypress.env('edicao_inscricoes_fim')].filter(Boolean)
 			const maiorDataFim = response.body.reduce((maiorData, edicao) => {
 				return edicao.data_fim > maiorData ? edicao.data_fim : maiorData
 			}, '2030-01-01')
 			const dataBase = new Date(`${maiorDataFim}T00:00:00Z`)
 			dataBase.setUTCDate(dataBase.getUTCDate() + 1)
 			const dataInicio = datasConfiguradas[0] || dataBase.toISOString().slice(0, 10)
-			const dataFim = datasConfiguradas[1] || (() => {
-				const data = new Date(`${dataInicio}T00:00:00Z`)
-				data.setUTCDate(data.getUTCDate() + 30)
-				return data.toISOString().slice(0, 10)
-			})()
-			const inscricoesInicio = datasConfiguradas[2] || (() => {
-				const data = new Date(`${dataInicio}T00:00:00Z`)
-				data.setUTCDate(data.getUTCDate() - 14)
-				return data.toISOString().slice(0, 10)
-			})()
-			const inscricoesFim = datasConfiguradas[3] || (() => {
-				const data = new Date(`${dataInicio}T00:00:00Z`)
-				data.setUTCDate(data.getUTCDate() - 1)
-				return data.toISOString().slice(0, 10)
-			})()
+			const dataFim =
+				datasConfiguradas[1] ||
+				(() => {
+					const data = new Date(`${dataInicio}T00:00:00Z`)
+					data.setUTCDate(data.getUTCDate() + 30)
+					return data.toISOString().slice(0, 10)
+				})()
+			const inscricoesInicio =
+				datasConfiguradas[2] ||
+				(() => {
+					const data = new Date(`${dataInicio}T00:00:00Z`)
+					data.setUTCDate(data.getUTCDate() - 14)
+					return data.toISOString().slice(0, 10)
+				})()
+			const inscricoesFim =
+				datasConfiguradas[3] ||
+				(() => {
+					const data = new Date(`${dataInicio}T00:00:00Z`)
+					data.setUTCDate(data.getUTCDate() - 1)
+					return data.toISOString().slice(0, 10)
+				})()
 			const payload = {
 				nome: `Edicao automatizada ${Date.now()}`,
 				data_inicio: dataInicio,
@@ -200,16 +225,7 @@ Then('a API deve responder a criacao de edicao com status 201', () => {
 })
 
 Then('a resposta deve conter os dados da edicao criada', () => {
-	cy.get('@criacaoEdicaoResponse').its('body').should('include.all.keys', [
-		'uuid',
-		'nome',
-		'data_inicio',
-		'data_fim',
-		'inscricoes_inicio',
-		'inscricoes_fim',
-		'status',
-		'ativo',
-	])
+	cy.get('@criacaoEdicaoResponse').its('body').should('include.all.keys', ['uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'status', 'ativo'])
 })
 
 Then('a API deve responder a criacao de edicao com status 400', () => {
@@ -222,21 +238,7 @@ Given('que o login institucional foi realizado para atualizar edicao', () => {
 
 Given('existe uma edicao para atualizar', () => {
 	cy.get('@authToken').then((token) => {
-		cy.request({
-			method: 'GET',
-			url: `${obterApiBaseUrl()}/api/v1/edicoes/`,
-			headers: { Authorization: `Bearer ${token}` },
-		}).then((response) => {
-			expect(response.body).to.be.an('array').and.not.be.empty
-			const hoje = new Date().toISOString().slice(0, 10)
-			const edicoesEditaveis = response.body.filter(
-				(edicao) => edicao.status !== 'encerrada' && edicao.data_fim >= hoje,
-			)
-			expect(edicoesEditaveis).to.not.be.empty
-			const edicaoAtual =
-				edicoesEditaveis.find((edicao) => edicao.status === 'planejada') || edicoesEditaveis[0]
-			cy.wrap(edicaoAtual).as('edicaoAtual')
-		})
+		criarEdicaoExclusiva(token, 'atualizacao completa').as('edicaoAtual')
 	})
 })
 
@@ -281,20 +283,21 @@ Then('a API deve responder a atualizacao de edicao com status 200', () => {
 })
 
 Then('a resposta deve conter os dados atualizados da edicao', () => {
-	cy.get('@atualizacaoEdicaoResponse').its('body').should('include.all.keys', [
-		'uuid',
-		'nome',
-		'data_inicio',
-		'data_fim',
-		'inscricoes_inicio',
-		'inscricoes_fim',
-		'status',
-		'ativo',
-	])
+	cy.get('@atualizacaoEdicaoResponse').its('body').should('include.all.keys', ['uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'status', 'ativo'])
+	cy.get('@authToken').then((token) => {
+		cy.get('@edicaoAtual').then((edicao) => {
+			excluirEdicaoExclusiva(token, edicao.uuid).its('status').should('eq', 204)
+		})
+	})
 })
 
 Then('a API deve responder a atualizacao de edicao com status 400', () => {
 	cy.get('@atualizacaoEdicaoErrorResponse').its('status').should('eq', 400)
+	cy.get('@authToken').then((token) => {
+		cy.get('@edicaoAtual').then((edicao) => {
+			excluirEdicaoExclusiva(token, edicao.uuid).its('status').should('eq', 204)
+		})
+	})
 })
 
 Given('que o login institucional foi realizado para atualizar edicao parcialmente', () => {
@@ -303,19 +306,7 @@ Given('que o login institucional foi realizado para atualizar edicao parcialment
 
 Given('existe uma edicao para atualizar parcialmente', () => {
 	cy.get('@authToken').then((token) => {
-		cy.request({
-			method: 'GET',
-			url: `${obterApiBaseUrl()}/api/v1/edicoes/`,
-			headers: { Authorization: `Bearer ${token}` },
-		}).then((response) => {
-			expect(response.body).to.be.an('array').and.not.be.empty
-			const hoje = new Date().toISOString().slice(0, 10)
-			const edicaoAtual = response.body.find(
-				(edicao) => edicao.status !== 'encerrada' && edicao.data_fim >= hoje,
-			)
-			expect(edicaoAtual).to.exist
-			cy.wrap(edicaoAtual).as('edicaoParcial')
-		})
+		criarEdicaoExclusiva(token, 'atualizacao parcial').as('edicaoParcial')
 	})
 })
 
@@ -348,24 +339,27 @@ When('eu envio um payload invalido para atualizar edicao parcialmente', () => {
 })
 
 Then('a API deve responder a atualizacao parcial com status 200', () => {
-	cy.get('@atualizacaoParcialResponse').its('status').should('eq', 200)
+	cy.get('@atualizacaoParcialResponse').then((response) => {
+		expect(response.status, JSON.stringify(response.body)).to.eq(200)
+	})
 })
 
 Then('a resposta deve conter os dados da edicao atualizada parcialmente', () => {
-	cy.get('@atualizacaoParcialResponse').its('body').should('include.all.keys', [
-		'uuid',
-		'nome',
-		'data_inicio',
-		'data_fim',
-		'inscricoes_inicio',
-		'inscricoes_fim',
-		'status',
-		'ativo',
-	])
+	cy.get('@atualizacaoParcialResponse').its('body').should('include.all.keys', ['uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'status', 'ativo'])
+	cy.get('@authToken').then((token) => {
+		cy.get('@edicaoParcial').then((edicao) => {
+			excluirEdicaoExclusiva(token, edicao.uuid).its('status').should('eq', 204)
+		})
+	})
 })
 
 Then('a API deve responder a atualizacao parcial com status 400', () => {
 	cy.get('@atualizacaoParcialErrorResponse').its('status').should('eq', 400)
+	cy.get('@authToken').then((token) => {
+		cy.get('@edicaoParcial').then((edicao) => {
+			excluirEdicaoExclusiva(token, edicao.uuid).its('status').should('eq', 204)
+		})
+	})
 })
 
 Given('que o login institucional foi realizado para excluir edicao', () => {
@@ -400,7 +394,9 @@ Given('uma edicao exclusiva foi criada para exclusao', () => {
 				url: `${obterApiBaseUrl()}/api/v1/edicoes/`,
 				headers: { Authorization: `Bearer ${token}` },
 				body: payload,
-			}).its('body.uuid').as('edicaoExclusaoUuid')
+			})
+				.its('body.uuid')
+				.as('edicaoExclusaoUuid')
 		})
 	})
 })

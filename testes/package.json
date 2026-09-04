@@ -11,7 +11,7 @@
 		"@badeball/cypress-cucumber-preprocessor": "^20.0.4",
 		"@bahmutov/cypress-esbuild-preprocessor": "^2.2.2",
 		"@shelex/cypress-allure-plugin": "^2.41.1",
-		"cypress": "^13.16.1",
+		"cypress": "13.7.0",
 		"cypress-cloud": "^1.13.1",
 		"dotenv": "^16.4.7",
 		"eslint": "^9.16.0",

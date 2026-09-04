@@ -23,6 +23,30 @@ const obterPoloPayload = (sufixo = String(Date.now()).slice(-6)) => ({
 	telefone: '11999999999',
 })
 
+const criarPoloExclusivo = (token) => {
+	return cy
+		.request({
+			method: 'POST',
+			url: `${obterApiBaseUrl()}/api/v1/polos/`,
+			headers: { Authorization: `Bearer ${token}` },
+			body: obterPoloPayload(),
+			failOnStatusCode: false,
+		})
+		.then((response) => {
+			expect(response.status, JSON.stringify(response.body)).to.eq(201)
+			return response.body
+		})
+}
+
+const excluirPoloExclusivo = (token, uuid) => {
+	return cy.request({
+		method: 'DELETE',
+		url: `${obterApiBaseUrl()}/api/v1/polos/${uuid}/`,
+		headers: { Authorization: `Bearer ${token}` },
+		failOnStatusCode: false,
+	})
+}
+
 const autenticarPara = () => {
 	autenticarNaApi().its('body.token').should('be.a', 'string').and('not.be.empty').as('authToken')
 }
@@ -44,12 +68,21 @@ Given('que o login institucional foi realizado para consultar polos', () => aute
 
 When('eu consulto a lista de polos', () => {
 	cy.get('@authToken').then((token) => {
-		cy.request({ method: 'GET', url: `${obterApiBaseUrl()}/api/v1/polos/`, headers: { Authorization: `Bearer ${token}` }, failOnStatusCode: false }).as('polosResponse')
+		cy.request({
+			method: 'GET',
+			url: `${obterApiBaseUrl()}/api/v1/polos/`,
+			headers: { Authorization: `Bearer ${token}` },
+			failOnStatusCode: false,
+		}).as('polosResponse')
 	})
 })
 
 When('eu consulto a lista de polos sem token', () => {
-	cy.request({ method: 'GET', url: `${obterApiBaseUrl()}/api/v1/polos/`, failOnStatusCode: false }).as('polosErrorResponse')
+	cy.request({
+		method: 'GET',
+		url: `${obterApiBaseUrl()}/api/v1/polos/`,
+		failOnStatusCode: false,
+	}).as('polosErrorResponse')
 })
 
 Then('a API deve responder a lista de polos com status 200', () => cy.get('@polosResponse').its('status').should('eq', 200))
@@ -60,13 +93,24 @@ Given('que o login institucional foi realizado para consultar um polo', () => au
 Given('existe um polo cadastrado', () => buscarPolo('poloUuid'))
 
 When('eu consulto o polo pelo UUID', () => {
-	cy.get('@authToken').then((token) => cy.get('@poloUuid').then((polo) => {
-		cy.request({ method: 'GET', url: `${obterApiBaseUrl()}/api/v1/polos/${polo.uuid}/`, headers: { Authorization: `Bearer ${token}` }, failOnStatusCode: false }).as('poloResponse')
-	}))
+	cy.get('@authToken').then((token) =>
+		cy.get('@poloUuid').then((polo) => {
+			cy.request({
+				method: 'GET',
+				url: `${obterApiBaseUrl()}/api/v1/polos/${polo.uuid}/`,
+				headers: { Authorization: `Bearer ${token}` },
+				failOnStatusCode: false,
+			}).as('poloResponse')
+		}),
+	)
 })
 
 When('eu consulto um polo pelo UUID sem token', () => {
-	cy.request({ method: 'GET', url: `${obterApiBaseUrl()}/api/v1/polos/00000000-0000-0000-0000-000000000000/`, failOnStatusCode: false }).as('poloErrorResponse')
+	cy.request({
+		method: 'GET',
+		url: `${obterApiBaseUrl()}/api/v1/polos/00000000-0000-0000-0000-000000000000/`,
+		failOnStatusCode: false,
+	}).as('poloErrorResponse')
 })
 
 Then('a API deve responder ao detalhe do polo com status 200', () => cy.get('@poloResponse').its('status').should('eq', 200))
@@ -108,16 +152,7 @@ Then('a API deve responder a criacao de polo com status 201', () => {
 })
 
 Then('a resposta deve conter os dados do polo criado', () => {
-	cy.get('@criacaoPoloResponse').its('body').should('include.all.keys', [
-		'uuid',
-		'codigo_eol',
-		'nome_polo',
-		'nome_osc',
-		'dre_nome',
-		'dre_codigo_eol',
-		'tipo_ue',
-		'quantidade_maxima_alunos',
-	])
+	cy.get('@criacaoPoloResponse').its('body').should('include.all.keys', ['uuid', 'codigo_eol', 'nome_polo', 'nome_osc', 'dre_nome', 'dre_codigo_eol', 'tipo_ue', 'quantidade_maxima_alunos'])
 })
 
 Then('a API deve responder a criacao de polo com status 400', () => {
@@ -125,64 +160,140 @@ Then('a API deve responder a criacao de polo com status 400', () => {
 })
 
 Given('que o login institucional foi realizado para atualizar polo', () => autenticarPara('atualizar polo'))
-Given('existe um polo para atualizar', () => buscarPolo())
+Given('existe um polo para atualizar', () => {
+	cy.get('@authToken').then((token) => {
+		criarPoloExclusivo(token).as('poloAtual')
+	})
+})
 
 When('eu atualizo os dados do polo', () => {
-	cy.get('@authToken').then((token) => cy.get('@poloAtual').then((polo) => {
-		cy.request({
-			method: 'PUT',
-			url: `${obterApiBaseUrl()}/api/v1/polos/${polo.uuid}/`,
-			headers: { Authorization: `Bearer ${token}` },
-			body: {
-				codigo_eol: polo.codigo_eol,
-				nome_polo: `${polo.nome_polo} - atualizado`,
-				nome_osc: polo.nome_osc,
-				dre_nome: polo.dre_nome,
-				dre_codigo_eol: polo.dre_codigo_eol,
-				tipo_ue: polo.tipo_ue,
-				quantidade_maxima_alunos: polo.quantidade_maxima_alunos,
-				tipo: polo.tipo,
-				gestao: polo.gestao,
-			},
-			failOnStatusCode: false,
-		}).as('atualizacaoPoloResponse')
-	}))
+	cy.get('@authToken').then((token) =>
+		cy.get('@poloAtual').then((polo) => {
+			cy.request({
+				method: 'PUT',
+				url: `${obterApiBaseUrl()}/api/v1/polos/${polo.uuid}/`,
+				headers: { Authorization: `Bearer ${token}` },
+				body: {
+					codigo_eol: polo.codigo_eol,
+					nome_polo: `${polo.nome_polo} - atualizado`,
+					nome_osc: polo.nome_osc,
+					dre_nome: polo.dre_nome,
+					dre_codigo_eol: polo.dre_codigo_eol,
+					tipo_ue: polo.tipo_ue,
+					quantidade_maxima_alunos: polo.quantidade_maxima_alunos,
+					tipo: polo.tipo,
+					gestao: polo.gestao,
+				},
+				failOnStatusCode: false,
+			}).as('atualizacaoPoloResponse')
+		}),
+	)
 })
 
 When('eu envio um payload invalido para atualizar polo', () => {
-	cy.get('@authToken').then((token) => cy.get('@poloAtual').then((polo) => {
-		cy.request({ method: 'PUT', url: `${obterApiBaseUrl()}/api/v1/polos/${polo.uuid}/`, headers: { Authorization: `Bearer ${token}` }, body: {}, failOnStatusCode: false }).as('atualizacaoPoloErrorResponse')
-	}))
+	cy.get('@authToken').then((token) =>
+		cy.get('@poloAtual').then((polo) => {
+			cy.request({
+				method: 'PUT',
+				url: `${obterApiBaseUrl()}/api/v1/polos/${polo.uuid}/`,
+				headers: { Authorization: `Bearer ${token}` },
+				body: {},
+				failOnStatusCode: false,
+			}).as('atualizacaoPoloErrorResponse')
+		}),
+	)
 })
 
-Then('a API deve responder a atualizacao de polo com status 200', () => cy.get('@atualizacaoPoloResponse').its('status').should('eq', 200))
-Then('a resposta deve conter os dados atualizados do polo', () => cy.get('@atualizacaoPoloResponse').its('body').should('include.all.keys', ['uuid', 'codigo_eol', 'nome_polo', 'nome_osc', 'dre_nome', 'dre_codigo_eol', 'tipo_ue', 'quantidade_maxima_alunos']))
-Then('a API deve responder a atualizacao de polo com status 400', () => cy.get('@atualizacaoPoloErrorResponse').its('status').should('eq', 400))
+Then('a API deve responder a atualizacao de polo com status 200', () => {
+	cy.get('@atualizacaoPoloResponse').then((response) => {
+		expect(response.status, JSON.stringify(response.body)).to.eq(200)
+	})
+})
+Then('a resposta deve conter os dados atualizados do polo', () => {
+	cy.get('@atualizacaoPoloResponse').its('body').should('include.all.keys', ['uuid', 'codigo_eol', 'nome_polo', 'nome_osc', 'dre_nome', 'dre_codigo_eol', 'tipo_ue', 'quantidade_maxima_alunos'])
+	cy.get('@authToken').then((token) => {
+		cy.get('@poloAtual').then((polo) => {
+			excluirPoloExclusivo(token, polo.uuid).its('status').should('eq', 204)
+		})
+	})
+})
+Then('a API deve responder a atualizacao de polo com status 400', () => {
+	cy.get('@atualizacaoPoloErrorResponse').its('status').should('eq', 400)
+	cy.get('@authToken').then((token) => {
+		cy.get('@poloAtual').then((polo) => {
+			excluirPoloExclusivo(token, polo.uuid).its('status').should('eq', 204)
+		})
+	})
+})
 
 Given('que o login institucional foi realizado para atualizar polo parcialmente', () => autenticarPara('atualizar polo parcialmente'))
-Given('existe um polo para atualizar parcialmente', () => buscarPolo('poloParcial'))
+Given('existe um polo para atualizar parcialmente', () => {
+	cy.get('@authToken').then((token) => {
+		criarPoloExclusivo(token).as('poloParcial')
+	})
+})
 
 When('eu atualizo parcialmente os dados do polo', () => {
-	cy.get('@authToken').then((token) => cy.get('@poloParcial').then((polo) => {
-		cy.request({ method: 'PATCH', url: `${obterApiBaseUrl()}/api/v1/polos/${polo.uuid}/`, headers: { Authorization: `Bearer ${token}` }, body: { nome_polo: `${polo.nome_polo} - parcial` }, failOnStatusCode: false }).as('atualizacaoPoloParcialResponse')
-	}))
+	cy.get('@authToken').then((token) =>
+		cy.get('@poloParcial').then((polo) => {
+			cy.request({
+				method: 'PATCH',
+				url: `${obterApiBaseUrl()}/api/v1/polos/${polo.uuid}/`,
+				headers: { Authorization: `Bearer ${token}` },
+				body: { nome_polo: `${polo.nome_polo} - parcial` },
+				failOnStatusCode: false,
+			}).as('atualizacaoPoloParcialResponse')
+		}),
+	)
 })
 
 When('eu envio um payload invalido para atualizar polo parcialmente', () => {
-	cy.get('@authToken').then((token) => cy.get('@poloParcial').then((polo) => {
-		cy.request({ method: 'PATCH', url: `${obterApiBaseUrl()}/api/v1/polos/${polo.uuid}/`, headers: { Authorization: `Bearer ${token}` }, body: { nome_polo: '' }, failOnStatusCode: false }).as('atualizacaoPoloParcialErrorResponse')
-	}))
+	cy.get('@authToken').then((token) =>
+		cy.get('@poloParcial').then((polo) => {
+			cy.request({
+				method: 'PATCH',
+				url: `${obterApiBaseUrl()}/api/v1/polos/${polo.uuid}/`,
+				headers: { Authorization: `Bearer ${token}` },
+				body: { nome_polo: '' },
+				failOnStatusCode: false,
+			}).as('atualizacaoPoloParcialErrorResponse')
+		}),
+	)
 })
 
-Then('a API deve responder a atualizacao parcial de polo com status 200', () => cy.get('@atualizacaoPoloParcialResponse').its('status').should('eq', 200))
-Then('a resposta deve conter os dados do polo atualizado parcialmente', () => cy.get('@atualizacaoPoloParcialResponse').its('body').should('include.all.keys', ['uuid', 'codigo_eol', 'nome_polo', 'nome_osc', 'dre_nome', 'dre_codigo_eol', 'tipo_ue', 'quantidade_maxima_alunos']))
-Then('a API deve responder a atualizacao parcial de polo com status 400', () => cy.get('@atualizacaoPoloParcialErrorResponse').its('status').should('eq', 400))
+Then('a API deve responder a atualizacao parcial de polo com status 200', () => {
+	cy.get('@atualizacaoPoloParcialResponse').then((response) => {
+		expect(response.status, JSON.stringify(response.body)).to.eq(200)
+	})
+})
+Then('a resposta deve conter os dados do polo atualizado parcialmente', () => {
+	cy.get('@atualizacaoPoloParcialResponse').its('body').should('include.all.keys', ['uuid', 'codigo_eol', 'nome_polo', 'nome_osc', 'dre_nome', 'dre_codigo_eol', 'tipo_ue', 'quantidade_maxima_alunos'])
+	cy.get('@authToken').then((token) => {
+		cy.get('@poloParcial').then((polo) => {
+			excluirPoloExclusivo(token, polo.uuid).its('status').should('eq', 204)
+		})
+	})
+})
+Then('a API deve responder a atualizacao parcial de polo com status 400', () => {
+	cy.get('@atualizacaoPoloParcialErrorResponse').its('status').should('eq', 400)
+	cy.get('@authToken').then((token) => {
+		cy.get('@poloParcial').then((polo) => {
+			excluirPoloExclusivo(token, polo.uuid).its('status').should('eq', 204)
+		})
+	})
+})
 
 Given('que o login institucional foi realizado para excluir polo', () => autenticarPara('excluir polo'))
 
 Given('um polo exclusivo foi criado para exclusao', () => {
 	cy.get('@authToken').then((token) => {
-		cy.request({ method: 'POST', url: `${obterApiBaseUrl()}/api/v1/polos/`, headers: { Authorization: `Bearer ${token}` }, body: obterPoloPayload(), failOnStatusCode: false }).then((response) => {
+		cy.request({
+			method: 'POST',
+			url: `${obterApiBaseUrl()}/api/v1/polos/`,
+			headers: { Authorization: `Bearer ${token}` },
+			body: obterPoloPayload(),
+			failOnStatusCode: false,
+		}).then((response) => {
 			expect(response.status, JSON.stringify(response.body)).to.eq(201)
 			cy.wrap(response.body.uuid).as('poloExclusaoUuid')
 		})
@@ -190,9 +301,16 @@ Given('um polo exclusivo foi criado para exclusao', () => {
 })
 
 When('eu excluo o polo pelo UUID', () => {
-	cy.get('@authToken').then((token) => cy.get('@poloExclusaoUuid').then((uuid) => {
-		cy.request({ method: 'DELETE', url: `${obterApiBaseUrl()}/api/v1/polos/${uuid}/`, headers: { Authorization: `Bearer ${token}` }, failOnStatusCode: false }).as('exclusaoPoloResponse')
-	}))
+	cy.get('@authToken').then((token) =>
+		cy.get('@poloExclusaoUuid').then((uuid) => {
+			cy.request({
+				method: 'DELETE',
+				url: `${obterApiBaseUrl()}/api/v1/polos/${uuid}/`,
+				headers: { Authorization: `Bearer ${token}` },
+				failOnStatusCode: false,
+			}).as('exclusaoPoloResponse')
+		}),
+	)
 })
 
 Then('a API deve responder a exclusao de polo com status 204', () => {
@@ -202,18 +320,52 @@ Then('a API deve responder a exclusao de polo com status 204', () => {
 
 Given('que o login institucional foi realizado para consultar DREs', () => autenticarPara('consultar DREs'))
 When('eu consulto a lista de DREs', () => {
-	cy.get('@authToken').then((token) => cy.request({ method: 'GET', url: `${obterApiBaseUrl()}/api/v1/polos/dres/`, headers: { Authorization: `Bearer ${token}` }, failOnStatusCode: false }).as('dresResponse'))
+	cy.get('@authToken').then((token) =>
+		cy
+			.request({
+				method: 'GET',
+				url: `${obterApiBaseUrl()}/api/v1/polos/dres/`,
+				headers: { Authorization: `Bearer ${token}` },
+				failOnStatusCode: false,
+			})
+			.as('dresResponse'),
+	)
 })
-When('eu consulto a lista de DREs sem token', () => cy.request({ method: 'GET', url: `${obterApiBaseUrl()}/api/v1/polos/dres/`, failOnStatusCode: false }).as('dresErrorResponse'))
+When('eu consulto a lista de DREs sem token', () =>
+	cy
+		.request({
+			method: 'GET',
+			url: `${obterApiBaseUrl()}/api/v1/polos/dres/`,
+			failOnStatusCode: false,
+		})
+		.as('dresErrorResponse'),
+)
 Then('a API deve responder a lista de DREs com status 200', () => cy.get('@dresResponse').its('status').should('eq', 200))
 Then('a resposta deve conter uma lista de DREs', () => cy.get('@dresResponse').its('body').should('be.an', 'array'))
 Then('a API deve responder a lista de DREs com status 401', () => cy.get('@dresErrorResponse').its('status').should('eq', 401))
 
 Given('que o login institucional foi realizado para consultar tipos de escola', () => autenticarPara('consultar tipos de escola'))
 When('eu consulto a lista de tipos de escola', () => {
-	cy.get('@authToken').then((token) => cy.request({ method: 'GET', url: `${obterApiBaseUrl()}/api/v1/polos/tipos-escola/`, headers: { Authorization: `Bearer ${token}` }, failOnStatusCode: false }).as('tiposEscolaResponse'))
+	cy.get('@authToken').then((token) =>
+		cy
+			.request({
+				method: 'GET',
+				url: `${obterApiBaseUrl()}/api/v1/polos/tipos-escola/`,
+				headers: { Authorization: `Bearer ${token}` },
+				failOnStatusCode: false,
+			})
+			.as('tiposEscolaResponse'),
+	)
 })
-When('eu consulto a lista de tipos de escola sem token', () => cy.request({ method: 'GET', url: `${obterApiBaseUrl()}/api/v1/polos/tipos-escola/`, failOnStatusCode: false }).as('tiposEscolaErrorResponse'))
+When('eu consulto a lista de tipos de escola sem token', () =>
+	cy
+		.request({
+			method: 'GET',
+			url: `${obterApiBaseUrl()}/api/v1/polos/tipos-escola/`,
+			failOnStatusCode: false,
+		})
+		.as('tiposEscolaErrorResponse'),
+)
 Then('a API deve responder a lista de tipos de escola com status 200', () => cy.get('@tiposEscolaResponse').its('status').should('eq', 200))
 Then('a resposta deve conter uma lista de tipos de escola', () => cy.get('@tiposEscolaResponse').its('body').should('be.an', 'array'))
 Then('a API deve responder a lista de tipos de escola com status 401', () => cy.get('@tiposEscolaErrorResponse').its('status').should('eq', 401))
