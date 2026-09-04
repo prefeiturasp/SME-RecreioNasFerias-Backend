@@ -54,7 +54,7 @@ Campos dos dados detalhados usados hoje:
 - ``email``
 - ``telefone``
 - ``cep``
-- ``tipoLogradouro`` / ``logradouro`` / ``numero`` / ``bairro``
+- ``tipoLogradouro`` / ``logradouro`` / ``numero`` / ``bairro`` / ``complemento``
 
 Da consulta de funcionários por cargo, o sistema extrai ``nomeServidor`` do
 primeiro registro retornado.
@@ -68,15 +68,16 @@ converte em contratos internos tipados em ``apps/integracoes/eol/port.py``:
 - ``UnidadeEol`` — unidade do catálogo bruto normalizada
 - ``DreEol`` — Diretoria Regional de Educação normalizada
 - ``TipoEscolaEol`` — tipo de unidade normalizado
-- ``DadosUnidadeEol`` — dados detalhados normalizados (com CEP e endereço)
+- ``DadosUnidadeEol`` — dados detalhados normalizados (CEP e endereço em campos separados)
 - ``UnidadeRecreioEol`` — unidade enriquecida pronta para a sincronização
 
 Decisões principais de mapeamento:
 
 - ``codigoEscola`` -> ``codigo_eol``
 - ``cep`` é normalizado para o padrão ``00000-000``
-- o endereço é composto a partir de ``tipoLogradouro``, ``logradouro``,
-  ``numero`` e ``bairro``
+- o endereço é mantido em campos separados: ``tipo_logradouro``,
+  ``logradouro``, ``numero``, ``bairro`` e ``complemento``
+- ``complemento`` fica vazio quando a integração não o envia
 - os dados detalhados prevalecem sobre o catálogo bruto quando ambos existem
 
 Filtro de tipos de unidade
