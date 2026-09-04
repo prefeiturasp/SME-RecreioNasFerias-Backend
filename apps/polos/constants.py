@@ -23,3 +23,6 @@ class GestaoPolo(models.TextChoices):
 
     PARCEIRA = "parceira", "Parceira"
     DIRETA = "direta", "Direta"
+
+
+CHAVE_POPULAR_UNIDADES_DIRETAS = "unidades_diretas"
