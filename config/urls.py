@@ -17,4 +17,5 @@ urlpatterns = [
     path(API_V1, include("apps.core.api.urls")),
     path(API_V1, include("apps.edicoes.api.urls")),
     path(API_V1, include("apps.polos.api.urls")),
+    path(API_V1, include("apps.definicoes_polos.api.urls")),
 ]

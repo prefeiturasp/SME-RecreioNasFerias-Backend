@@ -42,6 +42,7 @@ Na prática, isso significa:
 | `apps/core/` | infraestrutura compartilhada, autenticação, modelos base, usuário local e healthcheck |
 | `apps/edicoes/` | domínio de edições |
 | `apps/polos/` | domínio de polos |
+| `apps/definicoes_polos/` | participação de polos em edições |
 | `apps/integracoes/` | bordas externas, como CoreSSO e EOL |
 | `config/` | settings, URLs, ASGI e WSGI |
 | `scripts/` | entrypoints e bootstrap dos containers |
@@ -80,10 +81,9 @@ Os pontos centrais do fluxo atual ficam distribuídos em:
 
 ## Apps de domínio
 
-`edicoes` e `polos` já possuem a estrutura base do app, com `api/`, `models/`,
-`services/`, testes e migrations. No estado atual, esses apps ainda não
-concentram a regra real de negócio do produto nem foram publicados como parte
-principal da API.
+`edicoes` e `polos` já possuem a estrutura do app, com `api/`, `models/`,
+`services/`, testes e migrations. O domínio de polos já popula unidades
+diretas a partir da EOL em `POST /api/v1/polos/popular/`.
 
 Quando esses domínios crescerem, o detalhamento arquitetural deve evoluir em
 `docs/dominios/` em vez de inflar esta página.
@@ -109,8 +109,8 @@ Estrutura típica:
 Estado atual:
 
 - `apps/integracoes/coresso/` já executa o login real e normaliza o payload
-- `apps/integracoes/eol/` já consome os três endpoints de escolas da integração EOL,
-  normalizando, filtrando e enriquecendo as unidades elegíveis
+- `apps/integracoes/eol/` já consome os endpoints de escolas da integração EOL,
+  normalizando, filtrando e enriquecendo as unidades elegíveis ao Recreio
 
 ## Regras de organização
 

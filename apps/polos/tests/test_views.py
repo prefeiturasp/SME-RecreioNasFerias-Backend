@@ -1,5 +1,7 @@
 """Testes dos endpoints HTTP de polos."""
 
+from datetime import UTC, datetime
+
 import pytest
 from rest_framework import status
 
@@ -9,8 +11,15 @@ from apps.integracoes.eol.exceptions import (
     EolIndisponivelError,
 )
 from apps.integracoes.eol.port import DreEol, TipoEscolaEol
-from apps.polos.constants import StatusPolo, TipoPolo
-from apps.polos.services.polo_service import PoloService
+from apps.polos.constants import (
+    MOTIVO_JA_EXECUTADA_HOJE,
+    StatusPolo,
+    TipoPolo,
+)
+from apps.polos.services.polo_service import (
+    PoloService,
+    ResultadoPopularUnidadesDiretas,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -252,3 +261,107 @@ def test_catalogos_retorna_erro_de_integracao(
 
     assert response.status_code == status.HTTP_502_BAD_GATEWAY
     assert response.data == {"detalhe": str(erro)}
+
+
+def test_popular_unidades_diretas_exige_autenticacao(api_client) -> None:
+    """A população de polos diretos exige autenticação."""
+    response = api_client.post(f"{URL}popular/")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.data == {
+        "detalhe": "Credenciais de autenticacao nao foram informadas."
+    }
+
+
+def test_popular_unidades_diretas_pela_api(
+    cliente_autenticado,
+    polo_factory,
+    monkeypatch,
+) -> None:
+    """A action devolve o resultado da população em snake_case."""
+    polo = polo_factory()
+    agora = datetime(2026, 3, 1, 15, 0, tzinfo=UTC)
+
+    def _popular(_self):
+        return ResultadoPopularUnidadesDiretas(
+            total_consultados=2,
+            total_novos=1,
+            total_ja_existentes=1,
+            polos_criados=[polo],
+            executada=True,
+            motivo_ignorada=None,
+            ultima_execucao_em=agora,
+        )
+
+    monkeypatch.setattr(PoloService, "popular_unidades_diretas", _popular)
+
+    response = cliente_autenticado.post(f"{URL}popular/")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["total_consultados"] == 2
+    assert response.data["total_novos"] == 1
+    assert response.data["total_ja_existentes"] == 1
+    assert response.data["executada"] is True
+    assert response.data["motivo_ignorada"] is None
+    assert response.data["unidades_novas"][0]["uuid"] == str(polo.uuid)
+    assert response.data["unidades_novas"][0]["codigo_eol"] == polo.codigo_eol
+
+
+def test_popular_unidades_diretas_quando_ja_executada(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """A action informa quando a carga do dia já ocorreu."""
+    agora = datetime(2026, 3, 1, 15, 0, tzinfo=UTC)
+
+    def _popular(_self):
+        return ResultadoPopularUnidadesDiretas(
+            total_consultados=0,
+            total_novos=0,
+            total_ja_existentes=0,
+            polos_criados=[],
+            executada=False,
+            motivo_ignorada=MOTIVO_JA_EXECUTADA_HOJE,
+            ultima_execucao_em=agora,
+        )
+
+    monkeypatch.setattr(PoloService, "popular_unidades_diretas", _popular)
+
+    response = cliente_autenticado.post(f"{URL}popular/")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["executada"] is False
+    assert response.data["motivo_ignorada"] == MOTIVO_JA_EXECUTADA_HOJE
+    assert response.data["unidades_novas"] == []
+
+
+def test_popular_unidades_diretas_retorna_erro_de_configuracao(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """Falha de configuração da EOL retorna HTTP 500."""
+    def _falhar(_self):
+        raise EolConfigError("config")
+
+    monkeypatch.setattr(PoloService, "popular_unidades_diretas", _falhar)
+
+    response = cliente_autenticado.post(f"{URL}popular/")
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.data == {"detalhe": "config"}
+
+
+def test_popular_unidades_diretas_retorna_erro_de_integracao(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """Falha externa da EOL retorna HTTP 502."""
+    def _falhar(_self):
+        raise EolIndisponivelError("indisponivel")
+
+    monkeypatch.setattr(PoloService, "popular_unidades_diretas", _falhar)
+
+    response = cliente_autenticado.post(f"{URL}popular/")
+
+    assert response.status_code == status.HTTP_502_BAD_GATEWAY
+    assert response.data == {"detalhe": "indisponivel"}

@@ -23,3 +23,10 @@ class GestaoPolo(models.TextChoices):
 
     PARCEIRA = "parceira", "Parceira"
     DIRETA = "direta", "Direta"
+
+
+CHAVE_POPULAR_UNIDADES_DIRETAS = "unidades_diretas"
+QUANTIDADE_MAXIMA_ALUNOS_PADRAO_DIRETA = 1
+TAMANHO_LOTE_POPULAR_UNIDADES_DIRETAS = 40
+MOTIVO_JA_EXECUTADA_HOJE = "ja_executada_hoje"
+NOME_OSC_SEM_VINCULO = "-"

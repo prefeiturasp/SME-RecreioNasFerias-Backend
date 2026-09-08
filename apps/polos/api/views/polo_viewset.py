@@ -20,6 +20,7 @@ from apps.integracoes.eol.exceptions import (
 from apps.polos.api.serializers import (
     DreSerializer,
     PoloSerializer,
+    PopularUnidadesDiretasSerializer,
     TipoEscolaSerializer,
 )
 from apps.polos.models import Polo
@@ -144,6 +145,51 @@ class PoloViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
         return Response(DreSerializer(dres, many=True).data)
+
+    @extend_schema(
+        summary="Popula polos diretos",
+        description=(
+            "Consulta as unidades elegíveis na EOL e cria polos de gestão "
+            "direta ainda inexistentes. A carga executa no máximo uma vez "
+            "por dia."
+        ),
+        tags=["Polos"],
+        request=None,
+        responses={
+            200: PopularUnidadesDiretasSerializer,
+            502: OpenApiResponse(
+                description="Falha na integração com a EOL."
+            ),
+        },
+    )
+    @action(detail=False, methods=["post"], url_path="popular")
+    def popular(self, request) -> Response:
+        """Popula polos diretos a partir das unidades da EOL."""
+        try:
+            resultado = self.service_class().popular_unidades_diretas()
+        except EolConfigError as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        except (EolIndisponivelError, EolContratoError) as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response(
+            PopularUnidadesDiretasSerializer(
+                {
+                    "total_consultados": resultado.total_consultados,
+                    "total_novos": resultado.total_novos,
+                    "total_ja_existentes": resultado.total_ja_existentes,
+                    "unidades_novas": resultado.polos_criados,
+                    "executada": resultado.executada,
+                    "motivo_ignorada": resultado.motivo_ignorada,
+                    "ultima_execucao_em": resultado.ultima_execucao_em,
+                }
+            ).data
+        )
 
     def perform_create(self, serializer: PoloSerializer) -> None:
         """Cria o polo por meio do serviço de domínio."""

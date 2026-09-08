@@ -5,6 +5,7 @@ from datetime import date
 import factory
 
 from apps.core.models import CargoPermitido, Usuario
+from apps.definicoes_polos.models import DefinicaoPolo
 from apps.edicoes.models import Edicao
 from apps.polos.models import Polo
 
@@ -76,3 +77,21 @@ class PoloFactory(factory.django.DjangoModelFactory):
     nome_gestor = "Gestor de Teste"
     email = factory.Sequence(lambda n: f"gestor{n}@teste.example")
     telefone = "1130000000"
+
+
+class DefinicaoPoloFactory(factory.django.DjangoModelFactory):
+    """Cria participações válidas entre polos e edições."""
+
+    class Meta:
+        """Configuração da factory de definições de polos."""
+
+        model = DefinicaoPolo
+
+    polo = factory.SubFactory(PoloFactory)
+    edicao = factory.SubFactory(EdicaoFactory)
+    projecao_inscritos = 250
+    ponto_focal_nome = "Ponto Focal de Teste"
+    ponto_focal_telefone = "11900000000"
+    ponto_focal_email = factory.Sequence(
+        lambda n: f"ponto-focal{n}@teste.example"
+    )

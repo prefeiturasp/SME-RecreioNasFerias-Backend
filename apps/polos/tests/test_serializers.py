@@ -6,6 +6,7 @@ from apps.integracoes.eol.port import DreEol, TipoEscolaEol
 from apps.polos.api.serializers import (
     DreSerializer,
     PoloSerializer,
+    PopularUnidadesDiretasSerializer,
     TipoEscolaSerializer,
 )
 from apps.polos.constants import StatusPolo, TipoPolo
@@ -123,3 +124,27 @@ def test_serializer_retorna_tipo_de_escola_normalizado() -> None:
     dados = TipoEscolaSerializer(tipo).data
 
     assert dados == {"codigo": 1, "descricao_sigla": "EMEF"}
+
+
+def test_serializer_retorna_resultado_da_populacao(polo_factory) -> None:
+    """O contrato da população expõe totais e os polos criados."""
+    polo = polo_factory()
+
+    dados = PopularUnidadesDiretasSerializer(
+        {
+            "total_consultados": 1,
+            "total_novos": 1,
+            "total_ja_existentes": 0,
+            "unidades_novas": [polo],
+            "executada": True,
+            "motivo_ignorada": None,
+            "ultima_execucao_em": None,
+        }
+    ).data
+
+    assert dados["total_consultados"] == 1
+    assert dados["total_novos"] == 1
+    assert dados["executada"] is True
+    assert dados["motivo_ignorada"] is None
+    assert dados["ultima_execucao_em"] is None
+    assert dados["unidades_novas"][0]["uuid"] == str(polo.uuid)

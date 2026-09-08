@@ -2,9 +2,15 @@
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
-from apps.polos.constants import GestaoPolo, StatusPolo, TipoPolo
-from apps.polos.models import Polo
+from apps.polos.constants import (
+    CHAVE_POPULAR_UNIDADES_DIRETAS,
+    GestaoPolo,
+    StatusPolo,
+    TipoPolo,
+)
+from apps.polos.models import ControleSincronizacaoPolos, Polo
 
 pytestmark = pytest.mark.django_db
 
@@ -73,3 +79,17 @@ def test_modelo_rejeita_quantidade_maxima_negativa(polo_factory) -> None:
 
     with pytest.raises(ValidationError):
         polo.save()
+
+
+def test_controle_sincronizacao_persiste_ultima_execucao() -> None:
+    """O controle guarda a última execução pela chave da rotina."""
+    agora = timezone.now()
+    controle = ControleSincronizacaoPolos.objects.create(
+        chave=CHAVE_POPULAR_UNIDADES_DIRETAS,
+        ultima_execucao_em=agora,
+    )
+
+    assert str(controle).startswith(CHAVE_POPULAR_UNIDADES_DIRETAS)
+    assert ControleSincronizacaoPolos.objects.get(
+        chave=CHAVE_POPULAR_UNIDADES_DIRETAS
+    ).ultima_execucao_em == agora

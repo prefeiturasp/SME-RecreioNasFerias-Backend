@@ -231,7 +231,11 @@ class EolAdapter(EolPort):
             email=self._texto(payload.get("email")),
             telefone=self._texto(payload.get("telefone")),
             cep=self._formatar_cep(payload.get("cep")),
-            endereco=self._montar_endereco(payload),
+            tipo_logradouro=self._texto(payload.get("tipoLogradouro")),
+            logradouro=self._texto(payload.get("logradouro")),
+            bairro=self._texto(payload.get("bairro")),
+            numero=self._texto(payload.get("numero")),
+            complemento=self._texto(payload.get("complemento")),
         )
 
     def _enriquecer_unidade(self, unidade: UnidadeEol) -> UnidadeRecreioEol:
@@ -266,7 +270,11 @@ class EolAdapter(EolPort):
             email=dados.email if dados else "",
             telefone=dados.telefone if dados else "",
             cep=dados.cep if dados else "",
-            endereco=dados.endereco if dados else "",
+            tipo_logradouro=dados.tipo_logradouro if dados else "",
+            logradouro=dados.logradouro if dados else "",
+            bairro=dados.bairro if dados else "",
+            numero=dados.numero if dados else "",
+            complemento=dados.complemento if dados else "",
             nome_diretor=nome_diretor,
         )
 
@@ -313,7 +321,11 @@ class EolAdapter(EolPort):
             email="",
             telefone="",
             cep="",
-            endereco="",
+            tipo_logradouro="",
+            logradouro="",
+            bairro="",
+            numero="",
+            complemento="",
             nome_diretor="",
         )
 
@@ -332,20 +344,3 @@ class EolAdapter(EolPort):
             return ""
         digitos = digitos.zfill(8)[-8:]
         return f"{digitos[:5]}-{digitos[5:]}"
-
-    @staticmethod
-    def _montar_endereco(dados: dict[str, Any]) -> str:
-        """Compõe endereço legível a partir dos campos de dados da unidade."""
-        partes = [
-            EolAdapter._texto(dados.get("tipoLogradouro")),
-            EolAdapter._texto(dados.get("logradouro")),
-        ]
-        numero = EolAdapter._texto(dados.get("numero"))
-        bairro = EolAdapter._texto(dados.get("bairro"))
-
-        logradouro = " ".join(parte for parte in partes if parte)
-        if numero:
-            logradouro = f"{logradouro}, {numero}" if logradouro else numero
-        if bairro:
-            logradouro = f"{logradouro} - {bairro}" if logradouro else bairro
-        return logradouro
