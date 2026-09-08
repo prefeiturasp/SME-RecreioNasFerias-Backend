@@ -42,6 +42,7 @@ Na prática, isso significa:
 | `apps/core/` | infraestrutura compartilhada, autenticação, modelos base, usuário local e healthcheck |
 | `apps/edicoes/` | domínio de edições |
 | `apps/polos/` | domínio de polos |
+| `apps/definicoes_polos/` | participação de polos em edições |
 | `apps/integracoes/` | bordas externas, como CoreSSO e EOL |
 | `config/` | settings, URLs, ASGI e WSGI |
 | `scripts/` | entrypoints e bootstrap dos containers |
