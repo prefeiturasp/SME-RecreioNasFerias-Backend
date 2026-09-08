@@ -3,7 +3,12 @@
 import pytest
 from rest_framework.test import APIClient
 
-from apps.factories import EdicaoFactory, PoloFactory, UsuarioFactory
+from apps.factories import (
+    DefinicaoPoloFactory,
+    EdicaoFactory,
+    PoloFactory,
+    UsuarioFactory,
+)
 
 
 @pytest.fixture
@@ -16,6 +21,12 @@ def edicao_factory():
 def polo_factory():
     """Disponibiliza a factory de polos para os testes."""
     return PoloFactory
+
+
+@pytest.fixture
+def definicao_polo_factory():
+    """Disponibiliza a factory de definições de polos."""
+    return DefinicaoPoloFactory
 
 
 @pytest.fixture
