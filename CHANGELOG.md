@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 - 2026-09-08
+
+- Implementada a população de polos de gestão direta a partir da EOL em
+  `POST /api/v1/polos/popular/`.
+- Documentado o consumo de `EolPort` pelo domínio de polos em
+  `docs/dominios/`.
+
 ## 0.2.0 - 2026-08-13
 
 - Implementado o fluxo de autenticação institucional via CoreSSO com sessão
