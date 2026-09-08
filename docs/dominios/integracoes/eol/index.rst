@@ -8,18 +8,16 @@ enriquecimento das unidades elegíveis ao programa.
 Visão resumida
 --------------
 
-- endpoints externos consumidos:
-``GET /api/DREs``
-``GET /api/escolas/tiposEscolas``
-``GET /api/escolas/*``
+- endpoints externos: ``GET /api/DREs``, ``GET /api/escolas/tiposEscolas``
+  e ``GET /api/escolas/*``
 - app de integração: ``apps/integracoes/eol/``
-- contrato público consumido pelo domínio: ``EolPort``
-- consumo previsto: sincronização de polos de gestão direta
+- contrato público: ``EolPort``
+- consumo atual: ``PoloService.popular_unidades_diretas()``
 
 Contrato externo consumido
 --------------------------
 
-A integração consome quatro endpoints, todos com o header ``x-api-eol-key``:
+A integração consome cinco endpoints, todos com o header ``x-api-eol-key``:
 
 - ``GET /api/DREs`` — catálogo de Diretorias Regionais de Educação
 - ``GET /api/escolas/tiposEscolas`` — catálogo de tipos de escola
@@ -34,6 +32,9 @@ Para DREs:
 - ``codigoDRE``
 - ``nomeDRE``
 - ``siglaDRE``
+
+Para unidades:
+
 - ``codigoEscola``
 - ``nomeEscola``
 - ``siglaTipoEscola``
@@ -160,10 +161,28 @@ Nenhuma variável nova foi introduzida para a integração de escolas.
 Pontos de atenção para produção
 -------------------------------
 
-- os três endpoints dependem do header ``x-api-eol-key``; sem a chave a
+- os endpoints dependem do header ``x-api-eol-key``; sem a chave a
   integração falha com ``EolConfigError``
 - o timeout de leitura usa ``AUTH_API_TIMEOUT_SECONDS`` (60s), mais longo que
   o do login, porque a listagem completa e o enriquecimento são consultas
   pesadas
-- a sincronização de polos diretos ainda não existe; quando for implementada,
-  deve consumir ``EolPort`` sem acessar o client HTTP diretamente
+- o domínio de polos consome apenas ``EolPort``; o client HTTP permanece
+  isolado em ``apps/integracoes/eol/``
+
+Consumo pelo domínio de polos
+-----------------------------
+
+A população de polos diretos vive em ``apps/polos`` e é disparada por
+``POST /api/v1/polos/popular/``.
+
+O ``PoloService``:
+
+1. lista o catálogo bruto via ``listar_todas_unidades()``
+2. filtra as unidades elegíveis via ``filtrar_unidades_recreio()``
+3. compara os códigos EOL com os polos de gestão direta já persistidos
+4. enriquece somente as unidades novas via ``enriquecer_unidades()``
+5. grava os polos em ``polos_polo`` com ``gestao=direta`` e ``tipo=pendente``
+
+A carga executa no máximo uma vez por dia. O instante da última execução
+fica em ``ControleSincronizacaoPolos``. Detalhes do domínio estão em
+``docs/dominios/polos/``.

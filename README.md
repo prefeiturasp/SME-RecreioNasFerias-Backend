@@ -12,8 +12,8 @@ OpenAPI, autenticação institucional via CoreSSO, sessão JWT local, stack de
 qualidade e documentação operacional.
 
 O backend já implementa o fluxo de autenticação institucional, o
-gerenciamento local de sessão e a integração EOL de escolas. As regras reais
-de negócio de `edicoes` e `polos` seguem como evoluções previstas do sistema.
+gerenciamento local de sessão, a integração EOL de escolas e a população
+de polos de gestão direta.
 
 ## O que o projeto entrega hoje
 
@@ -23,8 +23,8 @@ de negócio de `edicoes` e `polos` seguem como evoluções previstas do sistema.
 - schema OpenAPI em `/api/v1/schema/` e Swagger UI em `/api/v1/docs/`;
 - autenticação via CoreSSO em `/api/v1/auth/login/`;
 - renovação, verificação, logout e perfil do usuário em `/api/v1/auth/`;
-- apps `core`, `edicoes` e `polos` com estrutura inicial para evolução do
-  domínio;
+- apps `core`, `edicoes` e `polos`, com CRUD de polos e população de
+  unidades diretas em `/api/v1/polos/popular/`;
 - integração `coresso` funcional para autenticação e `eol` funcional para
   consulta de unidades escolares;
 - `mypy` estrito, cobertura com `fail_under = 80` e documentação Sphinx
@@ -219,6 +219,6 @@ make docs
 
 ## Fora do escopo atual
 
-- publicação efetiva das rotas de negócio de `edicoes` e `polos` em `/api/v1/`
-- regras reais de negócio de `edicoes` e `polos`
+- atualização ou desativação automática de polos diretos já persistidos
+- agendamento da população de polos fora da action autenticada
 

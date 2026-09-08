@@ -7,4 +7,5 @@ pedem contexto além da visão operacional geral.
 .. toctree::
    :maxdepth: 2
 
+   polos/index
    integracoes/index
