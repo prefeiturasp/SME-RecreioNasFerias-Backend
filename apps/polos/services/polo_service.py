@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -31,6 +33,8 @@ from apps.polos.constants import (
     TipoPolo,
 )
 from apps.polos.models import ControleSincronizacaoPolos, Polo
+
+logger = logging.getLogger(__name__)
 
 _FUSO_POPULAR = ZoneInfo("America/Sao_Paulo")
 _DRE_NAO_INFORMADA = "Não informado"
@@ -83,6 +87,7 @@ class PoloService:
         dre_codigo_eol: str | None = None,
         tipo_ue: str | None = None,
         busca: str | None = None,
+        gestao: str | None = None,
     ) -> QuerySet[Polo]:
         """Lista polos aplicando os filtros informados."""
         consulta = Polo.objects.all()
@@ -94,6 +99,10 @@ class PoloService:
         tipo_ue = _normalizar(tipo_ue)
         if tipo_ue:
             consulta = consulta.filter(tipo_ue=tipo_ue)
+        
+        gestao = _normalizar(gestao)
+        if gestao:
+            consulta = consulta.filter(gestao=gestao)
 
         busca = _normalizar(busca)
         if busca:
@@ -141,8 +150,16 @@ class PoloService:
         gestão direta e enriquece somente as unidades ainda inexistentes.
         A carga roda no máximo uma vez por dia no fuso de São Paulo.
         """
+
+        logger.info("Iniciando população de polos diretos a partir da EOL.")
+
         controle = self._obter_controle_popular()
         if self._ja_populou_hoje(controle):
+
+            logger.info(
+                "Carga de população de polos diretos já executada hoje."
+            )
+
             return ResultadoPopularUnidadesDiretas(
                 total_consultados=0,
                 total_novos=0,
@@ -157,11 +174,17 @@ class PoloService:
                 ),
             )
 
+        logger.info("Consultando unidades elegíveis na EOL.")
         filtradas = self.eol.filtrar_unidades_recreio(
             self.eol.listar_todas_unidades()
         )
+        
         eols_existentes = self._eols_diretos_existentes()
         novas: list[UnidadeEol] = []
+
+        logger.info(
+            "Filtrando unidades novas em relação aos polos de gestão direta existentes."
+        )
         for unidade in filtradas:
             codigo = self._normalizar_codigo_eol(unidade.codigo_eol)
             if codigo and codigo not in eols_existentes:
@@ -170,6 +193,9 @@ class PoloService:
         total_ja_existentes = total_consultados - len(novas)
 
         if not novas:
+            logger.info(
+                "Nenhuma unidade nova encontrada para criar polos diretos."
+            )
             executada_em = self._registrar_popular_executado()
             return ResultadoPopularUnidadesDiretas(
                 total_consultados=total_consultados,
@@ -182,8 +208,15 @@ class PoloService:
         polos_criados: list[Polo] = []
         eols_atuais = set(eols_existentes)
         tamanho_lote = TAMANHO_LOTE_POPULAR_UNIDADES_DIRETAS
+        
+        logger.info(f"Total unidades novas: {len(novas)}")
+        
         for inicio in range(0, len(novas), tamanho_lote):
             lote = novas[inicio : inicio + tamanho_lote]
+
+            logger.info(
+                f"Enriquecendo lote de {len(lote)} unidades novas para persistência."
+            )
             enriquecidas = self.eol.enriquecer_unidades(lote)
             polos_criados.extend(
                 self._persistir_lote(enriquecidas, eols_atuais)
@@ -276,9 +309,7 @@ class PoloService:
             ),
             nome_osc=NOME_OSC_SEM_VINCULO,
             dre_nome=dre_nome,
-            dre_codigo_eol=(
-                unidade.codigo_dre.strip() or _DRE_NAO_INFORMADA
-            ),
+            dre_codigo_eol=(unidade.codigo_dre.strip() or _DRE_NAO_INFORMADA),
             gestao=GestaoPolo.DIRETA,
             tipo=TipoPolo.PENDENTE,
             status=StatusPolo.ATIVO,
@@ -310,10 +341,22 @@ class PoloService:
                 if not codigo_eol or codigo_eol in eols_atuais:
                     continue
                 try:
+                    logger.info(
+                        f"Criando polo direto para unidade EOL {codigo_eol}."
+                    )
                     polo = self._mapear_unidade(unidade)
                     polo.save()
-                except ValidationError:
+                except ValidationError as error:
+                    logger.warning(
+                        f"Polo não criado! Erro de validação ao criar polo direto para unidade EOL {codigo_eol}: {error}"
+                    )
                     continue
                 polos_criados.append(polo)
                 eols_atuais.add(codigo_eol)
+                logger.info(
+                    f"Polo direto para unidade EOL {codigo_eol} criado com sucesso."
+                )
+        logger.info(
+            f"Lote de {len(polos_criados)} polos diretos persistido com sucesso."
+        )
         return polos_criados
