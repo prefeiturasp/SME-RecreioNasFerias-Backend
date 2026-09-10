@@ -75,7 +75,7 @@ class Polo(ModeloAtualizavel):
     nome_gestor = models.CharField(
         max_length=255, verbose_name="Nome do gestor", blank=True, default=""
     )
-    email = models.EmailField(
+    email = models.CharField(
         max_length=254, verbose_name="E-mail", blank=True, default=""
     )
     telefone = models.CharField(
