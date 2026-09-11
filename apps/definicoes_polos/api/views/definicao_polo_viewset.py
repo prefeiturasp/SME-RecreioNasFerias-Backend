@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from django.http import Http404
 from drf_spectacular.utils import (
     OpenApiParameter,
@@ -14,6 +16,12 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.utils.paginacao_customizada import PaginacaoCustomizada
+from apps.integracoes.eol.exceptions import (
+    EolConfigError,
+    EolContratoError,
+    EolIndisponivelError,
+)
 from apps.definicoes_polos.api.serializers import (
     AlterarEdicaoEmMassaSerializer,
     DefinicaoPoloDetalhamentoSerializer,
@@ -33,8 +41,10 @@ from apps.definicoes_polos.services.definicao_polo_service import (
 )
 from apps.edicoes.models import Edicao
 from apps.polos.models import Polo
+from apps.polos.services.polo_service import PoloService
 
 EDICAO_NAO_ENCONTRADA = "Edição não encontrada."
+logger = logging.getLogger(__name__)
 
 
 @extend_schema_view(
@@ -84,6 +94,18 @@ EDICAO_NAO_ENCONTRADA = "Edição não encontrada."
                 location=OpenApiParameter.QUERY,
                 description="Filtra pelo tipo da participação mais recente.",
             ),
+            OpenApiParameter(
+                name="page_size",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Quantidade de registros por página.",
+            ),
+            OpenApiParameter(
+                name="desabilita_paginacao",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Se true, retorna todos os registros sem paginação.",
+            ),
         ],
     ),
     create=extend_schema(
@@ -113,6 +135,19 @@ class DefinicaoPoloViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     lookup_field = "uuid"
     service_class = DefinicaoPoloService
+    pagination_class = PaginacaoCustomizada
+
+    def list(self, request, *args, **kwargs):
+        """Sincroniza polos diretos antes de listar as definições."""
+        try:
+            PoloService().popular_unidades_diretas()
+        except (EolConfigError, EolIndisponivelError, EolContratoError) as exc:
+            logger.warning(
+                "Falha ao sincronizar polos diretos antes da listagem de "
+                "definições de polos: %s",
+                exc,
+            )
+        return super().list(request, *args, **kwargs)
 
     def get_queryset(self):
         """Usa a listagem consolidada somente na ação de lista."""
@@ -222,13 +257,33 @@ class DefinicaoPoloViewSet(viewsets.ModelViewSet):
                 location=OpenApiParameter.QUERY,
                 required=True,
                 description="UUID do polo cujo histórico será consultado.",
-            )
+            ),
+            OpenApiParameter(
+                name="page_size",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Quantidade de registros por página.",
+            ),
+            OpenApiParameter(
+                name="desabilita_paginacao",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Se true, retorna todos os registros sem paginação.",
+            ),
         ],
         responses={200: DefinicaoPoloHistoricoSerializer(many=True)},
     )
     @action(detail=False, methods=["get"], url_path="historico")
     def historico(self, request):
-        """Lista todas as participações de um polo."""
+        """
+        Lista todas as participações de um polo.
+        
+        Exemplo com paginação:
+            GET /api/definicoes-polos/historico/?polo=<uuid>&page=1&page_size=20
+        
+        Exemplo sem paginação:
+            GET /api/definicoes-polos/historico/?polo=<uuid>&desabilita_paginacao=true
+        """
         polo_uuid = request.query_params.get("polo")
         if not polo_uuid:
             raise serializers.ValidationError(
@@ -241,9 +296,15 @@ class DefinicaoPoloViewSet(viewsets.ModelViewSet):
             "Polo não encontrado.",
         )
         participacoes = self.service_class().listar_participacoes(polo=polo)
-        return Response(
-            DefinicaoPoloHistoricoSerializer(participacoes, many=True).data
+        
+        # Paginação automática - validação centralizada em PaginacaoCustomizada
+        paginacao = PaginacaoCustomizada()
+        resultado_paginado = paginacao.paginate_queryset(
+            participacoes, request, view=self
         )
+        
+        serializer = DefinicaoPoloHistoricoSerializer(resultado_paginado, many=True)
+        return paginacao.get_paginated_response(serializer.data)
 
     def perform_create(self, serializer):
         """Cria a participação através do service de domínio."""
@@ -378,5 +439,4 @@ class DefinicaoPoloViewSet(viewsets.ModelViewSet):
             definicoes, edicao_destino
         )
         return Response(DefinicaoPoloSerializer(definicoes, many=True).data)
-
 

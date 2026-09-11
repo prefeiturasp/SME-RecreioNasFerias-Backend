@@ -86,6 +86,7 @@ def test_lista_polos_aplica_filtros_pela_api(
             "dre_codigo_eol": "108100",
             "tipo_ue": "EMEF",
             "busca": "Mario",
+            "desabilita_paginacao": "true",
         },
     )
 
