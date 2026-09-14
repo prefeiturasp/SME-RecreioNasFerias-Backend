@@ -79,7 +79,21 @@ class EolClient:
             raise EolContratoError(
                 "Resposta de tipos de escola em formato inesperado."
             )
-        return [item for item in dados if isinstance(item, dict)]
+
+        tipos: list[dict[str, Any]] = []
+        siglas_vistas: set[object] = set()
+        for item in dados:
+            if not isinstance(item, dict):
+                continue
+
+            sigla = item.get("descricaoSigla")
+            if sigla is not None:
+                if sigla in siglas_vistas:
+                    continue
+                siglas_vistas.add(sigla)
+            tipos.append(item)
+
+        return tipos
 
     def listar_dres(self) -> list[dict[str, Any]]:
         """Consulta o catálogo bruto de Diretorias Regionais de Educação.

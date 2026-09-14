@@ -159,7 +159,7 @@ def test_listar_todas_unidades_normaliza_catalogo() -> None:
 
 
 def test_obter_dados_unidade_normaliza_payload() -> None:
-    """Normaliza dados detalhados incluindo CEP e endereco."""
+    """Normaliza dados detalhados com CEP e endereço em campos separados."""
     client = FakeClient(
         dados={
             "094633": {
@@ -175,6 +175,7 @@ def test_obter_dados_unidade_normaliza_payload() -> None:
                 "logradouro": "das Flores",
                 "numero": "123",
                 "bairro": "Ipiranga",
+                "complemento": "Bloco B",
             }
         }
     )
@@ -190,7 +191,11 @@ def test_obter_dados_unidade_normaliza_payload() -> None:
         email="emef@exemplo.gov.br",
         telefone="1122334455",
         cep="04206-000",
-        endereco="Rua das Flores, 123 - Ipiranga",
+        tipo_logradouro="Rua",
+        logradouro="das Flores",
+        bairro="Ipiranga",
+        numero="123",
+        complemento="Bloco B",
     )
 
 
@@ -311,7 +316,11 @@ def test_enriquecer_unidades_agrega_dados_e_diretor() -> None:
             email="emef@exemplo.gov.br",
             telefone="1122334455",
             cep="04206-000",
-            endereco="Rua das Flores, 123 - Ipiranga",
+            tipo_logradouro="Rua",
+            logradouro="das Flores",
+            bairro="Ipiranga",
+            numero="123",
+            complemento="",
             nome_diretor="Diretor Teste",
         ),
     )

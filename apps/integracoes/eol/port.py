@@ -52,7 +52,11 @@ class DadosUnidadeEol:
     email: str
     telefone: str
     cep: str
-    endereco: str
+    tipo_logradouro: str
+    logradouro: str
+    bairro: str
+    numero: str
+    complemento: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,7 +72,11 @@ class UnidadeRecreioEol:
     email: str
     telefone: str
     cep: str
-    endereco: str
+    tipo_logradouro: str
+    logradouro: str
+    bairro: str
+    numero: str
+    complemento: str
     nome_diretor: str
 
 
