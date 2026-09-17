@@ -45,6 +45,7 @@ class DadosUnidadeEol:
     """Dados detalhados normalizados de uma unidade escolar."""
 
     nome: str
+    codigo_eol: str
     sigla_tipo_escola: str
     nome_dre: str
     sigla_dre: str
@@ -57,6 +58,8 @@ class DadosUnidadeEol:
     bairro: str
     numero: str
     complemento: str
+    municipio: str
+    uf: str
 
 
 @dataclass(frozen=True, slots=True)
