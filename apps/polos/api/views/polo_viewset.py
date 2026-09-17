@@ -23,7 +23,9 @@ from apps.polos.api.serializers import (
     PoloSerializer,
     PopularUnidadesDiretasSerializer,
     TipoEscolaSerializer,
+    DadosUnidadeSerializer,
 )
+
 from apps.polos.models import Polo
 from apps.polos.services.polo_service import PoloService
 
@@ -101,6 +103,51 @@ class PoloViewSet(viewsets.ModelViewSet):
             busca=self.request.query_params.get("busca"),
             gestao=self.request.query_params.get("gestao"),
         )
+        
+    @extend_schema(
+        summary="Obtém dados da unidade por código EOL",
+        description="Retorna os dados de uma unidade específica pela integração EOL.",
+        tags=["Polos"],
+        parameters=[
+            OpenApiParameter(
+                name="codigo_eol",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Código EOL da unidade.",
+                required=True,
+            ),
+        ],
+        responses={
+            200: DadosUnidadeSerializer,
+            500: OpenApiResponse(description="Erro de configuração da EOL."),
+            502: OpenApiResponse(description="Falha na integração com a EOL."),
+        },
+    )
+        
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="dados-da-unidade",
+        url_name="dados-da-unidade",
+    )    
+    def obter_dados_da_unidade_pelo_codigo_eol(self, request) -> Response:
+        """Retorna os dados de uma unidade específica pela integração EOL."""
+        try:
+            dados_unidade = self.service_class().obter_dados_unidade(
+                codigo_eol=request.query_params.get("codigo_eol")
+            )
+        except EolConfigError as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        except (EolIndisponivelError, EolContratoError) as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response(DadosUnidadeSerializer(dados_unidade).data)
+
 
     @extend_schema(
         summary="Lista tipos de escola",
