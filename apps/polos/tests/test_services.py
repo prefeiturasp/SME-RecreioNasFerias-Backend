@@ -6,6 +6,7 @@ from freezegun import freeze_time
 
 from apps.integracoes.eol.adapter import EolAdapter
 from apps.integracoes.eol.port import (
+    DadosUnidadeEol,
     DreEol,
     TipoEscolaEol,
     UnidadeEol,
@@ -78,6 +79,43 @@ def test_service_lista_tipos_e_dres_pela_porta_eol() -> None:
 
     assert service.listar_tipos_escola() == tipos
     assert service.listar_dres() == dres
+
+
+def test_service_obtem_dados_da_unidade_pela_porta_eol() -> None:
+    """O serviço delega a consulta detalhada à porta EOL injetada."""
+    dados = DadosUnidadeEol(
+        nome="EMEF Unidade Teste",
+        codigo_eol="019370",
+        sigla_tipo_escola="EMEF",
+        nome_dre="DRE Butantã",
+        sigla_dre="DRE - BT",
+        codigo_dre="108100",
+        email="unidade@example.com",
+        telefone="1130000000",
+        cep="01001000",
+        tipo_logradouro="Rua",
+        logradouro="Principal",
+        bairro="Centro",
+        numero="10",
+        complemento="",
+        municipio="São Paulo",
+        uf="SP",
+    )
+
+    class FakeEol:
+        """Porta EOL mínima para o teste de consulta detalhada."""
+
+        def __init__(self):
+            self.codigo_recebido = None
+
+        def obter_dados_unidade(self, codigo_eol):
+            self.codigo_recebido = codigo_eol
+            return dados
+
+    fake = FakeEol()
+
+    assert PoloService(eol=fake).obter_dados_unidade("019370") == dados
+    assert fake.codigo_recebido == "019370"
 
 
 def test_service_cria_adapter_eol_sob_demanda() -> None:

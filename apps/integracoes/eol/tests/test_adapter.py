@@ -164,6 +164,7 @@ def test_obter_dados_unidade_normaliza_payload() -> None:
         dados={
             "094633": {
                 "nome": "EMEF Professora Teste",
+                "codigo": "094633",
                 "siglaTipoEscola": "EMEF",
                 "nomeDRE": "DRE Ipiranga",
                 "siglaDRE": "IP",
@@ -176,6 +177,8 @@ def test_obter_dados_unidade_normaliza_payload() -> None:
                 "numero": "123",
                 "bairro": "Ipiranga",
                 "complemento": "Bloco B",
+                "municipio": "São Paulo",
+                "uf": "SP",
             }
         }
     )
@@ -184,6 +187,7 @@ def test_obter_dados_unidade_normaliza_payload() -> None:
 
     assert dados == DadosUnidadeEol(
         nome="EMEF Professora Teste",
+        codigo_eol="094633",
         sigla_tipo_escola="EMEF",
         nome_dre="DRE Ipiranga",
         sigla_dre="IP",
@@ -196,6 +200,8 @@ def test_obter_dados_unidade_normaliza_payload() -> None:
         bairro="Ipiranga",
         numero="123",
         complemento="Bloco B",
+        municipio="São Paulo",
+        uf="SP",
     )
 
 

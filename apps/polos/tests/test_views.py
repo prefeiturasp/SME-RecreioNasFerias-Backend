@@ -10,7 +10,7 @@ from apps.integracoes.eol.exceptions import (
     EolContratoError,
     EolIndisponivelError,
 )
-from apps.integracoes.eol.port import DreEol, TipoEscolaEol
+from apps.integracoes.eol.port import DadosUnidadeEol, DreEol, TipoEscolaEol
 from apps.polos.constants import (
     MOTIVO_JA_EXECUTADA_HOJE,
     StatusPolo,
@@ -206,6 +206,86 @@ def test_lista_dres_pela_api(cliente_autenticado, monkeypatch) -> None:
             "sigla_dre": "DRE - BT",
         }
     ]
+
+
+def test_obtem_dados_da_unidade_pela_api(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """A API retorna os dados da unidade consultada pelo código EOL."""
+    dados = DadosUnidadeEol(
+        nome="EMEF Unidade Teste",
+        codigo_eol="019370",
+        sigla_tipo_escola="EMEF",
+        nome_dre="DRE Butantã",
+        sigla_dre="DRE - BT",
+        codigo_dre="108100",
+        email="unidade@example.com",
+        telefone="1130000000",
+        cep="01001000",
+        tipo_logradouro="Rua",
+        logradouro="Principal",
+        bairro="Centro",
+        numero="10",
+        complemento="",
+        municipio="São Paulo",
+        uf="SP",
+    )
+    codigo_recebido = None
+
+    def _obter(_self, codigo_eol):
+        nonlocal codigo_recebido
+        codigo_recebido = codigo_eol
+        return dados
+
+    monkeypatch.setattr(PoloService, "obter_dados_unidade", _obter)
+
+    response = cliente_autenticado.get(
+        f"{URL}dados-da-unidade/",
+        {"codigo_eol": "019370"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert codigo_recebido == "019370"
+    assert response.data["nome"] == "EMEF Unidade Teste"
+    assert response.data["codigo_eol"] == "019370"
+
+
+def test_obtem_dados_da_unidade_retorna_erro_de_configuracao(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """Falha de configuração da EOL retorna HTTP 500."""
+    def _falhar(_self, codigo_eol):
+        raise EolConfigError("config")
+
+    monkeypatch.setattr(PoloService, "obter_dados_unidade", _falhar)
+
+    response = cliente_autenticado.get(f"{URL}dados-da-unidade/")
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.data == {"detalhe": "config"}
+
+
+@pytest.mark.parametrize(
+    "erro",
+    [EolIndisponivelError("indisponivel"), EolContratoError("contrato")],
+)
+def test_obtem_dados_da_unidade_retorna_erro_de_integracao(
+    cliente_autenticado,
+    monkeypatch,
+    erro,
+) -> None:
+    """Falhas externas da EOL retornam HTTP 502."""
+    def _falhar(_self, codigo_eol):
+        raise erro
+
+    monkeypatch.setattr(PoloService, "obter_dados_unidade", _falhar)
+
+    response = cliente_autenticado.get(f"{URL}dados-da-unidade/")
+
+    assert response.status_code == status.HTTP_502_BAD_GATEWAY
+    assert response.data == {"detalhe": str(erro)}
 
 
 @pytest.mark.parametrize(
