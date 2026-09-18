@@ -246,12 +246,13 @@ class DefinicaoPoloService:
         if edicao is not None:
             consulta = self._anotar_com_edicao_filtrada(edicao)
         else:
-            consulta = self._anotar_com_participacao_mais_recente()
+            consulta = self._anotar_com_participacao_mais_recente(tipo_polo)
         consulta = self._aplicar_filtros_estruturais(
             consulta, dre_codigos_eol, tipo_ue, busca, gestao
         )
         if tipo_polo and tipo_polo.strip():
-            consulta = consulta.filter(tipo_polo_edicao=tipo_polo.strip())
+            tipo_polo = tipo_polo.strip()
+            consulta = consulta.filter(tipo_polo_edicao=tipo_polo)
         return consulta.order_by("nome_polo")
 
     def _anotar_com_edicao_filtrada(self, edicao: object) -> QuerySet[Polo]:
@@ -289,10 +290,14 @@ class DefinicaoPoloService:
             )
         )
 
-    def _anotar_com_participacao_mais_recente(self) -> QuerySet[Polo]:
+    def _anotar_com_participacao_mais_recente(
+        self, tipo_polo: str | None = None
+    ) -> QuerySet[Polo]:
         ultima = DefinicaoPolo.objects.filter(polo=OuterRef("pk")).order_by(
             "-edicao__data_inicio", "-criado_em"
         )
+        if tipo_polo and tipo_polo.strip():
+            ultima = ultima.filter(tipo=tipo_polo.strip())
         return Polo.objects.annotate(
             definicao_uuid=Subquery(ultima.values("uuid")[:1]),
             edicao_uuid=Subquery(ultima.values("edicao__uuid")[:1]),

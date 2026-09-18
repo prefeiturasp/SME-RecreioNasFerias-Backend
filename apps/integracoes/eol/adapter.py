@@ -224,6 +224,7 @@ class EolAdapter(EolPort):
         """Converte o payload de dados detalhados em ``DadosUnidadeEol``."""
         return DadosUnidadeEol(
             nome=self._texto(payload.get("nome")),
+            codigo_eol=self._texto(payload.get("codigo")),
             sigla_tipo_escola=self._texto(payload.get("siglaTipoEscola")),
             nome_dre=self._texto(payload.get("nomeDRE")),
             sigla_dre=self._texto(payload.get("siglaDRE")),
@@ -236,7 +237,11 @@ class EolAdapter(EolPort):
             bairro=self._texto(payload.get("bairro")),
             numero=self._texto(payload.get("numero")),
             complemento=self._texto(payload.get("complemento")),
+            municipio=self._texto(payload.get("municipio")),
+            uf=self._texto(payload.get("uf")),
         )
+
+
 
     def _enriquecer_unidade(self, unidade: UnidadeEol) -> UnidadeRecreioEol:
         """Agrega dados detalhados e nome do diretor a uma unidade."""

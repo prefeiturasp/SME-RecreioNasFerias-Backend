@@ -12,10 +12,21 @@ from apps.definicoes_polos.api.views.definicao_polo_viewset import (
     DefinicaoPoloViewSet,
 )
 from apps.definicoes_polos.constants import TipoPolo
+from apps.polos.services.polo_service import PoloService
 
 pytestmark = pytest.mark.django_db
 
 URL = "/api/v1/definicoes-polos/"
+
+
+@pytest.fixture(autouse=True)
+def desabilita_sincronizacao_eol(monkeypatch) -> None:
+    """Evita integração EOL nas requisições deste módulo de views."""
+    monkeypatch.setattr(
+        PoloService,
+        "popular_unidades_diretas",
+        lambda self: None,
+    )
 
 
 def _criar_edicao(edicao_factory, numero: int):
@@ -99,6 +110,7 @@ def test_lista_retorna_todos_os_polos_e_filtros(
             "busca": "019888",
             "gestao": "direta",
             "tipo_polo": TipoPolo.RESERVA,
+            "desabilita_paginacao": "true"
         },
     )
 
@@ -123,7 +135,7 @@ def test_lista_filtra_por_edicao_com_inner_join(
     definicao_polo_factory(polo=esperado, edicao=edicao)
     polo_factory()
 
-    response = cliente_autenticado.get(URL, {"edicao": str(edicao.uuid)})
+    response = cliente_autenticado.get(URL, {"edicao": str(edicao.uuid), "desabilita_paginacao": "true"})
 
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
@@ -177,7 +189,7 @@ def test_historico_exige_polo_e_retorna_edicao(
 
     sem_polo = cliente_autenticado.get(f"{URL}historico/")
     response = cliente_autenticado.get(
-        f"{URL}historico/", {"polo": str(definicao.polo.uuid)}
+        f"{URL}historico/", {"polo": str(definicao.polo.uuid), "desabilita_paginacao": "true"}
     )
 
     assert sem_polo.status_code == status.HTTP_400_BAD_REQUEST

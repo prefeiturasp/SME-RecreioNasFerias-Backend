@@ -1,11 +1,34 @@
 # Changelog
 
-## 0.3.0 - 2026-09-08
+## 0.6.0 - 2026-09-14
+
+- Implementado o domínio de Definições de Polos, incluindo o vínculo entre
+  polos e edições, projeção e total de inscritos, ponto focal e histórico de
+  participações.
+- Adicionadas ações em massa para vinculação, alteração de tipo e alteração
+  de edição das definições de polos.
+- Adicionada a documentação do domínio em `docs/dominios/definicoes_polos/`.
+
+## 0.5.0 - 2026-09-08
 
 - Implementada a população de polos de gestão direta a partir da EOL em
   `POST /api/v1/polos/popular/`.
 - Documentado o consumo de `EolPort` pelo domínio de polos em
   `docs/dominios/`.
+
+## 0.4.0 - 2026-08-27
+
+- Implementado o domínio de Polos, incluindo cadastro, consulta, atualização,
+  exclusão e filtros de listagem.
+- Adicionadas as consultas de tipos de escola, DREs e dados detalhados de uma
+  unidade pela integração EOL.
+- Adicionada a documentação do domínio em `docs/dominios/polos/`.
+
+## 0.3.0 - 2026-08-21
+
+- Implementado o domínio de Edições, incluindo o ciclo de vida automático das
+  edições, validação dos períodos e controle de edição ativa.
+- Adicionada a documentação do domínio em `docs/dominios/edicoes/`.
 
 ## 0.2.0 - 2026-08-13
 

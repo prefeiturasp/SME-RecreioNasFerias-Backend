@@ -1,10 +1,12 @@
 """Testes dos casos de uso do domínio de polos."""
 
 import pytest
+from django.core.exceptions import ValidationError
 from freezegun import freeze_time
 
 from apps.integracoes.eol.adapter import EolAdapter
 from apps.integracoes.eol.port import (
+    DadosUnidadeEol,
     DreEol,
     TipoEscolaEol,
     UnidadeEol,
@@ -79,6 +81,43 @@ def test_service_lista_tipos_e_dres_pela_porta_eol() -> None:
     assert service.listar_dres() == dres
 
 
+def test_service_obtem_dados_da_unidade_pela_porta_eol() -> None:
+    """O serviço delega a consulta detalhada à porta EOL injetada."""
+    dados = DadosUnidadeEol(
+        nome="EMEF Unidade Teste",
+        codigo_eol="019370",
+        sigla_tipo_escola="EMEF",
+        nome_dre="DRE Butantã",
+        sigla_dre="DRE - BT",
+        codigo_dre="108100",
+        email="unidade@example.com",
+        telefone="1130000000",
+        cep="01001000",
+        tipo_logradouro="Rua",
+        logradouro="Principal",
+        bairro="Centro",
+        numero="10",
+        complemento="",
+        municipio="São Paulo",
+        uf="SP",
+    )
+
+    class FakeEol:
+        """Porta EOL mínima para o teste de consulta detalhada."""
+
+        def __init__(self):
+            self.codigo_recebido = None
+
+        def obter_dados_unidade(self, codigo_eol):
+            self.codigo_recebido = codigo_eol
+            return dados
+
+    fake = FakeEol()
+
+    assert PoloService(eol=fake).obter_dados_unidade("019370") == dados
+    assert fake.codigo_recebido == "019370"
+
+
 def test_service_cria_adapter_eol_sob_demanda() -> None:
     """A integração padrão só é criada quando efetivamente utilizada."""
     service = PoloService()
@@ -112,6 +151,16 @@ def test_service_filtra_por_tipo_de_ue(polo_factory) -> None:
     polo_factory(tipo_ue="EMEI")
 
     resultado = PoloService().listar(tipo_ue=" EMEF ")
+
+    assert list(resultado) == [primeiro]
+
+
+def test_service_filtra_por_gestao(polo_factory) -> None:
+    """O filtro de gestão restringe a consulta ao valor informado."""
+    primeiro = polo_factory(gestao=GestaoPolo.DIRETA)
+    polo_factory(gestao=GestaoPolo.PARCEIRA)
+
+    resultado = PoloService().listar(gestao=" direta ")
 
     assert list(resultado) == [primeiro]
 
@@ -418,6 +467,31 @@ def test_service_resolve_colisao_de_nome_do_polo(polo_factory) -> None:
     )
 
 
+def test_service_resolve_colisoes_sucessivas_de_nome_do_polo(
+    polo_factory,
+) -> None:
+    """Colisões sucessivas incrementam o sufixo do código EOL."""
+    polo_factory(
+        codigo_eol="019253",
+        nome_polo="ESCOLA COLISAO 2",
+    )
+    polo_factory(
+        codigo_eol="019254",
+        nome_polo="ESCOLA COLISAO 2 (019999)",
+    )
+    polo_factory(
+        codigo_eol="019255",
+        nome_polo="ESCOLA COLISAO 2 (019999-2)",
+    )
+
+    nome = PoloService._resolver_nome_polo(
+        "ESCOLA COLISAO 2",
+        "019999",
+    )
+
+    assert nome == "ESCOLA COLISAO 2 (019999-3)"
+
+
 def test_service_ignora_unidade_com_dados_invalidos() -> None:
     """ValidationError pontual não interrompe o lote."""
     fake = FakeEolPopular(
@@ -437,9 +511,36 @@ def test_service_ignora_unidade_com_dados_invalidos() -> None:
 
     resultado = PoloService(eol=fake).popular_unidades_diretas()
 
-    assert resultado.total_novos == 1
+    assert resultado.total_novos == 2
     assert Polo.objects.filter(codigo_eol="019260").exists()
-    assert not Polo.objects.filter(codigo_eol="019261").exists()
+    assert Polo.objects.filter(codigo_eol="019261").exists()
+
+
+def test_service_ignora_unidades_ja_vistas_ou_sem_codigo() -> None:
+    """O lote ignora unidades sem código ou já presentes no conjunto."""
+    unidade_sem_codigo = _unidade_recreio("", "SEM CÓDIGO")
+    unidade_existente = _unidade_recreio("019280", "JÁ EXISTENTE")
+
+    criados = PoloService()._persistir_lote(
+        (unidade_sem_codigo, unidade_existente),
+        {"019280"},
+    )
+
+    assert criados == []
+
+
+def test_service_ignora_validation_error_ao_persistir(monkeypatch) -> None:
+    """Um erro de validação em uma unidade não interrompe o lote."""
+    unidade = _unidade_recreio("019281", "ESCOLA COM ERRO")
+
+    def _falhar_ao_salvar(self, *args, **kwargs):
+        raise ValidationError("dados inválidos")
+
+    monkeypatch.setattr(Polo, "save", _falhar_ao_salvar)
+
+    criados = PoloService()._persistir_lote((unidade,), set())
+
+    assert criados == []
 
 
 def test_service_popula_em_lotes(monkeypatch) -> None:
