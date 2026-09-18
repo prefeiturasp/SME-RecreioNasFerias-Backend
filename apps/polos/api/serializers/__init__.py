@@ -8,10 +8,12 @@ from apps.polos.api.serializers.popular_polos_serializer import (
 from apps.polos.api.serializers.tipo_escola_serializer import (
     TipoEscolaSerializer,
 )
+from apps.polos.api.serializers.dados_da_unidade_serializer import DadosUnidadeSerializer
 
 __all__ = [
     "DreSerializer",
     "PoloSerializer",
     "PopularUnidadesDiretasSerializer",
     "TipoEscolaSerializer",
+    "DadosUnidadeSerializer",
 ]
