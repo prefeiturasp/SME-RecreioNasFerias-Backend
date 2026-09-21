@@ -34,19 +34,17 @@ class DefinicaoPoloSerializer(serializers.ModelSerializer):
             "tipo",
             "projecao_inscritos",
             "total_inscritos",
+            "resultado_final_de_inscritos",
             "ponto_focal_nome",
             "ponto_focal_telefone",
             "ponto_focal_email",
             "ativo",
-            "criado_em",
-            "atualizado_em",
         )
         read_only_fields = (
             "uuid",
             "total_inscritos",
             "ativo",
-            "criado_em",
-            "atualizado_em",
+            "resultado_final_de_inscritos",
         )
 
 
@@ -71,8 +69,7 @@ class DefinicaoPoloDetalhamentoSerializer(serializers.ModelSerializer):
             "ponto_focal_telefone",
             "ponto_focal_email",
             "ativo",
-            "criado_em",
-            "atualizado_em",
+            "resultado_final_de_inscritos",
         )
         read_only_fields = fields
 
@@ -95,8 +92,7 @@ class DefinicaoPoloHistoricoSerializer(serializers.ModelSerializer):
             "ponto_focal_nome",
             "ponto_focal_telefone",
             "ponto_focal_email",
-            "criado_em",
-            "atualizado_em",
+            "resultado_final_de_inscritos",
         )
         read_only_fields = fields
 
@@ -113,6 +109,9 @@ class PoloComDefinicaoSerializer(serializers.ModelSerializer):
         read_only=True, allow_null=True
     )
     total_inscritos_edicao = serializers.IntegerField(
+        read_only=True, allow_null=True
+    )
+    resultado_final_de_inscritos_edicao = serializers.IntegerField(
         read_only=True, allow_null=True
     )
 
@@ -136,4 +135,5 @@ class PoloComDefinicaoSerializer(serializers.ModelSerializer):
             "tipo_polo_edicao",
             "projecao_inscritos_edicao",
             "total_inscritos_edicao",
+            "resultado_final_de_inscritos_edicao",
         )
