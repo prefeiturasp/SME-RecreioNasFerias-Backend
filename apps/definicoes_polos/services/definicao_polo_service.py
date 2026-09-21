@@ -287,6 +287,9 @@ class DefinicaoPoloService:
                 total_inscritos_edicao=Subquery(
                     definicao_da_edicao.values("total_inscritos")[:1]
                 ),
+                resultado_final_de_inscritos_edicao=Subquery(
+                    definicao_da_edicao.values("resultado_final_de_inscritos")[:1]
+                ),
             )
         )
 
@@ -311,6 +314,9 @@ class DefinicaoPoloService:
             ),
             total_inscritos_edicao=Subquery(
                 ultima.values("total_inscritos")[:1]
+            ),
+            resultado_final_de_inscritos_edicao=Subquery(
+                ultima.values("resultado_final_de_inscritos")[:1]
             ),
         )
 
