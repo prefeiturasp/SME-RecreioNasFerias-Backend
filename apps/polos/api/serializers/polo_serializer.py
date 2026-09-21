@@ -8,6 +8,22 @@ from apps.polos.models import Polo
 class PoloSerializer(serializers.ModelSerializer):
     """Representa o contrato de entrada e saída de um polo."""
 
+    endereco_completo = serializers.SerializerMethodField(read_only=True)
+
+    def get_endereco_completo(self, obj):
+        """Retorna o endereço completo do polo."""
+        logradouro_completo_parts = [obj.tipo_logradouro, obj.logradouro]
+        logradouro_completo = " ".join(filter(None, logradouro_completo_parts))
+
+        partes = [
+            logradouro_completo,
+            obj.numero,
+            obj.complemento,
+            obj.bairro,
+        ]
+        endereco = ", ".join(filter(None, partes))
+        return endereco
+
     class Meta:
         """Configuração do serializer de polo."""
 
@@ -35,12 +51,9 @@ class PoloSerializer(serializers.ModelSerializer):
             "telefone",
             "observacoes_gerais",
             "ativo",
-            "criado_em",
-            "atualizado_em",
+            "endereco_completo",
         )
         read_only_fields = (
             "uuid",
             "ativo",
-            "criado_em",
-            "atualizado_em",
         )
