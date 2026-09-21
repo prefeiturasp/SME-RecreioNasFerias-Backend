@@ -25,4 +25,4 @@ class DefinicaoPoloAdmin(admin.ModelAdmin):
         "ponto_focal_nome",
     )
     raw_id_fields = ("polo", "edicao")
-    readonly_fields = ("uuid", "total_inscritos", "criado_em", "atualizado_em")
+    readonly_fields = ("uuid", "total_inscritos", "resultado_final_de_inscritos", "criado_em", "atualizado_em")
