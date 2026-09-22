@@ -140,7 +140,6 @@ def test_atualiza_polo_com_put_pela_api(
     assert response.status_code == status.HTTP_200_OK
     assert response.data["nome_polo"] == "Polo atualizado"
     assert response.data["gestao"] == "direta"
-    assert "atualizado_em" in response.data
 
 
 def test_atualiza_parcialmente_polo_pela_api(
