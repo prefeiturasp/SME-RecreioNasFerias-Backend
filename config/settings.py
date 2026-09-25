@@ -111,6 +111,7 @@ INSTALLED_APPS = [
     "apps.edicoes.apps.EdicoesConfig",
     "apps.polos.apps.PolosConfig",
     "apps.definicoes_polos.apps.DefinicoesPolosConfig",
+    "apps.inscricoes.apps.InscricoesConfig",
 ]
 
 
