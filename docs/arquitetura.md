@@ -24,10 +24,12 @@ Na prática, isso significa:
 |-- apps/
 |   |-- core/
 |   |-- edicoes/
-|   |-- polos/
+|   |-- definicoes_polos/
+|   |-- inscricoes/
 |   `-- integracoes/
 |       |-- coresso/
 |       `-- eol/
+|   |-- polos/
 |-- config/
 |-- docs/
 |-- requirements/
@@ -41,6 +43,7 @@ Na prática, isso significa:
 | --- | --- |
 | `apps/core/` | infraestrutura compartilhada, autenticação, modelos base, usuário local e healthcheck |
 | `apps/edicoes/` | domínio de edições |
+| `apps/inscricoes/` | inscrições e participantes |
 | `apps/polos/` | domínio de polos |
 | `apps/definicoes_polos/` | participação de polos em edições |
 | `apps/integracoes/` | bordas externas, como CoreSSO e EOL |
@@ -81,7 +84,7 @@ Os pontos centrais do fluxo atual ficam distribuídos em:
 
 ## Apps de domínio
 
-`edicoes` e `polos` já possuem a estrutura do app, com `api/`, `models/`,
+`edicoes`, `definicoes_polos`, `polos` e `inscricoes` já possuem a estrutura do app, com `api/`, `models/`,
 `services/`, testes e migrations. O domínio de polos já popula unidades
 diretas a partir da EOL em `POST /api/v1/polos/popular/`.
 

@@ -10,4 +10,5 @@ pedem contexto além da visão operacional geral.
    polos/index
    definicoes_polos/index
    edicoes/index
+   inscricoes/index
    integracoes/index
