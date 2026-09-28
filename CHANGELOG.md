@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0 - 2026-09-30
+- Implementado o domínio de Inscrições que gerencia participantes do programa, incluindo criação, atualização, cancelamento, reativação , filtros, listagem de inscrições e listagem de choices do domínio.
+- Adicionados testes para o domínio de Inscrições.
+- Adicionada a documentação do domínio em `docs/dominios/inscricoes/`.
+
+
+## 0.7.0 - 2026-09-20
+
+- Integrados os dados da unidade ao cadastro de polo parceiro via API SME Integração.
+- Ajustado o cadastro de polo parceiro para exibir os dados da unidade obtidos via API SME Integração, com campos desabilitados para edição quando disponíveis.
+
 ## 0.6.0 - 2026-09-14
 
 - Implementado o domínio de Definições de Polos, incluindo o vínculo entre
