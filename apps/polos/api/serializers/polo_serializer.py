@@ -20,6 +20,12 @@ class PoloSerializer(serializers.ModelSerializer):
     """Representa o contrato de entrada e saída de um polo."""
 
     endereco_completo = serializers.SerializerMethodField(read_only=True)
+    gestao_label = serializers.CharField(
+        source="get_gestao_display", read_only=True, allow_null=True
+    )
+    status_label = serializers.CharField(
+        source="get_status_display", read_only=True, allow_null=True
+    )
 
     def get_endereco_completo(self, obj) -> str:
         """Retorna o endereço completo do polo."""
@@ -48,7 +54,9 @@ class PoloSerializer(serializers.ModelSerializer):
             "dre_codigo_eol",
             "tipo",
             "status",
+            "status_label",
             "gestao",
+            "gestao_label",
             "tipo_ue",
             "quantidade_maxima_alunos",
             "cep",
