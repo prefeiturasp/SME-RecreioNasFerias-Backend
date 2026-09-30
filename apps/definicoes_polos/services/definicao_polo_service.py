@@ -54,15 +54,16 @@ class DefinicaoPoloService:
         polo: Polo,
         edicao: object,
         projecao_inscritos: int,
+        tipo: str = TipoPolo.PENDENTE,
         ponto_focal_nome: str = "",
         ponto_focal_telefone: str = "",
         ponto_focal_email: str = "",
     ) -> DefinicaoPolo:
-        """Cria uma participação iniciada como pendente."""
+        """Cria uma participação com o tipo informado ou pendente."""
         definicao = DefinicaoPolo(
             polo=polo,
             edicao=edicao,
-            tipo=TipoPolo.PENDENTE,
+            tipo=tipo,
             projecao_inscritos=projecao_inscritos,
             ponto_focal_nome=ponto_focal_nome,
             ponto_focal_telefone=ponto_focal_telefone,
@@ -135,12 +136,17 @@ class DefinicaoPoloService:
             if polo.pk in vinculados:
                 ignorados.append(polo)
                 continue
+
+            ultima_definicao_de_polo = DefinicaoPolo.objects.filter(polo=polo).last()
+            tipo = ultima_definicao_de_polo.tipo if ultima_definicao_de_polo is not None else TipoPolo.PENDENTE
+
             vinculados.add(polo.pk)
             criadas.append(
                 self.vincular(
-                    polo,
-                    edicao,
-                    projecao_inscritos,
+                    polo=polo,
+                    edicao=edicao,
+                    projecao_inscritos=projecao_inscritos,
+                    tipo=tipo,
                 )
             )
         return {"criadas": criadas, "ignorados": ignorados}
@@ -287,6 +293,9 @@ class DefinicaoPoloService:
                 total_inscritos_edicao=Subquery(
                     definicao_da_edicao.values("total_inscritos")[:1]
                 ),
+                resultado_final_de_inscritos_edicao=Subquery(
+                    definicao_da_edicao.values("resultado_final_de_inscritos")[:1]
+                ),
             )
         )
 
@@ -311,6 +320,9 @@ class DefinicaoPoloService:
             ),
             total_inscritos_edicao=Subquery(
                 ultima.values("total_inscritos")[:1]
+            ),
+            resultado_final_de_inscritos_edicao=Subquery(
+                ultima.values("resultado_final_de_inscritos")[:1]
             ),
         )
 

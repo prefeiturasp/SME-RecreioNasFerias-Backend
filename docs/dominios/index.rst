@@ -8,4 +8,7 @@ pedem contexto além da visão operacional geral.
    :maxdepth: 2
 
    polos/index
+   definicoes_polos/index
+   edicoes/index
+   inscricoes/index
    integracoes/index

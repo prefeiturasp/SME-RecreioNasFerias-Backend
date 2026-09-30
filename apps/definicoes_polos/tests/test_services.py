@@ -138,6 +138,49 @@ def test_service_vincula_em_massa_cria_e_ignora_repetidos(
     assert existente.pk is not None
 
 
+def test_service_vincula_em_massa_preserva_tipo_da_definicao_mais_recente(
+    polo_factory,
+    edicao_factory,
+    definicao_polo_factory,
+) -> None:
+    """A nova definição herda o tipo mais recente do polo."""
+    polo = polo_factory()
+    edicao_antiga = _criar_edicao(edicao_factory, 20)
+    definicao_polo_factory(
+        polo=polo,
+        edicao=edicao_antiga,
+        tipo=TipoPolo.RESERVA,
+    )
+    historico = definicao_polo_factory(
+        polo=polo,
+        edicao=_criar_edicao(edicao_factory, 21),
+        tipo=TipoPolo.OFICIAL,
+    )
+    edicao = _criar_edicao(edicao_factory, 22)
+
+    resultado = DefinicaoPoloService().vincular_em_massa(
+        [polo], edicao, 200
+    )
+
+    criada = resultado["criadas"][0]
+    assert criada.tipo == historico.tipo
+
+
+def test_service_vincula_em_massa_inicia_pendente_sem_historico(
+    polo_factory,
+    edicao_factory,
+) -> None:
+    """A nova definição fica pendente quando o polo não tem histórico."""
+    polo = polo_factory()
+    edicao = _criar_edicao(edicao_factory, 23)
+
+    resultado = DefinicaoPoloService().vincular_em_massa(
+        [polo], edicao, 200
+    )
+
+    assert resultado["criadas"][0].tipo == TipoPolo.PENDENTE
+
+
 def test_service_define_tipo_em_massa_por_polo_e_edicao(
     definicao_polo_factory,
     polo_factory,

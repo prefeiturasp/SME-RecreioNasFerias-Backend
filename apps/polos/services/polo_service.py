@@ -16,6 +16,7 @@ from django.utils import timezone
 
 from apps.integracoes.eol.adapter import EolAdapter
 from apps.integracoes.eol.port import (
+    DadosUnidadeEol,
     DreEol,
     EolPort,
     TipoEscolaEol,
@@ -72,6 +73,10 @@ class PoloService:
         if self._eol is None:
             self._eol = EolAdapter()
         return self._eol
+    
+    def obter_dados_unidade(self, codigo_eol: str) -> DadosUnidadeEol:
+        """Obtém os dados de uma unidade específica pela integração EOL."""
+        return self.eol.obter_dados_unidade(codigo_eol=codigo_eol)
 
     def listar_tipos_escola(self) -> tuple[TipoEscolaEol, ...]:
         """Lista tipos de escola normalizados pela integração EOL."""

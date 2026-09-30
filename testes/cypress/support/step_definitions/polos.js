@@ -58,8 +58,9 @@ const buscarPolo = (alias = 'poloAtual') => {
 			url: `${obterApiBaseUrl()}/api/v1/polos/`,
 			headers: { Authorization: `Bearer ${token}` },
 		}).then((response) => {
-			expect(response.body).to.be.an('array').and.not.be.empty
-			cy.wrap(response.body[0]).as(alias)
+			expect(response.status).to.eq(200)
+			expect(response.body.results, 'polos da pagina').to.be.an('array').and.not.be.empty
+			cy.wrap(response.body.results[0]).as(alias)
 		})
 	})
 }
@@ -86,7 +87,11 @@ When('eu consulto a lista de polos sem token', () => {
 })
 
 Then('a API deve responder a lista de polos com status 200', () => cy.get('@polosResponse').its('status').should('eq', 200))
-Then('a resposta deve conter uma lista de polos', () => cy.get('@polosResponse').its('body').should('be.an', 'array'))
+Then('a resposta deve conter uma lista de polos', () => {
+	cy.get('@polosResponse').its('body').should('include.all.keys', ['count', 'next', 'previous', 'results'])
+	cy.get('@polosResponse').its('body.count').should('be.a', 'number').and('be.at.least', 0)
+	cy.get('@polosResponse').its('body.results').should('be.an', 'array')
+})
 Then('a API deve responder a lista de polos com status 401', () => cy.get('@polosErrorResponse').its('status').should('eq', 401))
 
 Given('que o login institucional foi realizado para consultar um polo', () => autenticarPara('consultar um polo'))
