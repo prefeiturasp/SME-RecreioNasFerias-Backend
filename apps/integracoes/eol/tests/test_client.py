@@ -16,7 +16,7 @@ from apps.integracoes.eol.exceptions import (
 
 TEST_EOL = "094633"
 TEST_CARGO = 3360
-TEST_CODIGO_ALUNO = "6034178"
+TEST_CODIGO_ALUNO = "1000001"
 
 
 class FakeResponse:
@@ -397,7 +397,7 @@ def test_listar_alunos_envia_requisicao_esperada(settings: Any) -> None:
         data=[
             {
                 "codigoAluno": int(TEST_CODIGO_ALUNO),
-                "nomeAluno": "ANNA JULIA ARAUJO SA",
+                "nomeAluno": "Aluna de Teste",
             }
         ],
     )
@@ -408,7 +408,7 @@ def test_listar_alunos_envia_requisicao_esperada(settings: Any) -> None:
     assert dados == [
         {
             "codigoAluno": int(TEST_CODIGO_ALUNO),
-            "nomeAluno": "ANNA JULIA ARAUJO SA",
+            "nomeAluno": "Aluna de Teste",
         }
     ]
     assert session.request_args == {

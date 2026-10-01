@@ -21,10 +21,13 @@ from apps.integracoes.eol.exceptions import (
     EolIndisponivelError,
 )
 from apps.integracoes.eol.port import (
+    AlunoEol,
     DadosUnidadeEol,
-    TipoEscolaEol,
     DreEol,
     EolPort,
+    InformacoesAlunoEol,
+    ParticipanteRedeEol,
+    TipoEscolaEol,
     UnidadeEol,
     UnidadeRecreioEol,
 )
@@ -51,6 +54,15 @@ class EolEscolasClient(Protocol):
         codigo_cargo: int,
     ) -> list[dict[str, Any]]:
         """Devolve a lista bruta de funcionários no cargo informado."""
+
+    def listar_alunos(self, codigo_eol: str) -> list[dict[str, Any]]:
+        """Devolve a lista bruta de alunos pelo código EOL."""
+
+    def obter_informacoes_aluno(
+        self,
+        codigo_aluno: str,
+    ) -> dict[str, Any] | None:
+        """Devolve a ficha bruta do aluno ou ``None``."""
 
 
 class EolAdapter(EolPort):
@@ -194,6 +206,59 @@ class EolAdapter(EolPort):
             filtradas = filtradas[: max(0, limite)]
         return self.enriquecer_unidades(filtradas)
 
+    def listar_alunos(self, codigo_eol: str) -> tuple[AlunoEol, ...]:
+        """Normaliza a lista bruta de alunos da consulta por código EOL.
+
+        Args:
+            codigo_eol: Código EOL do aluno.
+
+        Returns:
+            Alunos normalizados. Tupla vazia significa código não encontrado.
+        """
+        return tuple(
+            self._normalizar_aluno(aluno)
+            for aluno in self.client.listar_alunos(codigo_eol)
+        )
+
+    def obter_informacoes_aluno(
+        self,
+        codigo_eol: str,
+    ) -> InformacoesAlunoEol | None:
+        """Normaliza a ficha do aluno.
+
+        Args:
+            codigo_eol: Código EOL do aluno.
+
+        Returns:
+            Ficha normalizada ou ``None`` quando a integração responde 404.
+        """
+        dados = self.client.obter_informacoes_aluno(codigo_eol)
+        if dados is None:
+            return None
+        return self._normalizar_informacoes(dados)
+
+    def consultar_participante(
+        self,
+        codigo_eol: str,
+    ) -> ParticipanteRedeEol | None:
+        """Une o primeiro aluno à ficha.
+
+        Lista vazia devolve ``None`` e não consulta a ficha. Quando a ficha
+        não existe, o participante permanece com os dados do aluno e o
+        endereço vazio.
+
+        Args:
+            codigo_eol: Código EOL do aluno.
+
+        Returns:
+            Participante unido ou ``None`` quando não há aluno.
+        """
+        alunos = self.listar_alunos(codigo_eol)
+        if not alunos:
+            return None
+        ficha = self.obter_informacoes_aluno(codigo_eol)
+        return self._montar_participante(alunos[0], ficha)
+
     def _normalizar_unidade(self, payload: dict[str, Any]) -> UnidadeEol:
         """Converte um item do catálogo bruto em ``UnidadeEol``."""
         return UnidadeEol(
@@ -205,7 +270,143 @@ class EolAdapter(EolPort):
             codigo_dre=self._texto(payload.get("codigoDRE")),
         )
 
-    def _normalizar_tipo_escola(self, payload: dict[str, Any]) -> TipoEscolaEol:
+    def _normalizar_aluno(self, payload: dict[str, Any]) -> AlunoEol:
+        """Converte um item bruto de aluno em ``AlunoEol``."""
+        return AlunoEol(
+            codigo_aluno=self._inteiro(payload.get("codigoAluno")),
+            tipo_turno=self._inteiro(payload.get("tipoTurno")),
+            ano_letivo=self._inteiro(payload.get("anoLetivo")),
+            nome_aluno=self._texto(payload.get("nomeAluno")),
+            nome_social_aluno=self._texto(payload.get("nomeSocialAluno")),
+            codigo_situacao_matricula=self._inteiro(
+                payload.get("codigoSituacaoMatricula"),
+            ),
+            situacao_matricula=self._texto(payload.get("situacaoMatricula")),
+            data_situacao=self._texto(payload.get("dataSituacao")),
+            data_nascimento=self._texto(payload.get("dataNascimento")),
+            numero_aluno_chamada=self._texto(
+                payload.get("numeroAlunoChamada"),
+            ),
+            codigo_turma=self._inteiro(payload.get("codigoTurma")),
+            nome_responsavel=self._texto(payload.get("nomeResponsavel")),
+            tipo_responsavel=self._texto(payload.get("tipoResponsavel")),
+            celular_responsavel=self._texto(
+                payload.get("celularResponsavel"),
+            ),
+            data_atualizacao_contato=self._texto(
+                payload.get("dataAtualizacaoContato"),
+            ),
+            codigo_tipo_turma=self._inteiro(payload.get("codigoTipoTurma")),
+            turma_nome=self._texto(payload.get("turmaNome")),
+            etapa_ensino=self._texto(payload.get("etapaEnsino")),
+            ciclo_ensino=self._texto(payload.get("cicloEnsino")),
+            desc_etapa_ensino=self._texto(payload.get("descEtapaEnsino")),
+            desc_ciclo_ensino=self._texto(payload.get("descCicloEnsino")),
+            data_atualizacao_tabela=self._texto(
+                payload.get("dataAtualizacaoTabela"),
+            ),
+        )
+
+    def _normalizar_informacoes(
+        self,
+        payload: dict[str, Any],
+    ) -> InformacoesAlunoEol:
+        """Converte a ficha bruta em ``InformacoesAlunoEol``."""
+        endereco = payload.get("endereco")
+        if not isinstance(endereco, dict):
+            endereco = {}
+        return InformacoesAlunoEol(
+            nome_mae=self._texto(payload.get("nomeMae")),
+            sexo=self._texto(payload.get("sexo")),
+            grupo_etnico=self._texto(payload.get("grupoEtnico")),
+            nacionalidade=self._texto(payload.get("nacionalidade")),
+            eh_imigrante=self._booleano(payload.get("ehImigrante")),
+            nis=self._texto(payload.get("nis")),
+            cns=self._texto(payload.get("cns")),
+            numero=self._texto(endereco.get("nro")),
+            complemento=self._texto(endereco.get("complemento")),
+            bairro=self._texto(endereco.get("bairro")),
+            cep=self._formatar_cep(endereco.get("cep")),
+            cidade=self._texto(endereco.get("nomeMunicipio")),
+            uf=self._texto(endereco.get("siglaUF")),
+            tipo_logradouro=self._texto(endereco.get("tipologradouro")),
+            logradouro=self._texto(endereco.get("logradouro")),
+        )
+
+    def _montar_participante(
+        self,
+        aluno: AlunoEol,
+        ficha: InformacoesAlunoEol | None,
+    ) -> ParticipanteRedeEol:
+        """Copia a ficha por cima do aluno.
+
+        Ficha ausente preenche mãe, documentos e endereço com vazio.
+        """
+        dados = ficha if ficha is not None else self._informacoes_vazias()
+        return ParticipanteRedeEol(
+            codigo_aluno=aluno.codigo_aluno,
+            tipo_turno=aluno.tipo_turno,
+            ano_letivo=aluno.ano_letivo,
+            nome_aluno=aluno.nome_aluno,
+            nome_social_aluno=aluno.nome_social_aluno,
+            codigo_situacao_matricula=aluno.codigo_situacao_matricula,
+            situacao_matricula=aluno.situacao_matricula,
+            data_situacao=aluno.data_situacao,
+            data_nascimento=aluno.data_nascimento,
+            numero_aluno_chamada=aluno.numero_aluno_chamada,
+            codigo_turma=aluno.codigo_turma,
+            nome_responsavel=aluno.nome_responsavel,
+            tipo_responsavel=aluno.tipo_responsavel,
+            celular_responsavel=aluno.celular_responsavel,
+            data_atualizacao_contato=aluno.data_atualizacao_contato,
+            codigo_tipo_turma=aluno.codigo_tipo_turma,
+            turma_nome=aluno.turma_nome,
+            etapa_ensino=aluno.etapa_ensino,
+            ciclo_ensino=aluno.ciclo_ensino,
+            desc_etapa_ensino=aluno.desc_etapa_ensino,
+            desc_ciclo_ensino=aluno.desc_ciclo_ensino,
+            data_atualizacao_tabela=aluno.data_atualizacao_tabela,
+            nome_mae=dados.nome_mae,
+            sexo=dados.sexo,
+            grupo_etnico=dados.grupo_etnico,
+            nacionalidade=dados.nacionalidade,
+            eh_imigrante=dados.eh_imigrante,
+            nis=dados.nis,
+            cns=dados.cns,
+            numero=dados.numero,
+            complemento=dados.complemento,
+            bairro=dados.bairro,
+            cep=dados.cep,
+            cidade=dados.cidade,
+            uf=dados.uf,
+            tipo_logradouro=dados.tipo_logradouro,
+            logradouro=dados.logradouro,
+        )
+
+    @staticmethod
+    def _informacoes_vazias() -> InformacoesAlunoEol:
+        """Devolve a ficha vazia usada quando a EOL responde 404."""
+        return InformacoesAlunoEol(
+            nome_mae="",
+            sexo="",
+            grupo_etnico="",
+            nacionalidade="",
+            eh_imigrante=False,
+            nis="",
+            cns="",
+            numero="",
+            complemento="",
+            bairro="",
+            cep="",
+            cidade="",
+            uf="",
+            tipo_logradouro="",
+            logradouro="",
+        )
+
+    def _normalizar_tipo_escola(
+        self, payload: dict[str, Any]
+    ) -> TipoEscolaEol:
         """Converte um item do catálogo bruto em ``TipoEscolaEol``."""
         return TipoEscolaEol(
             codigo=int(payload.get("codigo", 0)),
@@ -240,8 +441,6 @@ class EolAdapter(EolPort):
             municipio=self._texto(payload.get("municipio")),
             uf=self._texto(payload.get("uf")),
         )
-
-
 
     def _enriquecer_unidade(self, unidade: UnidadeEol) -> UnidadeRecreioEol:
         """Agrega dados detalhados e nome do diretor a uma unidade."""
@@ -340,6 +539,20 @@ class EolAdapter(EolPort):
         if valor is None:
             return ""
         return str(valor).strip()
+
+    @staticmethod
+    def _inteiro(valor: object) -> int:
+        """Converte valor inteiro. Ausente ou inválido vira zero."""
+        if isinstance(valor, int) and not isinstance(valor, bool):
+            return valor
+        return 0
+
+    @staticmethod
+    def _booleano(valor: object) -> bool:
+        """Aceita somente bool. Qualquer outro valor vira ``False``."""
+        if isinstance(valor, bool):
+            return valor
+        return False
 
     @staticmethod
     def _formatar_cep(cep: object) -> str:

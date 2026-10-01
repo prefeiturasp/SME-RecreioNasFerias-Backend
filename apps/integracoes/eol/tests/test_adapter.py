@@ -8,8 +8,11 @@ from apps.integracoes.eol.adapter import EolAdapter
 from apps.integracoes.eol.constants import CODIGO_CARGO_DIRETOR_ESCOLA
 from apps.integracoes.eol.exceptions import EolIndisponivelError
 from apps.integracoes.eol.port import (
+    AlunoEol,
     DadosUnidadeEol,
     DreEol,
+    InformacoesAlunoEol,
+    ParticipanteRedeEol,
     TipoEscolaEol,
     UnidadeEol,
     UnidadeRecreioEol,
@@ -17,7 +20,7 @@ from apps.integracoes.eol.port import (
 
 
 class FakeClient:
-    """Client fake que simula os três endpoints de escolas."""
+    """Client fake que simula os endpoints de escolas e de alunos."""
 
     def __init__(
         self,
@@ -29,6 +32,8 @@ class FakeClient:
         diretores: dict[str, str] | None = None,
         falhas_dados: set[str] | None = None,
         falhas_diretores: set[str] | None = None,
+        alunos: list[dict[str, Any]] | None = None,
+        informacoes: dict[str, Any] | None = None,
     ) -> None:
         """Inicializa o fake com os payloads que serão devolvidos."""
         self.unidades = unidades or []
@@ -38,8 +43,11 @@ class FakeClient:
         self.diretores = diretores or {}
         self.falhas_dados = falhas_dados or set()
         self.falhas_diretores = falhas_diretores or set()
+        self.alunos = alunos or []
+        self.informacoes = informacoes
         self.calls_obter_dados: list[str] = []
         self.calls_obter_diretor: list[tuple[str, int]] = []
+        self.calls_informacoes: list[str] = []
 
     def listar_todas_unidades(self) -> list[dict[str, Any]]:
         """Devolve o catalogo bruto configurado."""
@@ -73,6 +81,18 @@ class FakeClient:
         if not nome:
             return []
         return [{"nomeServidor": nome}]
+
+    def listar_alunos(self, codigo_eol: str) -> list[dict[str, Any]]:
+        """Devolve a lista bruta de alunos configurada."""
+        return self.alunos
+
+    def obter_informacoes_aluno(
+        self,
+        codigo_aluno: str,
+    ) -> dict[str, Any] | None:
+        """Devolve a ficha bruta ou ``None`` quando ausente."""
+        self.calls_informacoes.append(codigo_aluno)
+        return self.informacoes
 
 
 def _unidade_bruta(codigo: str, sigla: str) -> dict[str, Any]:
@@ -480,3 +500,284 @@ def test_listar_unidades_diretas_recreio_aplica_limite() -> None:
     )
 
     assert [u.codigo_eol for u in unidades] == ["094633"]
+
+
+def _aluno_bruto() -> dict[str, Any]:
+    """Monta o aluno bruto usado na consulta do participante."""
+    return {
+        "codigoAluno": 1234567,
+        "tipoTurno": 1,
+        "anoLetivo": 2026,
+        "nomeAluno": "Aluna de Teste",
+        "nomeSocialAluno": "Aluna",
+        "codigoSituacaoMatricula": 1,
+        "situacaoMatricula": "Ativo",
+        "dataSituacao": "2026-02-01",
+        "dataNascimento": "2015-03-10",
+        "numeroAlunoChamada": "12",
+        "codigoTurma": 99,
+        "nomeResponsavel": "Maria Responsavel",
+        "tipoResponsavel": "Mae",
+        "celularResponsavel": "11999999999",
+        "dataAtualizacaoContato": "2026-01-15",
+        "codigoTipoTurma": 3,
+        "turmaNome": "1A",
+        "etapaEnsino": "EFI",
+        "cicloEnsino": "C1",
+        "descEtapaEnsino": "Ensino Fundamental",
+        "descCicloEnsino": "Ciclo 1",
+        "dataAtualizacaoTabela": "2026-02-01",
+    }
+
+
+def _informacoes_brutas() -> dict[str, Any]:
+    """Monta a ficha bruta com o endereço de exemplo da tarefa."""
+    return {
+        "nomeMae": "Maria Mae",
+        "sexo": "F",
+        "grupoEtnico": "Nao declarado",
+        "nacionalidade": "Brasileira",
+        "ehImigrante": False,
+        "nis": "23703487417",
+        "cns": None,
+        "endereco": {
+            "id": 28647483,
+            "nro": "72",
+            "complemento": None,
+            "bairro": "VILA SANTA CRUZ ZONA LESTE",
+            "cep": 8411010,
+            "nomeMunicipio": "SAO PAULO",
+            "siglaUF": "SP",
+            "tipologradouro": "Rua",
+            "logradouro": "DA PASSAGEM FUNDA",
+        },
+    }
+
+
+def _participante_esperado() -> ParticipanteRedeEol:
+    """Monta o participante já unido e normalizado."""
+    return ParticipanteRedeEol(
+        codigo_aluno=1234567,
+        tipo_turno=1,
+        ano_letivo=2026,
+        nome_aluno="Aluna de Teste",
+        nome_social_aluno="Aluna",
+        codigo_situacao_matricula=1,
+        situacao_matricula="Ativo",
+        data_situacao="2026-02-01",
+        data_nascimento="2015-03-10",
+        numero_aluno_chamada="12",
+        codigo_turma=99,
+        nome_responsavel="Maria Responsavel",
+        tipo_responsavel="Mae",
+        celular_responsavel="11999999999",
+        data_atualizacao_contato="2026-01-15",
+        codigo_tipo_turma=3,
+        turma_nome="1A",
+        etapa_ensino="EFI",
+        ciclo_ensino="C1",
+        desc_etapa_ensino="Ensino Fundamental",
+        desc_ciclo_ensino="Ciclo 1",
+        data_atualizacao_tabela="2026-02-01",
+        nome_mae="Maria Mae",
+        sexo="F",
+        grupo_etnico="Nao declarado",
+        nacionalidade="Brasileira",
+        eh_imigrante=False,
+        nis="23703487417",
+        cns="",
+        numero="72",
+        complemento="",
+        bairro="VILA SANTA CRUZ ZONA LESTE",
+        cep="08411-010",
+        cidade="SAO PAULO",
+        uf="SP",
+        tipo_logradouro="Rua",
+        logradouro="DA PASSAGEM FUNDA",
+    )
+
+
+def test_listar_alunos_normaliza_payload() -> None:
+    """Converte o aluno bruto em ``AlunoEol``."""
+    client = FakeClient(alunos=[_aluno_bruto()])
+
+    alunos = EolAdapter(client=client).listar_alunos("1234567")
+
+    assert alunos == (
+        AlunoEol(
+            codigo_aluno=1234567,
+            tipo_turno=1,
+            ano_letivo=2026,
+            nome_aluno="Aluna de Teste",
+            nome_social_aluno="Aluna",
+            codigo_situacao_matricula=1,
+            situacao_matricula="Ativo",
+            data_situacao="2026-02-01",
+            data_nascimento="2015-03-10",
+            numero_aluno_chamada="12",
+            codigo_turma=99,
+            nome_responsavel="Maria Responsavel",
+            tipo_responsavel="Mae",
+            celular_responsavel="11999999999",
+            data_atualizacao_contato="2026-01-15",
+            codigo_tipo_turma=3,
+            turma_nome="1A",
+            etapa_ensino="EFI",
+            ciclo_ensino="C1",
+            desc_etapa_ensino="Ensino Fundamental",
+            desc_ciclo_ensino="Ciclo 1",
+            data_atualizacao_tabela="2026-02-01",
+        ),
+    )
+
+
+def test_listar_alunos_trata_inteiro_ausente_ou_bool() -> None:
+    """Inteiro ausente ou bool vira zero."""
+    client = FakeClient(
+        alunos=[
+            {
+                "codigoAluno": None,
+                "tipoTurno": True,
+                "anoLetivo": 2026,
+            }
+        ]
+    )
+
+    aluno = EolAdapter(client=client).listar_alunos("1234567")[0]
+
+    assert aluno.codigo_aluno == 0
+    assert aluno.tipo_turno == 0
+    assert aluno.ano_letivo == 2026
+    assert aluno.nome_aluno == ""
+
+
+def test_obter_informacoes_aluno_normaliza_endereco() -> None:
+    """Achata o endereço e formata o CEP numérico."""
+    client = FakeClient(informacoes=_informacoes_brutas())
+
+    ficha = EolAdapter(client=client).obter_informacoes_aluno("1234567")
+
+    assert ficha == InformacoesAlunoEol(
+        nome_mae="Maria Mae",
+        sexo="F",
+        grupo_etnico="Nao declarado",
+        nacionalidade="Brasileira",
+        eh_imigrante=False,
+        nis="23703487417",
+        cns="",
+        numero="72",
+        complemento="",
+        bairro="VILA SANTA CRUZ ZONA LESTE",
+        cep="08411-010",
+        cidade="SAO PAULO",
+        uf="SP",
+        tipo_logradouro="Rua",
+        logradouro="DA PASSAGEM FUNDA",
+    )
+
+
+def test_obter_informacoes_aluno_trata_endereco_ausente() -> None:
+    """Endereço nulo e flag que não é bool viram vazio e falso."""
+    client = FakeClient(
+        informacoes={"endereco": None, "ehImigrante": None, "cns": None}
+    )
+
+    ficha = EolAdapter(client=client).obter_informacoes_aluno("1234567")
+
+    assert ficha == InformacoesAlunoEol(
+        nome_mae="",
+        sexo="",
+        grupo_etnico="",
+        nacionalidade="",
+        eh_imigrante=False,
+        nis="",
+        cns="",
+        numero="",
+        complemento="",
+        bairro="",
+        cep="",
+        cidade="",
+        uf="",
+        tipo_logradouro="",
+        logradouro="",
+    )
+
+
+def test_obter_informacoes_aluno_retorna_none_para_ausente() -> None:
+    """Devolve ``None`` quando a ficha não existe."""
+    client = FakeClient()
+
+    ficha = EolAdapter(client=client).obter_informacoes_aluno("1234567")
+
+    assert ficha is None
+
+
+def test_consultar_participante_devolve_none_sem_chamar_ficha() -> None:
+    """Lista vazia devolve ``None`` e não consulta a ficha."""
+    client = FakeClient(alunos=[])
+
+    participante = EolAdapter(client=client).consultar_participante("1234567")
+
+    assert participante is None
+    assert client.calls_informacoes == []
+
+
+def test_consultar_participante_une_aluno_e_ficha() -> None:
+    """Os dois payloads viram um participante com CEP formatado."""
+    client = FakeClient(
+        alunos=[_aluno_bruto()],
+        informacoes=_informacoes_brutas(),
+    )
+
+    participante = EolAdapter(client=client).consultar_participante("1234567")
+
+    assert participante == _participante_esperado()
+    assert client.calls_informacoes == ["1234567"]
+
+
+def test_consultar_participante_mantem_aluno_quando_ficha_ausente() -> None:
+    """Ficha 404 preserva o aluno e deixa o endereço vazio."""
+    client = FakeClient(alunos=[_aluno_bruto()])
+
+    participante = EolAdapter(client=client).consultar_participante("1234567")
+
+    assert participante == ParticipanteRedeEol(
+        codigo_aluno=1234567,
+        tipo_turno=1,
+        ano_letivo=2026,
+        nome_aluno="Aluna de Teste",
+        nome_social_aluno="Aluna",
+        codigo_situacao_matricula=1,
+        situacao_matricula="Ativo",
+        data_situacao="2026-02-01",
+        data_nascimento="2015-03-10",
+        numero_aluno_chamada="12",
+        codigo_turma=99,
+        nome_responsavel="Maria Responsavel",
+        tipo_responsavel="Mae",
+        celular_responsavel="11999999999",
+        data_atualizacao_contato="2026-01-15",
+        codigo_tipo_turma=3,
+        turma_nome="1A",
+        etapa_ensino="EFI",
+        ciclo_ensino="C1",
+        desc_etapa_ensino="Ensino Fundamental",
+        desc_ciclo_ensino="Ciclo 1",
+        data_atualizacao_tabela="2026-02-01",
+        nome_mae="",
+        sexo="",
+        grupo_etnico="",
+        nacionalidade="",
+        eh_imigrante=False,
+        nis="",
+        cns="",
+        numero="",
+        complemento="",
+        bairro="",
+        cep="",
+        cidade="",
+        uf="",
+        tipo_logradouro="",
+        logradouro="",
+    )
+    assert client.calls_informacoes == ["1234567"]
