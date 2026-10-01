@@ -649,6 +649,16 @@ def test_listar_alunos_trata_inteiro_ausente_ou_bool() -> None:
     assert aluno.tipo_turno == 0
     assert aluno.ano_letivo == 2026
     assert aluno.nome_aluno == ""
+    assert aluno.data_nascimento == ""
+
+
+def test_listar_alunos_formata_data_de_nascimento() -> None:
+    """Data com horário da SME vira ``AAAA-MM-DD``."""
+    client = FakeClient(alunos=[{"dataNascimento": "2013-10-16T00:00:00"}])
+
+    aluno = EolAdapter(client=client).listar_alunos("1234567")[0]
+
+    assert aluno.data_nascimento == "2013-10-16"
 
 
 def test_obter_informacoes_aluno_normaliza_endereco() -> None:

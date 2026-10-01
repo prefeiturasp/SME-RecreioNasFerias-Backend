@@ -283,7 +283,9 @@ class EolAdapter(EolPort):
             ),
             situacao_matricula=self._texto(payload.get("situacaoMatricula")),
             data_situacao=self._texto(payload.get("dataSituacao")),
-            data_nascimento=self._texto(payload.get("dataNascimento")),
+            data_nascimento=self._formatar_data(
+                payload.get("dataNascimento"),
+            ),
             numero_aluno_chamada=self._texto(
                 payload.get("numeroAlunoChamada"),
             ),
@@ -553,6 +555,14 @@ class EolAdapter(EolPort):
         if isinstance(valor, bool):
             return valor
         return False
+
+    @staticmethod
+    def _formatar_data(valor: object) -> str:
+        """Extrai a data ``AAAA-MM-DD`` de um texto da SME."""
+        texto = EolAdapter._texto(valor)
+        if not texto:
+            return ""
+        return texto[:10]
 
     @staticmethod
     def _formatar_cep(cep: object) -> str:
