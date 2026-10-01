@@ -8,6 +8,8 @@ alimentar a sincronização de polos de gestão direta:
 - ``GET /api/escolas/todas-unidades``
 - ``GET /api/escolas/dados/{eol}``
 - ``GET /api/escolas/{eol}/funcionarios/cargos/{codigo}``
+- ``GET /api/alunos/alunos?codigoAluno={codigoAluno}``
+- ``GET /api/alunos/{codigo}/informacoes``
 """
 
 from __future__ import annotations
@@ -114,9 +116,7 @@ class EolClient:
 
         dados = self._parse_json(response)
         if not isinstance(dados, list):
-            raise EolContratoError(
-                "Resposta de DREs em formato inesperado."
-            )
+            raise EolContratoError("Resposta de DREs em formato inesperado.")
         return [item for item in dados if isinstance(item, dict)]
 
     def listar_todas_unidades(self) -> list[dict[str, Any]]:
@@ -221,6 +221,64 @@ class EolClient:
                 f"Cargo da unidade {codigo} em formato inesperado."
             )
         return [item for item in dados if isinstance(item, dict)]
+
+    def listar_alunos(self, codigo_eol: str) -> list[dict[str, Any]]:
+        """Consulta o aluno bruto pelo código EOL.
+        Args:
+            codigo_eol: Código EOL do aluno.
+        Returns:
+            Lista bruta retornada pela integração. Lista vazia significa
+            que o código não foi encontrado.
+        Raises:
+            EolConfigError: Quando a configuração obrigatória estiver ausente.
+            EolIndisponivelError: Quando houver erro de rede ou HTTP 4xx/5xx.
+            EolContratoError: Quando a resposta não seguir o contrato esperado.
+        """
+        self._validar_configuracao()
+
+        codigo = str(codigo_eol).strip()
+        url = (
+            f"{settings.AUTH_API_BASE_URL}/api/alunos/alunos"
+            f"?codigoAluno={codigo}"
+        )
+
+        response = self._requisicao("GET", url)
+        self._garantir_sucesso_http(response, f"listar aluno {codigo}")
+
+        dados = self._parse_json(response)
+        if not isinstance(dados, list):
+            raise EolContratoError(f"Aluno {codigo} em formato inesperado")
+        return [item for item in dados if isinstance(item, dict)]
+
+    def obter_informacoes_aluno(
+        self,
+        codigo_aluno: str,
+    ) -> dict[str, Any] | None:
+        """Consulta a ficha bruta do aluno pelo código.
+        Args:
+            codigo_aluno: Código EOL do aluno.
+        Returns:
+            Payload bruto ou ``None`` quando a ficha não existe (HTTP 404).
+        Raises:
+            EolConfigError: Quando a configuração obrigatória estiver ausente.
+            EolIndisponivelError: Quando houver erro de rede ou HTTP 4xx/5xx.
+            EolContratoError: Quando a resposta não seguir o contrato esperado.
+        """
+        self._validar_configuracao()
+        codigo = str(codigo_aluno).strip()
+        url = f"{settings.AUTH_API_BASE_URL}/api/alunos/{codigo}/informacoes"
+        response = self._requisicao("GET", url)
+        if response.status_code == 404:
+            return None
+        self._garantir_sucesso_http(
+            response, f"obter informações do aluno {codigo}"
+        )
+        dados = self._parse_json(response)
+        if not isinstance(dados, dict):
+            raise EolContratoError(
+                f"Informações do aluno {codigo} em formato inesperado."
+            )
+        return dados
 
     def _requisicao(self, metodo: str, url: str) -> ResponseLike:
         """Executa a requisição HTTP tratando falhas de rede."""

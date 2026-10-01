@@ -16,6 +16,7 @@ from apps.integracoes.eol.exceptions import (
 
 TEST_EOL = "094633"
 TEST_CARGO = 3360
+TEST_CODIGO_ALUNO = "6034178"
 
 
 class FakeResponse:
@@ -340,9 +341,9 @@ def test_client_rejeita_dados_inesperados_no_cargo(settings: Any) -> None:
     response = FakeResponse(status_code=200, data={}, content=b"{}")
 
     with pytest.raises(EolContratoError):
-        EolClient(
-            session=FakeSession(response)
-        ).obter_funcionarios_por_cargo(TEST_EOL, TEST_CARGO)
+        EolClient(session=FakeSession(response)).obter_funcionarios_por_cargo(
+            TEST_EOL, TEST_CARGO
+        )
 
 
 def test_client_retorna_vazio_para_corpo_sem_conteudo(settings: Any) -> None:
@@ -386,3 +387,62 @@ def test_client_extrai_mensagem_de_campo_generico_de_erro(
 
     with pytest.raises(EolIndisponivelError, match="falha"):
         EolClient(session=FakeSession(response)).listar_dres()
+
+
+def test_listar_alunos_envia_requisicao_esperada(settings: Any) -> None:
+    """Garante o request esperado da consulta de aluno pelo código EOL."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(
+        status_code=200,
+        data=[
+            {
+                "codigoAluno": int(TEST_CODIGO_ALUNO),
+                "nomeAluno": "ANNA JULIA ARAUJO SA",
+            }
+        ],
+    )
+    session = FakeSession(response)
+
+    dados = EolClient(session=session).listar_alunos(TEST_CODIGO_ALUNO)
+
+    assert dados == [
+        {
+            "codigoAluno": int(TEST_CODIGO_ALUNO),
+            "nomeAluno": "ANNA JULIA ARAUJO SA",
+        }
+    ]
+    assert session.request_args == {
+        "method": "GET",
+        "url": (
+            "https://eol.exemplo.gov.br/api/alunos/alunos"
+            f"?codigoAluno={TEST_CODIGO_ALUNO}"
+        ),
+        "headers": {"x-api-eol-key": "api-key"},
+        "timeout": (5, 60),
+    }
+
+
+def test_listar_alunos_devolve_lista_vazia(settings: Any) -> None:
+    """Lista vazia significa código não encontrado, sem erro de contrato."""
+    _configurar_ambiente(settings)
+
+    dados = EolClient(
+        session=FakeSession(FakeResponse(status_code=200, data=[]))
+    ).listar_alunos("000")
+
+    assert dados == []
+
+
+def test_obter_informacoes_aluno_retorna_none_para_404(
+    settings: Any,
+) -> None:
+    """Trata aluno nao encontrado como ausencia de dados."""
+    _configurar_ambiente(settings)
+
+    response = FakeResponse(status_code=404, data={})
+
+    dados = EolClient(session=FakeSession(response)).obter_informacoes_aluno(
+        TEST_CODIGO_ALUNO
+    )
+
+    assert dados is None
