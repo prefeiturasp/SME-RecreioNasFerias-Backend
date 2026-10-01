@@ -224,11 +224,14 @@ class EolClient:
 
     def listar_alunos(self, codigo_eol: str) -> list[dict[str, Any]]:
         """Consulta o aluno bruto pelo código EOL.
+
         Args:
             codigo_eol: Código EOL do aluno.
+
         Returns:
             Lista bruta retornada pela integração. Lista vazia significa
             que o código não foi encontrado.
+
         Raises:
             EolConfigError: Quando a configuração obrigatória estiver ausente.
             EolIndisponivelError: Quando houver erro de rede ou HTTP 4xx/5xx.
@@ -247,7 +250,7 @@ class EolClient:
 
         dados = self._parse_json(response)
         if not isinstance(dados, list):
-            raise EolContratoError(f"Aluno {codigo} em formato inesperado")
+            raise EolContratoError(f"Aluno {codigo} em formato inesperado.")
         return [item for item in dados if isinstance(item, dict)]
 
     def obter_informacoes_aluno(
@@ -255,10 +258,13 @@ class EolClient:
         codigo_aluno: str,
     ) -> dict[str, Any] | None:
         """Consulta a ficha bruta do aluno pelo código.
+
         Args:
             codigo_aluno: Código EOL do aluno.
+
         Returns:
             Payload bruto ou ``None`` quando a ficha não existe (HTTP 404).
+
         Raises:
             EolConfigError: Quando a configuração obrigatória estiver ausente.
             EolIndisponivelError: Quando houver erro de rede ou HTTP 4xx/5xx.
