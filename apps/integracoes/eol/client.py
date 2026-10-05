@@ -349,27 +349,49 @@ class EolClient:
         try:
             dados = response.json()
         except ValueError:
-            texto = response.text.strip()
-            return texto or f"Falha ao {contexto}."
+            return EolClient._texto_ou_padrao(response.text, contexto)
 
-        if isinstance(dados, str) and dados.strip():
-            return dados.strip()
+        if isinstance(dados, str):
+            mensagem = EolClient._texto_valido(dados)
+            if mensagem:
+                return mensagem
 
         if isinstance(dados, dict):
-            for chave in (
-                "mensagem",
-                "message",
-                "detail",
-                "erro",
-                "error",
-                "title",
-            ):
-                valor = dados.get(chave)
-                if isinstance(valor, str) and valor.strip():
-                    return valor.strip()
-
-            for valor in dados.values():
-                if isinstance(valor, str) and valor.strip():
-                    return valor.strip()
+            mensagem = EolClient._buscar_mensagem(dados)
+            if mensagem:
+                return mensagem
 
         return f"Falha ao {contexto}."
+
+    @staticmethod
+    def _buscar_mensagem(dados: dict[str, Any]) -> str | None:
+        """Procura a primeira mensagem útil dentro do dicionário de erro."""
+        for chave in (
+            "mensagem",
+            "message",
+            "detail",
+            "erro",
+            "error",
+            "title",
+        ):
+            mensagem = EolClient._texto_valido(dados.get(chave))
+            if mensagem:
+                return mensagem
+
+        for valor in dados.values():
+            mensagem = EolClient._texto_valido(valor)
+            if mensagem:
+                return mensagem
+        return None
+
+    @staticmethod
+    def _texto_valido(valor: object) -> str | None:
+        """Retorna o texto do valor quando houver conteúdo útil."""
+        if isinstance(valor, str) and valor.strip():
+            return valor.strip()
+        return None
+
+    @staticmethod
+    def _texto_ou_padrao(texto: str, contexto: str) -> str:
+        """Retorna o texto informado ou a mensagem padrão quando vazio."""
+        return texto.strip() or f"Falha ao {contexto}."
