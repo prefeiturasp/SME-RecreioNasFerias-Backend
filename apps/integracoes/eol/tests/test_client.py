@@ -389,6 +389,25 @@ def test_client_extrai_mensagem_de_campo_generico_de_erro(
         EolClient(session=FakeSession(response)).listar_dres()
 
 
+def test_client_extrai_mensagem_quando_erro_e_texto_json(
+    settings: Any,
+) -> None:
+    """Usa o texto quando a SME devolve o erro como string JSON."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(
+        status_code=601,
+        data="Os códigos dos Alunos são obrigatórios.",
+    )
+
+    with pytest.raises(
+        EolIndisponivelError,
+        match="Os códigos dos Alunos são obrigatórios.",
+    ):
+        EolClient(session=FakeSession(response)).listar_alunos(
+            TEST_CODIGO_ALUNO
+        )
+
+
 def test_listar_alunos_envia_requisicao_esperada(settings: Any) -> None:
     """Garante o request esperado da consulta de aluno pelo código EOL."""
     _configurar_ambiente(settings)
@@ -415,7 +434,7 @@ def test_listar_alunos_envia_requisicao_esperada(settings: Any) -> None:
         "method": "GET",
         "url": (
             "https://eol.exemplo.gov.br/api/alunos/alunos"
-            f"?codigoAluno={TEST_CODIGO_ALUNO}"
+            f"?codigosAluno={TEST_CODIGO_ALUNO}"
         ),
         "headers": {"x-api-eol-key": "api-key"},
         "timeout": (5, 60),

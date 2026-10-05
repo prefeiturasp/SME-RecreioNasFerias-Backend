@@ -8,7 +8,7 @@ alimentar a sincronização de polos de gestão direta:
 - ``GET /api/escolas/todas-unidades``
 - ``GET /api/escolas/dados/{eol}``
 - ``GET /api/escolas/{eol}/funcionarios/cargos/{codigo}``
-- ``GET /api/alunos/alunos?codigoAluno={codigoAluno}``
+- ``GET /api/alunos/alunos?codigosAluno={codigo}``
 - ``GET /api/alunos/{codigo}/informacoes``
 """
 
@@ -242,7 +242,7 @@ class EolClient:
         codigo = str(codigo_eol).strip()
         url = (
             f"{settings.AUTH_API_BASE_URL}/api/alunos/alunos"
-            f"?codigoAluno={codigo}"
+            f"?codigosAluno={codigo}"
         )
 
         response = self._requisicao("GET", url)
@@ -351,6 +351,9 @@ class EolClient:
         except ValueError:
             texto = response.text.strip()
             return texto or f"Falha ao {contexto}."
+
+        if isinstance(dados, str) and dados.strip():
+            return dados.strip()
 
         if isinstance(dados, dict):
             for chave in (

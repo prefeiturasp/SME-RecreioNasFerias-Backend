@@ -26,7 +26,7 @@ A integração consome sete endpoints, todos com o header ``x-api-eol-key``:
 - ``GET /api/escolas/todas-unidades`` — catálogo bruto de unidades escolares
 - ``GET /api/escolas/dados/{eol}`` — dados detalhados da unidade
 - ``GET /api/escolas/{eol}/funcionarios/cargos/{codigo}`` — funcionários no cargo
-- ``GET /api/alunos/alunos?codigoAluno=`` — aluno pelo código EOL
+- ``GET /api/alunos/alunos?codigosAluno=`` — aluno pelo código EOL
 - ``GET /api/alunos/{codigoAluno}/informacoes`` — ficha do aluno
 
 Campos do catálogo bruto usados hoje:
