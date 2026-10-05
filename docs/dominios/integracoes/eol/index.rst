@@ -1,29 +1,33 @@
 EOL / SME Integração
 ====================
 
-Esta página documenta a integração de escolas com a SME Integração (EOL),
-incluindo contrato externo, normalização interna, filtro de tipos de unidade e
-enriquecimento das unidades elegíveis ao programa.
+Esta página documenta a integração com a SME Integração (EOL): escolas
+(catálogo, tipos e enriquecimento das unidades elegíveis) e a consulta de
+aluno da rede pelo código EOL.
 
 Visão resumida
 --------------
 
-- endpoints externos: ``GET /api/DREs``, ``GET /api/escolas/tiposEscolas``
-  e ``GET /api/escolas/*``
+- endpoints externos: ``GET /api/DREs``, ``GET /api/escolas/tiposEscolas``,
+  ``GET /api/escolas/*``, ``GET /api/alunos/alunos`` e
+  ``GET /api/alunos/{codigoAluno}/informacoes``
 - app de integração: ``apps/integracoes/eol/``
 - contrato público: ``EolPort``
-- consumo atual: ``PoloService.popular_unidades_diretas()``
+- consumo atual: ``PoloService.popular_unidades_diretas()`` e
+  ``InscricaoService.consultar_participante_por_eol()``
 
 Contrato externo consumido
 --------------------------
 
-A integração consome cinco endpoints, todos com o header ``x-api-eol-key``:
+A integração consome sete endpoints, todos com o header ``x-api-eol-key``:
 
 - ``GET /api/DREs`` — catálogo de Diretorias Regionais de Educação
 - ``GET /api/escolas/tiposEscolas`` — catálogo de tipos de escola
 - ``GET /api/escolas/todas-unidades`` — catálogo bruto de unidades escolares
 - ``GET /api/escolas/dados/{eol}`` — dados detalhados da unidade
 - ``GET /api/escolas/{eol}/funcionarios/cargos/{codigo}`` — funcionários no cargo
+- ``GET /api/alunos/alunos?codigoAluno=`` — aluno pelo código EOL
+- ``GET /api/alunos/{codigoAluno}/informacoes`` — ficha do aluno
 
 Campos do catálogo bruto usados hoje:
 
@@ -60,6 +64,25 @@ Campos dos dados detalhados usados hoje:
 Da consulta de funcionários por cargo, o sistema extrai ``nomeServidor`` do
 primeiro registro retornado.
 
+Campos da lista de alunos usados hoje:
+
+- ``codigoAluno``
+- ``nomeAluno`` / ``nomeSocialAluno``
+- ``nomeResponsavel`` / ``celularResponsavel``
+- ``dataNascimento``
+- situação, turma, etapa e ciclo de ensino
+
+Campos da ficha usados hoje:
+
+- ``nomeMae``
+- ``sexo`` / ``grupoEtnico`` / ``nacionalidade`` / ``ehImigrante``
+- ``nis`` / ``cns``
+- ``endereco.tipologradouro`` / ``logradouro`` / ``nro`` / ``bairro`` /
+  ``complemento`` / ``cep`` / ``nomeMunicipio`` / ``siglaUF``
+
+A amostra da SME não traz e-mail, segundo telefone nem nome social do
+responsável. Esses três campos saem vazios no contrato interno.
+
 Normalização interna
 --------------------
 
@@ -71,6 +94,9 @@ converte em contratos internos tipados em ``apps/integracoes/eol/port.py``:
 - ``TipoEscolaEol`` — tipo de unidade normalizado
 - ``DadosUnidadeEol`` — dados detalhados normalizados (CEP e endereço em campos separados)
 - ``UnidadeRecreioEol`` — unidade enriquecida pronta para a sincronização
+- ``AlunoEol`` — aluno da lista ``/api/alunos/alunos``
+- ``InformacoesAlunoEol`` — ficha com endereço em campos soltos
+- ``ParticipanteRedeEol`` — aluno unido à ficha, pronto para o domínio
 
 Decisões principais de mapeamento:
 
@@ -80,6 +106,14 @@ Decisões principais de mapeamento:
   ``logradouro``, ``numero``, ``bairro`` e ``complemento``
 - ``complemento`` fica vazio quando a integração não o envia
 - os dados detalhados prevalecem sobre o catálogo bruto quando ambos existem
+- ``nomeSocialAluno`` -> ``nome_social_aluno``
+- ``nomeResponsavel`` -> ``nome_responsavel``
+- ``nomeMae`` -> ``nome_mae``
+- ``dataNascimento`` fica só com a data ``AAAA-MM-DD``
+- o CEP do aluno usa a mesma normalização ``00000-000``
+- a consulta usa o primeiro item da lista de alunos
+- lista vazia em ``/api/alunos/alunos`` devolve ``None`` e não chama a ficha
+- HTTP 404 na ficha mantém o aluno e deixa o endereço vazio
 
 Filtro de tipos de unidade
 --------------------------
@@ -136,6 +170,9 @@ O ``EolPort`` expõe as operações que o domínio consome:
 - ``filtrar_unidades_recreio(unidades)``
 - ``enriquecer_unidades(unidades)``
 - ``listar_unidades_diretas_recreio(limite=None)``
+- ``listar_alunos(codigo_eol)``
+- ``obter_informacoes_aluno(codigo_eol)``
+- ``consultar_participante(codigo_eol)``
 
 Exceções
 --------
@@ -166,8 +203,8 @@ Pontos de atenção para produção
 - o timeout de leitura usa ``AUTH_API_TIMEOUT_SECONDS`` (60s), mais longo que
   o do login, porque a listagem completa e o enriquecimento são consultas
   pesadas
-- o domínio de polos consome apenas ``EolPort``; o client HTTP permanece
-  isolado em ``apps/integracoes/eol/``
+- os domínios de polos e de inscrições consomem apenas ``EolPort``; o
+  client HTTP permanece isolado em ``apps/integracoes/eol/``
 
 Consumo pelo domínio de polos
 -----------------------------
@@ -186,3 +223,21 @@ O ``PoloService``:
 A carga executa no máximo uma vez por dia. O instante da última execução
 fica em ``ControleSincronizacaoPolos``. Detalhes do domínio estão em
 ``docs/dominios/polos/``.
+
+Consumo pelo domínio de inscrições
+----------------------------------
+
+A consulta do participante da rede vive em ``apps/inscricoes`` e é disparada
+por ``GET /api/v1/inscricoes/participante-eol/?codigo_eol=``.
+
+O ``InscricaoService.consultar_participante_por_eol()``:
+
+1. recusa código vazio com ``Informe o código EOL.`` e não chama a SME
+2. consulta ``consultar_participante()`` na ``EolPort``
+3. traduz lista vazia em
+   ``Código EOL não encontrado. Verifique o número digitado e tente novamente.``
+4. devolve o ``ParticipanteRedeEol`` sem gravar inscrição
+
+``EolConfigError`` responde HTTP 500. ``EolIndisponivelError`` e
+``EolContratoError`` respondem HTTP 502. Indisponibilidade da SME não usa a
+mensagem de código não encontrado.
