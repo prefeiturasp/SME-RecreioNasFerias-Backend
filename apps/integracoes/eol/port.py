@@ -174,6 +174,9 @@ class ParticipanteRedeEol:
     uf: str
     tipo_logradouro: str
     logradouro: str
+    responsavel_nome_social: str = ""
+    telefone_contato_2: str = ""
+    email: str = ""
 
 
 class EolPort(ABC):

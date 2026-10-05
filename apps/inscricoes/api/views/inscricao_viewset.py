@@ -5,6 +5,7 @@ from __future__ import annotations
 from django.http import Http404
 from drf_spectacular.utils import (
     OpenApiParameter,
+    OpenApiResponse,
     OpenApiTypes,
     extend_schema,
     extend_schema_view,
@@ -13,6 +14,7 @@ from drf_spectacular.utils import (
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.core.utils.paginacao_customizada import PaginacaoCustomizada
@@ -20,10 +22,16 @@ from apps.inscricoes.api.serializers import (
     InscricaoDetalheSerializer,
     InscricaoInformacoesBasicasSerializer,
     InscricaoListagemSerializer,
+    ParticipanteRedeSerializer,
     PoloElegivelSerializer,
 )
 from apps.inscricoes.models import Inscricao
 from apps.inscricoes.services.inscricao_service import InscricaoService
+from apps.integracoes.eol.exceptions import (
+    EolConfigError,
+    EolContratoError,
+    EolIndisponivelError,
+)
 
 
 @extend_schema_view(
@@ -197,6 +205,46 @@ class InscricaoViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        summary="Consulta participante da rede pelo código EOL",
+        parameters=[
+            OpenApiParameter(
+                name="codigo_eol",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=True,
+            )
+        ],
+        responses={
+            200: ParticipanteRedeSerializer,
+            500: OpenApiResponse(description="Erro de configuração da EOL."),
+            502: OpenApiResponse(description="Falha na integração com a EOL."),
+        },
+        tags=["Inscrições"],
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="participante-eol",
+        url_name="participante-eol",
+    )
+    def participante_eol(self, request: Request) -> Response:
+        """Devolve o participante enriquecido a partir do código EOL."""
+        try:
+            participante = self.service_class().consultar_participante_por_eol(
+                request.query_params.get("codigo_eol")
+            )
+        except EolConfigError as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        except (EolIndisponivelError, EolContratoError) as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response(ParticipanteRedeSerializer(participante).data)
 
     @extend_schema(
         summary="Valores de choices do domínio de inscrições",
