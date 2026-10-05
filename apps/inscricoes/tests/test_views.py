@@ -301,7 +301,7 @@ def test_participante_eol_devolve_nome(
     cliente_autenticado,
     monkeypatch,
 ) -> None:
-    """O GET devolve o nome do participante enriquecido."""
+    """O GET devolve só os campos que preenchem o formulário."""
     participante = _participante()
 
     def _consultar(
@@ -323,14 +323,36 @@ def test_participante_eol_devolve_nome(
     )
 
     assert response.status_code == status.HTTP_200_OK
+    assert set(response.data) == {
+        "codigo_eol",
+        "nome_participante",
+        "data_nascimento",
+        "responsavel_nome",
+        "responsavel_nome_social",
+        "cep",
+        "logradouro",
+        "numero",
+        "complemento",
+        "bairro",
+        "cidade",
+        "telefone_contato_1",
+        "telefone_contato_2",
+        "email",
+    }
+    assert response.data["codigo_eol"] == "6034178"
     assert response.data["nome_participante"] == "ANNA JULIA ARAUJO SA"
     assert response.data["responsavel_nome"] == "SAMARA LIMA ARAUJO"
-    assert response.data["nome_mae"] == "SAMARA LIMA ARAUJO"
     assert response.data["data_nascimento"] == "2013-10-16"
     assert response.data["cep"] == "08411-010"
+    assert response.data["logradouro"] == "DA PASSAGEM FUNDA"
+    assert response.data["numero"] == "72"
+    assert response.data["bairro"] == "VILA SANTA CRUZ ZONA LESTE"
+    assert response.data["cidade"] == "SAO PAULO"
+    assert response.data["telefone_contato_1"] == ""
     assert response.data["email"] == ""
     assert response.data["telefone_contato_2"] == ""
     assert response.data["responsavel_nome_social"] == ""
+    assert response.data["complemento"] == ""
 
 
 def test_participante_eol_nao_encontrado_nao_grava(
