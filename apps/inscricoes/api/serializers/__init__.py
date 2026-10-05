@@ -6,10 +6,14 @@ from apps.inscricoes.api.serializers.inscricao_serializer import (
     InscricaoListagemSerializer,
     PoloElegivelSerializer,
 )
+from apps.inscricoes.api.serializers.participante_rede_serializer import (
+    ParticipanteRedeSerializer,
+)
 
 __all__ = [
     "InscricaoDetalheSerializer",
     "InscricaoInformacoesBasicasSerializer",
     "InscricaoListagemSerializer",
+    "ParticipanteRedeSerializer",
     "PoloElegivelSerializer",
 ]

@@ -4,18 +4,62 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
 
 from apps.definicoes_polos.constants import TipoPolo
 from apps.inscricoes.constants import StatusInscricao
 from apps.inscricoes.models import Inscricao
+from apps.inscricoes.validators import (
+    MENSAGEM_CODIGO_EOL_OBRIGATORIO,
+    MENSAGEM_EOL_NAO_ENCONTRADO,
+)
+from apps.integracoes.eol.adapter import EolAdapter
+from apps.integracoes.eol.port import EolPort, ParticipanteRedeEol
 from apps.polos.constants import StatusPolo
 from apps.polos.models import Polo
 
 
 class InscricaoService:
     """Orquestra cadastro, edição, cancelamento e consultas de inscrições."""
+
+    def __init__(self, eol: EolPort | None = None) -> None:
+        """Inicializa o serviço adiando a criação da integração EOL."""
+        self._eol = eol
+
+    @property
+    def eol(self) -> EolPort:
+        """Cria a integração EOL apenas quando ela é efetivamente usada."""
+        if self._eol is None:
+            self._eol = EolAdapter()
+        return self._eol
+
+    def consultar_participante_por_eol(
+        self,
+        codigo_eol: str | None,
+    ) -> ParticipanteRedeEol:
+        """Consulta o participante da rede pelo código EOL.
+
+        Args:
+            codigo_eol: Código informado na busca. Vazio não chama a SME.
+
+        Returns:
+            Participante enriquecido.
+
+        Raises:
+            ValidationError: Quando o código está vazio ou a SME devolve
+                lista vazia.
+        """
+        codigo = (codigo_eol or "").strip()
+        if not codigo:
+            raise ValidationError(
+                {"codigo_eol": MENSAGEM_CODIGO_EOL_OBRIGATORIO}
+            )
+        participante = self.eol.consultar_participante(codigo)
+        if participante is None:
+            raise ValidationError({"codigo_eol": MENSAGEM_EOL_NAO_ENCONTRADO})
+        return participante
 
     def listar(self, **filtros: object) -> QuerySet[Inscricao]:
         """Lista inscrições aplicando os filtros da tela de listagem."""

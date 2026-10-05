@@ -1,6 +1,9 @@
 """Testes dos casos de uso de inscrições."""
 
+from typing import cast
+
 import pytest
+from django.core.exceptions import ValidationError
 
 from apps.inscricoes.constants import (
     GrupoInscricao,
@@ -9,6 +12,12 @@ from apps.inscricoes.constants import (
 )
 from apps.inscricoes.models import Inscricao
 from apps.inscricoes.services.inscricao_service import InscricaoService
+from apps.inscricoes.validators import (
+    MENSAGEM_CODIGO_EOL_OBRIGATORIO,
+    MENSAGEM_EOL_NAO_ENCONTRADO,
+)
+from apps.integracoes.eol.adapter import EolAdapter
+from apps.integracoes.eol.port import EolPort
 from apps.polos.constants import StatusPolo
 
 pytestmark = pytest.mark.django_db
@@ -136,3 +145,71 @@ def test_service_lista_polos_elegiveis_filtra_dre(
     )
 
     assert list(resultado) == [esperado]
+
+
+class _PortaParticipante:
+    """Porta falsa que registra a consulta e devolve um resultado fixo."""
+
+    def __init__(self, resultado: object) -> None:
+        """Guarda o valor que ``consultar_participante`` vai devolver."""
+        self.resultado = resultado
+        self.chamadas: list[str] = []
+
+    def consultar_participante(self, codigo_eol: str) -> object:
+        """Registra o código e devolve o resultado configurado."""
+        self.chamadas.append(codigo_eol)
+        return self.resultado
+
+
+def test_service_cria_adaptador_eol_quando_nao_injetado() -> None:
+    """A integração concreta nasce só quando a porta não foi injetada."""
+    service = InscricaoService()
+
+    assert service._eol is None
+    assert isinstance(service.eol, EolAdapter)
+    assert service._eol is service.eol
+
+
+def test_service_consulta_participante_encontrado() -> None:
+    """Porta com participante devolve o mesmo objeto."""
+    marca = object()
+    porta = _PortaParticipante(marca)
+    service = InscricaoService(eol=cast(EolPort, porta))
+
+    obtido = service.consultar_participante_por_eol("6034178")
+
+    assert obtido is marca
+    assert porta.chamadas == ["6034178"]
+
+
+def test_service_recusa_codigo_eol_em_branco() -> None:
+    """Código vazio ou só com espaços não chama a porta."""
+    porta = _PortaParticipante(object())
+    service = InscricaoService(eol=cast(EolPort, porta))
+
+    with pytest.raises(ValidationError) as vazio:
+        service.consultar_participante_por_eol("   ")
+    with pytest.raises(ValidationError) as ausente:
+        service.consultar_participante_por_eol(None)
+
+    assert vazio.value.message_dict["codigo_eol"] == [
+        MENSAGEM_CODIGO_EOL_OBRIGATORIO
+    ]
+    assert ausente.value.message_dict["codigo_eol"] == [
+        MENSAGEM_CODIGO_EOL_OBRIGATORIO
+    ]
+    assert porta.chamadas == []
+
+
+def test_service_recusa_eol_nao_encontrado() -> None:
+    """Lista vazia da porta vira a mensagem da história."""
+    porta = _PortaParticipante(None)
+    service = InscricaoService(eol=cast(EolPort, porta))
+
+    with pytest.raises(ValidationError) as contexto:
+        service.consultar_participante_por_eol("000")
+
+    assert contexto.value.message_dict["codigo_eol"] == [
+        MENSAGEM_EOL_NAO_ENCONTRADO
+    ]
+    assert porta.chamadas == ["000"]

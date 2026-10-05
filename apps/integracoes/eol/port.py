@@ -9,6 +9,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +84,101 @@ class UnidadeRecreioEol:
     nome_diretor: str
 
 
+@dataclass(frozen=True, slots=True)
+class AlunoEol:
+    """Aluno normalizado a partir da consulta por código EOL."""
+
+    codigo_aluno: int
+    tipo_turno: int
+    ano_letivo: int
+    nome_aluno: str
+    nome_social_aluno: str
+    codigo_situacao_matricula: int
+    situacao_matricula: str
+    data_situacao: str
+    data_nascimento: str
+    numero_aluno_chamada: str
+    codigo_turma: int
+    nome_responsavel: str
+    tipo_responsavel: str
+    celular_responsavel: str
+    data_atualizacao_contato: str
+    codigo_tipo_turma: int
+    turma_nome: str
+    etapa_ensino: str
+    ciclo_ensino: str
+    desc_etapa_ensino: str
+    desc_ciclo_ensino: str
+    data_atualizacao_tabela: str
+
+
+@dataclass(frozen=True, slots=True)
+class InformacoesAlunoEol:
+    """Ficha normalizada do aluno, com endereço em campos soltos."""
+
+    nome_mae: str
+    sexo: str
+    grupo_etnico: str
+    nacionalidade: str
+    eh_imigrante: bool
+    nis: str
+    cns: str
+    numero: str
+    complemento: str
+    bairro: str
+    cep: str
+    cidade: str
+    uf: str
+    tipo_logradouro: str
+    logradouro: str
+
+
+@dataclass(frozen=True, slots=True)
+class ParticipanteRedeEol:
+    """Aluno da rede já unido à ficha, pronto para o restante do sistema."""
+
+    codigo_aluno: int
+    tipo_turno: int
+    ano_letivo: int
+    nome_aluno: str
+    nome_social_aluno: str
+    codigo_situacao_matricula: int
+    situacao_matricula: str
+    data_situacao: str
+    data_nascimento: str
+    numero_aluno_chamada: str
+    codigo_turma: int
+    nome_responsavel: str
+    tipo_responsavel: str
+    celular_responsavel: str
+    data_atualizacao_contato: str
+    codigo_tipo_turma: int
+    turma_nome: str
+    etapa_ensino: str
+    ciclo_ensino: str
+    desc_etapa_ensino: str
+    desc_ciclo_ensino: str
+    data_atualizacao_tabela: str
+    nome_mae: str
+    sexo: str
+    grupo_etnico: str
+    nacionalidade: str
+    eh_imigrante: bool
+    nis: str
+    cns: str
+    numero: str
+    complemento: str
+    bairro: str
+    cep: str
+    cidade: str
+    uf: str
+    tipo_logradouro: str
+    logradouro: str
+    responsavel_nome_social: str = ""
+    telefone_contato_2: str = ""
+    email: str = ""
+
+
 class EolPort(ABC):
     """Define as operações esperadas da integração de escolas da SME."""
 
@@ -131,3 +227,21 @@ class EolPort(ABC):
         limite: int | None = None,
     ) -> tuple[UnidadeRecreioEol, ...]:
         """Lista unidades elegíveis já enriquecidas para a sincronização."""
+
+    @abstractmethod
+    def listar_alunos(self, codigo_eol: str) -> tuple[AlunoEol, ...]:
+        """Lista os alunos normalizados pelo código EOL."""
+
+    @abstractmethod
+    def obter_informacoes_aluno(
+        self,
+        codigo_eol: str,
+    ) -> InformacoesAlunoEol | None:
+        """Obtém a ficha normalizada do aluno, ou ``None`` quando ausente."""
+
+    @abstractmethod
+    def consultar_participante(
+        self,
+        codigo_eol: str,
+    ) -> ParticipanteRedeEol | None:
+        """Une aluno e ficha. ``None`` quando a lista de alunos vem vazia."""
