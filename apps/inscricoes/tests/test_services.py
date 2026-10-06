@@ -1,9 +1,11 @@
 """Testes dos casos de uso de inscrições."""
 
+from datetime import date
 from typing import cast
 
 import pytest
 from django.core.exceptions import ValidationError
+from freezegun import freeze_time
 
 from apps.inscricoes.constants import (
     GrupoInscricao,
@@ -18,7 +20,7 @@ from apps.inscricoes.validators import (
 )
 from apps.integracoes.eol.adapter import EolAdapter
 from apps.integracoes.eol.port import EolPort
-from apps.polos.constants import StatusPolo
+from apps.polos.constants import GestaoPolo, StatusPolo, TipoPolo
 
 pytestmark = pytest.mark.django_db
 
@@ -122,29 +124,117 @@ def test_service_lista_polos_elegiveis_filtra_dre(
     inscricao_completa_factory,
     polo_factory,
     definicao_polo_factory,
-    edicao_factory,
 ) -> None:
-    """A consulta traz polos ativos oficiais e filtra por DRE."""
+    """Traz polos ativos oficiais da edição vigente e filtra por DRE."""
     inscricao = inscricao_completa_factory()
     esperado = inscricao.polo
     outro = polo_factory(dre_codigo_eol="999999")
     definicao_polo_factory(
         polo=outro,
         edicao=inscricao.edicao,
-        tipo="oficial",
+        tipo=TipoPolo.OFICIAL,
     )
-    inativo = polo_factory(status=StatusPolo.INATIVO)
+    inativo = polo_factory(dre_codigo_eol=esperado.dre_codigo_eol)
+    inativo.status = StatusPolo.INATIVO
+    inativo.save()
     definicao_polo_factory(
         polo=inativo,
         edicao=inscricao.edicao,
-        tipo="oficial",
+        tipo=TipoPolo.OFICIAL,
     )
 
-    resultado = InscricaoService().listar_polos_elegiveis(
-        esperado.dre_codigo_eol
-    )
+    with freeze_time("2099-01-01 12:00:00"):
+        resultado = InscricaoService().listar_polos_elegiveis(
+            esperado.dre_codigo_eol
+        )
 
     assert list(resultado) == [esperado]
+
+
+def test_service_lista_somente_oficial_da_edicao_com_inscricoes_abertas(
+    polo_factory,
+    definicao_polo_factory,
+    edicao_factory,
+) -> None:
+    """Reserva e oficial de outra edição ficam de fora da edição vigente."""
+    vigente = edicao_factory(
+        nome="Edição com inscrições abertas",
+        data_inicio=date(2099, 6, 1),
+        data_fim=date(2099, 6, 30),
+        inscricoes_inicio=date(2099, 5, 1),
+        inscricoes_fim=date(2099, 6, 15),
+    )
+    anterior = edicao_factory(
+        nome="Edição anterior",
+        data_inicio=date(2099, 1, 1),
+        data_fim=date(2099, 1, 31),
+        inscricoes_inicio=date(2098, 12, 1),
+        inscricoes_fim=date(2099, 1, 31),
+    )
+    dre = "108200"
+    oficial = polo_factory(dre_codigo_eol=dre, nome_polo="Polo Oficial")
+    antigo = polo_factory(dre_codigo_eol=dre, nome_polo="Polo Antigo")
+    reserva = polo_factory(dre_codigo_eol=dre, nome_polo="Polo Reserva")
+    definicao_polo_factory(polo=oficial, edicao=vigente, tipo=TipoPolo.OFICIAL)
+    definicao_polo_factory(polo=antigo, edicao=anterior, tipo=TipoPolo.OFICIAL)
+    definicao_polo_factory(polo=reserva, edicao=vigente, tipo=TipoPolo.RESERVA)
+
+    with freeze_time("2099-06-10 12:00:00"):
+        resultado = InscricaoService().listar_polos_elegiveis(dre)
+
+    assert list(resultado) == [oficial]
+
+
+def test_service_lista_polos_oficiais_de_gestao_direta_e_parceira(
+    polo_factory,
+    definicao_polo_factory,
+    edicao_factory,
+) -> None:
+    """Direta e parceira entram se o polo é oficial na edição vigente."""
+    edicao = edicao_factory()
+    dre = "108100"
+    direta = polo_factory(
+        gestao=GestaoPolo.DIRETA,
+        dre_codigo_eol=dre,
+        nome_polo="Polo Direta",
+    )
+    parceira = polo_factory(
+        gestao=GestaoPolo.PARCEIRA,
+        dre_codigo_eol=dre,
+        nome_polo="Polo Parceira",
+    )
+    definicao_polo_factory(polo=direta, edicao=edicao, tipo=TipoPolo.OFICIAL)
+    definicao_polo_factory(polo=parceira, edicao=edicao, tipo=TipoPolo.OFICIAL)
+
+    with freeze_time("2099-01-15 12:00:00"):
+        resultado = InscricaoService().listar_polos_elegiveis(dre)
+
+    assert list(resultado) == [direta, parceira]
+
+
+def test_service_respeita_os_limites_do_periodo_de_inscricoes(
+    polo_factory,
+    definicao_polo_factory,
+    edicao_factory,
+) -> None:
+    """Limites das inscrições entram; o dia seguinte fica de fora."""
+    edicao = edicao_factory(
+        data_inicio=date(2099, 1, 1),
+        data_fim=date(2099, 2, 28),
+        inscricoes_inicio=date(2099, 1, 1),
+        inscricoes_fim=date(2099, 1, 31),
+    )
+    polo = polo_factory()
+    definicao_polo_factory(polo=polo, edicao=edicao, tipo=TipoPolo.OFICIAL)
+    service = InscricaoService()
+    dre = polo.dre_codigo_eol
+
+    with freeze_time("2099-01-01 12:00:00"):
+        assert list(service.listar_polos_elegiveis(dre)) == [polo]
+    with freeze_time("2099-01-31 12:00:00"):
+        assert list(service.listar_polos_elegiveis(dre)) == [polo]
+    with freeze_time("2099-02-01 12:00:00"):
+        assert list(service.listar_polos_elegiveis(dre)) == []
 
 
 class _PortaParticipante:
