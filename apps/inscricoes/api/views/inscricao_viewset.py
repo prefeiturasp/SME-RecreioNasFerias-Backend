@@ -177,7 +177,7 @@ class InscricaoViewSet(viewsets.ModelViewSet):
         return Response(InscricaoDetalheSerializer(inscricao).data)
 
     @extend_schema(
-        summary="Lista polos elegíveis para inscrição",
+        summary="Lista polos oficiais da edição com inscrições abertas",
         parameters=[
             OpenApiParameter(
                 name="dre_codigo_eol",
@@ -191,7 +191,7 @@ class InscricaoViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=["get"], url_path="polos-elegiveis")
     def polos_elegiveis(self, request, *args, **kwargs):
-        """Lista polos ativos oficialmente definidos em alguma edição."""
+        """Lista polos ativos oficiais da edição com inscrições abertas."""
         polos = self.service_class().listar_polos_elegiveis(
             request.query_params.get("dre_codigo_eol")
         )
