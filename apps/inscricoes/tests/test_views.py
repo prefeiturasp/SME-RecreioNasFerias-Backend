@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 from django.core.exceptions import ValidationError
+from freezegun import freeze_time
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -171,17 +172,18 @@ def test_lista_polos_elegiveis_com_e_sem_paginacao(
     """A ação retorna polos oficiais com os dois formatos de paginação."""
     polo = inscricao_completa_factory().polo
 
-    paginado = cliente_autenticado.get(
-        f"{URL}polos-elegiveis/",
-        {"dre_codigo_eol": polo.dre_codigo_eol},
-    )
-    sem_paginacao = cliente_autenticado.get(
-        f"{URL}polos-elegiveis/",
-        {
-            "dre_codigo_eol": polo.dre_codigo_eol,
-            "desabilita_paginacao": "true",
-        },
-    )
+    with freeze_time("2099-01-01 12:00:00"):
+        paginado = cliente_autenticado.get(
+            f"{URL}polos-elegiveis/",
+            {"dre_codigo_eol": polo.dre_codigo_eol},
+        )
+        sem_paginacao = cliente_autenticado.get(
+            f"{URL}polos-elegiveis/",
+            {
+                "dre_codigo_eol": polo.dre_codigo_eol,
+                "desabilita_paginacao": "true",
+            },
+        )
 
     assert paginado.status_code == status.HTTP_200_OK
     assert "results" in paginado.data
@@ -229,7 +231,8 @@ def test_view_polos_elegiveis_sem_paginacao_do_queryset(
     )
     monkeypatch.setattr(view, "paginate_queryset", lambda queryset: None)
 
-    response = view.polos_elegiveis(request)
+    with freeze_time("2099-01-01 12:00:00"):
+        response = view.polos_elegiveis(request)
 
     assert isinstance(response, Response)
     assert response.status_code == 200
