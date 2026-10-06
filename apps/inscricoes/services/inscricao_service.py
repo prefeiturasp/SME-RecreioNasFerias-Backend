@@ -7,6 +7,7 @@ from typing import Any
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
+from django.utils import timezone
 
 from apps.definicoes_polos.constants import TipoPolo
 from apps.inscricoes.constants import StatusInscricao
@@ -131,10 +132,13 @@ class InscricaoService:
     def listar_polos_elegiveis(
         self, dre_codigo_eol: str | None = None
     ) -> QuerySet[Polo]:
-        """Lista polos ativos que já foram oficiais em alguma edição."""
+        """Lista polos ativos oficiais da edição com inscrições abertas."""
+        hoje = timezone.localdate()
         consulta = Polo.objects.filter(
             status=StatusPolo.ATIVO,
             definicoes__tipo=TipoPolo.OFICIAL,
+            definicoes__edicao__inscricoes_inicio__lte=hoje,
+            definicoes__edicao__inscricoes_fim__gte=hoje,
         ).distinct()
         if dre_codigo_eol and dre_codigo_eol.strip():
             consulta = consulta.filter(dre_codigo_eol=dre_codigo_eol.strip())
