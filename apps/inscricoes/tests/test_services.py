@@ -212,6 +212,56 @@ def test_service_lista_polos_oficiais_de_gestao_direta_e_parceira(
     assert list(resultado) == [direta, parceira]
 
 
+def test_service_lista_polos_oficiais_sem_periodo_nem_dre(
+    polo_factory,
+    definicao_polo_factory,
+    edicao_factory,
+) -> None:
+    """Oficial entra com inscrições fechadas ou polo inativo; os demais não."""
+    encerrada = edicao_factory(
+        nome="Edição encerrada",
+        data_inicio=date(2090, 1, 1),
+        data_fim=date(2090, 1, 31),
+        inscricoes_inicio=date(2089, 12, 1),
+        inscricoes_fim=date(2090, 1, 31),
+    )
+    outra = edicao_factory(
+        nome="Outra edição encerrada",
+        data_inicio=date(2091, 3, 1),
+        data_fim=date(2091, 3, 31),
+        inscricoes_inicio=date(2091, 2, 1),
+        inscricoes_fim=date(2091, 3, 31),
+    )
+    oficial = polo_factory(nome_polo="Polo Oficial Fechado")
+    inativo = polo_factory(nome_polo="Polo Oficial Inativo")
+    inativo.status = StatusPolo.INATIVO
+    inativo.save()
+    reserva = polo_factory(nome_polo="Polo Reserva")
+    pendente = polo_factory(nome_polo="Polo Pendente")
+    repetido = polo_factory(nome_polo="Polo Oficial Repetido")
+    definicao_polo_factory(
+        polo=oficial, edicao=encerrada, tipo=TipoPolo.OFICIAL
+    )
+    definicao_polo_factory(
+        polo=inativo, edicao=encerrada, tipo=TipoPolo.OFICIAL
+    )
+    definicao_polo_factory(
+        polo=reserva, edicao=encerrada, tipo=TipoPolo.RESERVA
+    )
+    definicao_polo_factory(
+        polo=pendente, edicao=encerrada, tipo=TipoPolo.PENDENTE
+    )
+    definicao_polo_factory(
+        polo=repetido, edicao=encerrada, tipo=TipoPolo.OFICIAL
+    )
+    definicao_polo_factory(polo=repetido, edicao=outra, tipo=TipoPolo.OFICIAL)
+
+    with freeze_time("2099-06-10 12:00:00"):
+        resultado = list(InscricaoService().listar_polos_oficiais())
+
+    assert resultado == [oficial, inativo, repetido]
+
+
 def test_service_respeita_os_limites_do_periodo_de_inscricoes(
     polo_factory,
     definicao_polo_factory,
