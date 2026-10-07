@@ -143,3 +143,15 @@ class InscricaoService:
         if dre_codigo_eol and dre_codigo_eol.strip():
             consulta = consulta.filter(dre_codigo_eol=dre_codigo_eol.strip())
         return consulta.order_by("nome_polo")
+
+    def listar_polos_oficiais(self) -> QuerySet[Polo]:
+        """Lista polos que foram oficiais ao menos uma vez.
+
+        A consulta do gestor não restringe por período de inscrição, DRE
+        nem status do polo.
+        """
+        return (
+            Polo.objects.filter(definicoes__tipo=TipoPolo.OFICIAL)
+            .distinct()
+            .order_by("nome_polo")
+        )

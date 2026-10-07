@@ -206,6 +206,25 @@ class InscricaoViewSet(viewsets.ModelViewSet):
         )
 
     @extend_schema(
+        summary="Lista polos que foram oficiais ao menos uma vez",
+        responses=PoloElegivelSerializer(many=True),
+        tags=["Inscrições"],
+    )
+    @action(detail=False, methods=["get"], url_path="polos-oficiais")
+    def polos_oficiais(self, request, *args, **kwargs):
+        """Lista polos oficiais para o filtro da consulta de inscrições."""
+        polos = self.service_class().listar_polos_oficiais()
+        page = self.paginate_queryset(polos)
+        if page is not None:
+            return self.get_paginated_response(
+                PoloElegivelSerializer(page, many=True).data
+            )
+        return Response(
+            PoloElegivelSerializer(polos, many=True).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
         summary="Consulta participante da rede pelo código EOL",
         parameters=[
             OpenApiParameter(
