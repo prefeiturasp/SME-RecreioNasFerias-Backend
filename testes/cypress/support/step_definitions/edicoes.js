@@ -1,5 +1,11 @@
-const { Given, When, Then } = require('@badeball/cypress-cucumber-preprocessor')
-const { autenticarNaApi } = require('./login.cjs')
+const { Given, When, Then, Before, After } = require('@badeball/cypress-cucumber-preprocessor')
+const { autenticarNaApi } = require('./autenticacao.cjs')
+
+let edicoesCriadasNoCadastro = []
+Before({ tags: '@edicoes' }, () => { edicoesCriadasNoCadastro = [] })
+After({ tags: '@edicoes' }, () => cy.wrap(edicoesCriadasNoCadastro, { log: false }).each(({ token, uuid }) =>
+	excluirEdicaoExclusiva(token, uuid).then((res) => expect(res.status, 'Limpeza da edicao cadastrada').to.be.oneOf([204, 404]))
+))
 
 const obterApiBaseUrl = () => Cypress.env('api_base_url').replace(/\/$/, '')
 
@@ -88,8 +94,11 @@ Then('cada edicao deve possuir os campos principais', () => {
 	cy.get('@edicoesResponse')
 		.its('body')
 		.then((edicoes) => {
-			edicoes.forEach((edicao) => {
-				expect(edicao).to.have.all.keys('uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'quantidade_inscritos', 'quantidade_atendimento_efetivo', 'quantidade_passeios', 'quantidade_apresentacoes', 'status', 'ativo', 'criado_em', 'atualizado_em')
+			const camposObrigatorios = ['uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'quantidade_inscritos', 'quantidade_atendimento_efetivo', 'quantidade_passeios', 'quantidade_apresentacoes', 'status', 'status_label', 'ativo', 'criado_em', 'atualizado_em']
+			edicoes.forEach((edicao, indice) => {
+				expect(edicao, `Edicao no indice ${indice}`).to.be.an('object')
+				const camposAusentes = camposObrigatorios.filter((campo) => !Object.prototype.hasOwnProperty.call(edicao, campo))
+				expect(camposAusentes, `Edicao no indice ${indice}: campos obrigatorios ausentes; campos recebidos: ${Object.keys(edicao).join(', ')}`).to.be.empty
 			})
 		})
 })
@@ -141,7 +150,7 @@ Then('a API deve responder ao detalhe da edicao com status 200', () => {
 })
 
 Then('a resposta deve conter os dados principais da edicao', () => {
-	cy.get('@edicaoResponse').its('body').should('include.all.keys', ['uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'status', 'ativo'])
+	cy.get('@edicaoResponse').its('body').should('include.all.keys', ['uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'status', 'status_label', 'ativo'])
 })
 
 Then('a API deve responder ao detalhe da edicao com status 401', () => {
@@ -159,12 +168,13 @@ When('eu envio os dados de uma nova edicao', () => {
 			url: `${obterApiBaseUrl()}/api/v1/edicoes/`,
 			headers: { Authorization: `Bearer ${token}` },
 		}).then((response) => {
-			const datasConfiguradas = [Cypress.env('edicao_data_inicio'), Cypress.env('edicao_data_fim'), Cypress.env('edicao_inscricoes_inicio'), Cypress.env('edicao_inscricoes_fim')].filter(Boolean)
+			const datasConfiguradas = [Cypress.env('edicao_data_inicio'), Cypress.env('edicao_data_fim'), Cypress.env('edicao_inscricoes_inicio'), Cypress.env('edicao_inscricoes_fim')]
 			const maiorDataFim = response.body.reduce((maiorData, edicao) => {
-				return edicao.data_fim > maiorData ? edicao.data_fim : maiorData
+				return [maiorData, edicao.data_fim, edicao.inscricoes_fim].sort().pop()
 			}, '2030-01-01')
 			const dataBase = new Date(`${maiorDataFim}T00:00:00Z`)
-			dataBase.setUTCDate(dataBase.getUTCDate() + 1)
+			// Inscricoes comecam 14 dias antes: todo o novo periodo fica livre.
+			dataBase.setUTCDate(dataBase.getUTCDate() + 15)
 			const dataInicio = datasConfiguradas[0] || dataBase.toISOString().slice(0, 10)
 			const dataFim =
 				datasConfiguradas[1] ||
@@ -201,6 +211,9 @@ When('eu envio os dados de uma nova edicao', () => {
 				headers: { Authorization: `Bearer ${token}` },
 				body: payload,
 				failOnStatusCode: false,
+			}).then((res) => {
+				if (res.status === 201 && res.body.uuid) edicoesCriadasNoCadastro.push({ token, uuid: res.body.uuid })
+				return res
 			}).as('criacaoEdicaoResponse')
 		})
 	})
@@ -225,7 +238,7 @@ Then('a API deve responder a criacao de edicao com status 201', () => {
 })
 
 Then('a resposta deve conter os dados da edicao criada', () => {
-	cy.get('@criacaoEdicaoResponse').its('body').should('include.all.keys', ['uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'status', 'ativo'])
+	cy.get('@criacaoEdicaoResponse').its('body').should('include.all.keys', ['uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'status', 'status_label', 'ativo'])
 })
 
 Then('a API deve responder a criacao de edicao com status 400', () => {
@@ -283,7 +296,7 @@ Then('a API deve responder a atualizacao de edicao com status 200', () => {
 })
 
 Then('a resposta deve conter os dados atualizados da edicao', () => {
-	cy.get('@atualizacaoEdicaoResponse').its('body').should('include.all.keys', ['uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'status', 'ativo'])
+	cy.get('@atualizacaoEdicaoResponse').its('body').should('include.all.keys', ['uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'status', 'status_label', 'ativo'])
 	cy.get('@authToken').then((token) => {
 		cy.get('@edicaoAtual').then((edicao) => {
 			excluirEdicaoExclusiva(token, edicao.uuid).its('status').should('eq', 204)
@@ -345,7 +358,7 @@ Then('a API deve responder a atualizacao parcial com status 200', () => {
 })
 
 Then('a resposta deve conter os dados da edicao atualizada parcialmente', () => {
-	cy.get('@atualizacaoParcialResponse').its('body').should('include.all.keys', ['uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'status', 'ativo'])
+	cy.get('@atualizacaoParcialResponse').its('body').should('include.all.keys', ['uuid', 'nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim', 'status', 'status_label', 'ativo'])
 	cy.get('@authToken').then((token) => {
 		cy.get('@edicaoParcial').then((edicao) => {
 			excluirEdicaoExclusiva(token, edicao.uuid).its('status').should('eq', 204)

@@ -1,0 +1,54 @@
+{
+  "DefinicaoPolo": [
+    "ativo",
+    "edicao",
+    "polo",
+    "projecao_inscritos",
+    "resultado_final_de_inscritos",
+    "total_inscritos",
+    "uuid"
+  ],
+  "DefinicaoPoloDetalhamento": [
+    "ativo",
+    "edicao",
+    "polo",
+    "ponto_focal_email",
+    "ponto_focal_nome",
+    "ponto_focal_telefone",
+    "projecao_inscritos",
+    "resultado_final_de_inscritos",
+    "tipo",
+    "total_inscritos",
+    "uuid"
+  ],
+  "DefinicaoPoloHistorico": [
+    "edicao",
+    "ponto_focal_email",
+    "ponto_focal_nome",
+    "ponto_focal_telefone",
+    "projecao_inscritos",
+    "resultado_final_de_inscritos",
+    "tipo",
+    "tipo_label",
+    "total_inscritos",
+    "uuid"
+  ],
+  "PoloComDefinicao": [
+    "codigo_eol",
+    "definicao_uuid",
+    "dre_codigo_eol",
+    "dre_nome",
+    "edicao_uuid",
+    "gestao_label",
+    "nome_edicao",
+    "nome_polo",
+    "polo_uuid",
+    "projecao_inscritos_edicao",
+    "resultado_final_de_inscritos_edicao",
+    "status_label",
+    "tipo_polo_edicao",
+    "tipo_polo_edicao_label",
+    "tipo_ue",
+    "total_inscritos_edicao"
+  ]
+}

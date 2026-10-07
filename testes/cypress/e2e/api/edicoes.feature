@@ -1,5 +1,6 @@
 # language: pt
-Funcionalidade: Listagem de edicoes
+@edicoes
+Funcionalidade: Edicoes
   Como um usuario autenticado
   Quero consultar as edicoes cadastradas
   Para acompanhar seus periodos e status
@@ -68,3 +69,65 @@ Funcionalidade: Listagem de edicoes
     E uma edicao exclusiva foi criada para exclusao
     Quando eu excluo a edicao pelo UUID
     Entao a API deve responder a exclusao de edicao com status 204
+  @edicoes_validacoes
+  Esquema do Cenario: Recusar <metodo> em <rota> com autenticacao <token>
+    Quando acesso edicoes com "<metodo>" em "<rota>" com token "<token>"
+    Entao a validacao de edicoes deve responder com status 401
+
+    Exemplos:
+      | metodo | rota    | token    |
+      | POST   | lista   | ausente  |
+      | PUT    | detalhe | ausente  |
+      | PATCH  | detalhe | ausente  |
+      | DELETE | detalhe | ausente  |
+      | GET    | lista   | invalido |
+      | POST   | lista   | invalido |
+      | GET    | detalhe | invalido |
+      | PUT    | detalhe | invalido |
+      | PATCH  | detalhe | invalido |
+      | DELETE | detalhe | invalido |
+
+  @edicoes_validacoes
+  Esquema do Cenario: Recusar <metodo> para UUID inexistente
+    Dado que autentiquei para validar as regras de edicoes
+    Quando acesso uma edicao inexistente com "<metodo>"
+    Entao a validacao de edicoes deve responder com status 404
+
+    Exemplos:
+      | metodo |
+      | GET    |
+      | PUT    |
+      | PATCH  |
+      | DELETE |
+
+  @edicoes_validacoes
+  Esquema do Cenario: Recusar <regra> na criacao e nas atualizacoes
+    Dado que existem duas edicoes exclusivas para validar regras
+    Quando envio edicoes com a violacao "<regra>" por POST PUT e PATCH
+    Entao as tres operacoes devem retornar 400 sem alterar as edicoes
+
+    Exemplos:
+      | regra                           |
+      | nome duplicado                  |
+      | nome duplicado em maiusculas     |
+      | nome acima de 255 caracteres     |
+      | data invalida                   |
+      | fim anterior ao inicio          |
+      | inscricoes invertidas           |
+      | inscricoes apos fim da edicao    |
+      | sobreposicao de edicoes          |
+      | sobreposicao de inscricoes       |
+
+  @edicoes_validacoes
+  Cenario: Persistir criacao e atualizacoes preservando campos omitidos
+    Dado que existem duas edicoes exclusivas para validar regras
+    Entao a primeira edicao deve estar persistida conforme enviada
+    Quando altero a primeira edicao por PUT e PATCH
+    Entao os valores devem persistir e o PATCH deve preservar os demais campos
+
+  @edicoes_validacoes
+  Cenario: Confirmar ausencia de uma edicao excluida
+    Dado que existem duas edicoes exclusivas para validar regras
+    Quando excluo a primeira edicao exclusiva de validacao
+    Entao a validacao de edicoes deve responder com status 204
+    E consultar a edicao excluida deve retornar 404

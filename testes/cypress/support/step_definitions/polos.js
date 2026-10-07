@@ -1,5 +1,5 @@
 const { Given, When, Then } = require('@badeball/cypress-cucumber-preprocessor')
-const { autenticarNaApi } = require('./login.cjs')
+const { autenticarNaApi } = require('./autenticacao.cjs')
 
 const obterApiBaseUrl = () => Cypress.env('api_base_url').replace(/\/$/, '')
 
