@@ -260,6 +260,23 @@ def test_view_polos_elegiveis_sem_paginacao_do_queryset(
     assert response.data[0]["nome_polo"] == polo.nome_polo
 
 
+def test_view_polos_oficiais_sem_paginacao_do_queryset(
+    inscricao_completa_factory,
+    monkeypatch,
+) -> None:
+    """A action suporta o ramo em que a paginação não retorna página."""
+    polo = inscricao_completa_factory().polo
+    view = InscricaoViewSet()
+    request = SimpleNamespace(query_params={})
+    monkeypatch.setattr(view, "paginate_queryset", lambda queryset: None)
+
+    response = view.polos_oficiais(request)
+
+    assert isinstance(response, Response)
+    assert response.status_code == 200
+    assert response.data[0]["nome_polo"] == polo.nome_polo
+
+
 def test_view_retorna_valores_dos_choices(cliente_autenticado) -> None:
     """A action de catálogos retorna value e label dos choices."""
     response = cliente_autenticado.get("/api/v1/inscricoes/valores-choices/")
