@@ -191,6 +191,27 @@ def test_lista_polos_elegiveis_com_e_sem_paginacao(
     assert sem_paginacao.data[0]["nome_polo"] == polo.nome_polo
 
 
+def test_lista_polos_oficiais_com_e_sem_paginacao(
+    cliente_autenticado,
+    inscricao_completa_factory,
+) -> None:
+    """A consulta devolve o polo oficial fora do período de inscrição."""
+    polo = inscricao_completa_factory().polo
+
+    with freeze_time("2099-06-10 12:00:00"):
+        paginado = cliente_autenticado.get(f"{URL}polos-oficiais/")
+        sem_paginacao = cliente_autenticado.get(
+            f"{URL}polos-oficiais/",
+            {"desabilita_paginacao": "true"},
+        )
+
+    assert paginado.status_code == status.HTTP_200_OK
+    assert paginado.data["results"][0]["uuid"] == str(polo.uuid)
+    assert paginado.data["results"][0]["nome_polo"] == polo.nome_polo
+    assert sem_paginacao.status_code == status.HTTP_200_OK
+    assert sem_paginacao.data[0]["nome_polo"] == polo.nome_polo
+
+
 def test_uuid_inexistente_retorna_400(cliente_autenticado) -> None:
     """UUID inexistente é convertido em erro de validação."""
     response = cliente_autenticado.get(
