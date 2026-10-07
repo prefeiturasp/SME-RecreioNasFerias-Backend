@@ -1,0 +1,24 @@
+{
+  "Polo": [
+    "ativo",
+    "codigo_eol",
+    "dre_codigo_eol",
+    "dre_nome",
+    "endereco_completo",
+    "gestao_label",
+    "nome_osc",
+    "nome_polo",
+    "quantidade_maxima_alunos",
+    "status_label",
+    "tipo_ue",
+    "uuid"
+  ],
+  "DadosUnidade": [
+    "codigo_dre",
+    "codigo_eol",
+    "nome",
+    "nome_dre",
+    "sigla_dre",
+    "sigla_tipo_escola"
+  ]
+}

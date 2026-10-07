@@ -1,0 +1,66 @@
+{
+  "InscricaoInformacoesBasicas": [
+    "ativo",
+    "grupo_label",
+    "status",
+    "status_label",
+    "tipo_estudante_label",
+    "uuid"
+  ],
+  "InscricaoDetalhe": [
+    "ativo",
+    "bairro",
+    "cep",
+    "cidade",
+    "codigo_eol",
+    "complemento",
+    "cpf",
+    "data_nascimento",
+    "dre_codigo_eol",
+    "dre_nome",
+    "edicao",
+    "email",
+    "grupo",
+    "grupo_label",
+    "logradouro",
+    "nome_participante",
+    "numero",
+    "polo",
+    "responsavel_nome",
+    "responsavel_nome_social",
+    "status",
+    "status_label",
+    "telefone_contato_1",
+    "telefone_contato_2",
+    "tipo_estudante",
+    "tipo_estudante_label",
+    "tipo_logradouro",
+    "uuid"
+  ],
+  "InscricaoListagem": [
+    "codigo_eol",
+    "cpf",
+    "grupo",
+    "grupo_label",
+    "nome_participante",
+    "polo",
+    "polo_nome",
+    "status",
+    "status_label",
+    "tipo_estudante",
+    "tipo_estudante_label",
+    "uuid"
+  ],
+  "PoloElegivel": [
+    "codigo_eol",
+    "dre_codigo_eol",
+    "dre_nome",
+    "nome_polo",
+    "uuid"
+  ],
+  "ValoresChoicesResponse": [
+    "grupo_inscricao",
+    "status_inscricao",
+    "tipo_estudante"
+  ]
+}
