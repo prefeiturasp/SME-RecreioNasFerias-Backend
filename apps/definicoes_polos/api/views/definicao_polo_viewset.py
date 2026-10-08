@@ -31,6 +31,7 @@ from apps.definicoes_polos.api.serializers import (
     AlterarTipoEmMassaIgnoradoSerializer,
     AlterarTipoEmMassaRespostaSerializer,
     AlterarTipoEmMassaSerializer,
+    DefinicaoPoloAtualizacaoSerializer,
     PoloComDefinicaoSerializer,
     VincularEmMassaResponseSerializer,
     VincularEmMassaSerializer,
@@ -177,6 +178,8 @@ class DefinicaoPoloViewSet(viewsets.ModelViewSet):
             return PoloComDefinicaoSerializer
         if self.action == "retrieve":
             return DefinicaoPoloDetalhamentoSerializer
+        if self.action in {"update", "partial_update"}:
+            return DefinicaoPoloAtualizacaoSerializer
         if self.action == "historico":
             return DefinicaoPoloHistoricoSerializer
         return super().get_serializer_class()
@@ -313,9 +316,6 @@ class DefinicaoPoloViewSet(viewsets.ModelViewSet):
             polo=dados["polo"],
             edicao=dados["edicao"],
             projecao_inscritos=dados["projecao_inscritos"],
-            ponto_focal_nome=dados.get("ponto_focal_nome", ""),
-            ponto_focal_telefone=dados.get("ponto_focal_telefone", ""),
-            ponto_focal_email=dados.get("ponto_focal_email", ""),
         )
 
     def perform_update(self, serializer):
@@ -439,4 +439,3 @@ class DefinicaoPoloViewSet(viewsets.ModelViewSet):
             definicoes, edicao_destino
         )
         return Response(DefinicaoPoloSerializer(definicoes, many=True).data)
-
