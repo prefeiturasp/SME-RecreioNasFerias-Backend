@@ -3,7 +3,8 @@ Definições de Polos
 
 Este domínio representa a participação de um polo em uma edição do
 Recreio nas Férias. A definição reúne o tipo do polo na edição, a projeção
-de inscritos, o total calculado de inscritos e os dados do ponto focal.
+de inscritos e o total calculado de inscritos. Os dados do ponto focal
+pertencem ao cadastro do polo e não são históricos por edição.
 
 Visão resumida
 --------------
@@ -25,8 +26,6 @@ dados principais:
   ``pendente``
 - ``projecao_inscritos``: quantidade projetada de inscritos
 - ``total_inscritos``: capacidade calculada automaticamente
-- ``ponto_focal_nome``, ``ponto_focal_telefone`` e ``ponto_focal_email``:
-  dados de contato do ponto focal
 
 O campo ``total_inscritos`` é somente leitura e é recalculado a cada
 persistência com acréscimo de 30% sobre a projeção, arredondando para baixo:
@@ -47,10 +46,18 @@ inscritos.
 
 ``GET /api/v1/definicoes-polos/<uuid>/`` retorna o detalhamento da
 participação, incluindo os dados completos do polo e um resumo da edição.
+Os dados atuais do ponto focal são apresentados junto aos dados do polo.
 
 ``PATCH`` e ``PUT`` atualizam os dados editáveis. O total de inscritos,
 UUID, estado de atividade e timestamps são controlados pelo domínio e não
-podem ser alterados diretamente.
+podem ser alterados diretamente. A edição também aceita os campos do ponto
+focal; eles são persistidos no ``Polo`` associado, na mesma transação da
+Definição.
+
+Para alterar o ponto focal de um polo sem definição, use
+``GET /api/v1/polos/<polo_uuid>/`` para carregar o cadastro e
+``PATCH /api/v1/polos/<polo_uuid>/`` para salvar os campos. A listagem
+consolidada fornece ``polo_uuid`` mesmo quando ``definicao_uuid`` é nulo.
 
 ``DELETE`` remove a participação.
 
@@ -83,6 +90,7 @@ outros, os campos:
 
 - ``polo_uuid``
 - ``codigo_eol`` e ``nome_polo``
+- ``ponto_focal_nome``, ``ponto_focal_telefone`` e ``ponto_focal_email`` do polo
 - ``dre_nome`` e ``dre_codigo_eol``
 - ``tipo_ue``, ``gestao`` e ``status``
 - ``definicao_uuid`` e ``edicao_uuid``
@@ -97,7 +105,8 @@ Histórico do polo
 ``GET /api/v1/definicoes-polos/historico/?polo=<uuid>`` lista todas as
 participações de um polo, ordenadas conforme a definição do modelo. O
 parâmetro ``polo`` é obrigatório e a resposta contém os dados resumidos de
-cada edição, o tipo, a projeção, o total calculado e os dados do ponto focal.
+cada edição, o tipo, a projeção e o total calculado. O ponto focal é dado
+atual do polo e não integra o histórico das participações.
 
 A action aceita os parâmetros usuais de paginação, incluindo
 ``desabilita_paginacao=true``.
