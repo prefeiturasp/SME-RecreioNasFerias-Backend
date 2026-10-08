@@ -15,14 +15,13 @@ class DefinicaoPoloAdmin(admin.ModelAdmin):
         "tipo",
         "projecao_inscritos",
         "total_inscritos",
-        "ponto_focal_nome",
     )
     list_filter = ("tipo", "edicao", "ativo")
     search_fields = (
         "polo__nome_polo",
         "polo__codigo_eol",
         "edicao__nome",
-        "ponto_focal_nome",
+        "polo__ponto_focal_nome",
     )
     raw_id_fields = ("polo", "edicao")
     readonly_fields = ("uuid", "total_inscritos", "resultado_final_de_inscritos", "criado_em", "atualizado_em")
