@@ -106,6 +106,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
+    "django_extensions",
     # local
     "apps.core.apps.CoreConfig",
     "apps.edicoes.apps.EdicoesConfig",
