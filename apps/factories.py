@@ -92,11 +92,6 @@ class DefinicaoPoloFactory(factory.django.DjangoModelFactory):
     polo = factory.SubFactory(PoloFactory)
     edicao = factory.SubFactory(EdicaoFactory)
     projecao_inscritos = 250
-    ponto_focal_nome = "Ponto Focal de Teste"
-    ponto_focal_telefone = "11900000000"
-    ponto_focal_email = factory.Sequence(
-        lambda n: f"ponto-focal{n}@teste.example"
-    )
 
 
 class InscricaoFactory(factory.django.DjangoModelFactory):
