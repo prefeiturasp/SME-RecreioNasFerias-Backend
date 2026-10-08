@@ -15,10 +15,17 @@ class PoloAdmin(admin.ModelAdmin):
         "tipo",
         "status",
         "gestao",
+        "ponto_focal_nome",
         "quantidade_maxima_alunos",
     )
     list_filter = ("tipo", "status", "gestao", "ativo")
-    search_fields = ("codigo_eol", "nome_polo", "nome_osc", "dre_nome")
+    search_fields = (
+        "codigo_eol",
+        "nome_polo",
+        "nome_osc",
+        "dre_nome",
+        "ponto_focal_nome",
+    )
     readonly_fields = ("uuid", "criado_em", "atualizado_em")
     
     

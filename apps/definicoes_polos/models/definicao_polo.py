@@ -40,26 +40,6 @@ class DefinicaoPolo(ModeloAtualizavel):
         editable=False,
         verbose_name="Total de inscritos",
     )
-    ponto_focal_nome = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        verbose_name="Nome do ponto focal",
-    )
-    ponto_focal_telefone = models.CharField(
-        max_length=30,
-        blank=True,
-        default="",
-        verbose_name="Telefone do ponto focal",
-    )
-
-    ponto_focal_email = models.CharField(
-        max_length=254,
-        blank=True,
-        default="",
-        verbose_name="E-mail do ponto focal",
-    )
-
     resultado_final_de_inscritos = models.PositiveIntegerField(
         default=0,
         editable=False,

@@ -12,6 +12,7 @@ from apps.definicoes_polos.api.serializers.acao_em_massa_serializer import (
     VincularEmMassaSerializer,
 )
 from apps.definicoes_polos.api.serializers.definicao_polo_serializer import (
+    DefinicaoPoloAtualizacaoSerializer,
     DefinicaoPoloDetalhamentoSerializer,
     DefinicaoPoloHistoricoSerializer,
     DefinicaoPoloSerializer,
@@ -25,6 +26,7 @@ __all__ = [
     "AlterarTipoEmMassaItemSerializer",
     "AlterarTipoEmMassaRespostaSerializer",
     "AlterarTipoEmMassaSerializer",
+    "DefinicaoPoloAtualizacaoSerializer",
     "DefinicaoPoloSerializer",
     "DefinicaoPoloDetalhamentoSerializer",
     "DefinicaoPoloHistoricoSerializer",
