@@ -20,7 +20,7 @@ class Polo(ModeloAtualizavel):
         verbose_name="Código EOL",
     )
     nome_polo = models.CharField(
-        max_length=255, unique=True, verbose_name="Nome do polo"
+        max_length=255, verbose_name="Nome do polo"
     )
     nome_osc = models.CharField(max_length=255, verbose_name="Nome da OSC")
     dre_nome = models.CharField(max_length=255, verbose_name="Nome da DRE")
@@ -80,6 +80,24 @@ class Polo(ModeloAtualizavel):
     )
     telefone = models.CharField(
         max_length=30, verbose_name="Telefone", blank=True, default=""
+    )
+    ponto_focal_nome = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Nome do ponto focal",
+    )
+    ponto_focal_telefone = models.CharField(
+        max_length=30,
+        blank=True,
+        default="",
+        verbose_name="Telefone do ponto focal",
+    )
+    ponto_focal_email = models.CharField(
+        max_length=254,
+        blank=True,
+        default="",
+        verbose_name="E-mail do ponto focal",
     )
     observacoes_gerais = models.TextField(
         blank=True,
