@@ -240,17 +240,18 @@ def test_service_lista_polos_elegiveis_sem_filtro() -> None:
     assert resultado.count() == 0
 
 
-def test_view_polos_elegiveis_sem_paginacao_do_queryset(
+def test_view_polos_elegiveis_com_paginacao_desabilitada(
     inscricao_completa_factory,
-    monkeypatch,
 ) -> None:
     """A action suporta o ramo em que a paginação não retorna página."""
     polo = inscricao_completa_factory().polo
     view = InscricaoViewSet()
     request = SimpleNamespace(
-        query_params={"dre_codigo_eol": polo.dre_codigo_eol}
+        query_params={
+            "dre_codigo_eol": polo.dre_codigo_eol,
+            "desabilita_paginacao": "true",
+        }
     )
-    monkeypatch.setattr(view, "paginate_queryset", lambda queryset: None)
 
     with freeze_time("2099-01-01 12:00:00"):
         response = view.polos_elegiveis(request)
@@ -260,15 +261,15 @@ def test_view_polos_elegiveis_sem_paginacao_do_queryset(
     assert response.data[0]["nome_polo"] == polo.nome_polo
 
 
-def test_view_polos_oficiais_sem_paginacao_do_queryset(
+def test_view_polos_oficiais_com_paginacao_desabilitada(
     inscricao_completa_factory,
-    monkeypatch,
 ) -> None:
     """A action suporta o ramo em que a paginação não retorna página."""
     polo = inscricao_completa_factory().polo
     view = InscricaoViewSet()
-    request = SimpleNamespace(query_params={})
-    monkeypatch.setattr(view, "paginate_queryset", lambda queryset: None)
+    request = SimpleNamespace(
+        query_params={"desabilita_paginacao": "true"}
+    )
 
     response = view.polos_oficiais(request)
 
