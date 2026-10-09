@@ -82,7 +82,7 @@ from apps.integracoes.eol.exceptions import (
                 required=False,
             ),
         ],
-        ),
+    ),
     create=extend_schema(summary="Cria inscrição", tags=["Inscrições"]),
     retrieve=extend_schema(summary="Detalha inscrição", tags=["Inscrições"]),
     update=extend_schema(summary="Atualiza inscrição", tags=["Inscrições"]),
@@ -184,7 +184,13 @@ class InscricaoViewSet(viewsets.ModelViewSet):
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.QUERY,
                 required=False,
-            )
+            ),
+            OpenApiParameter(
+                name="desabilita_paginacao",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Se true, retorna todos os registros sem paginação.",
+            ),
         ],
         responses=PoloElegivelSerializer(many=True),
         tags=["Inscrições"],
@@ -195,34 +201,45 @@ class InscricaoViewSet(viewsets.ModelViewSet):
         polos = self.service_class().listar_polos_elegiveis(
             request.query_params.get("dre_codigo_eol")
         )
-        page = self.paginate_queryset(polos)
-        if page is not None:
-            return self.get_paginated_response(
-                PoloElegivelSerializer(page, many=True).data
-            )
-        return Response(
-            PoloElegivelSerializer(polos, many=True).data,
-            status=status.HTTP_200_OK,
+
+        # Paginação automática - validação centralizada em PaginacaoCustomizada
+        paginacao = PaginacaoCustomizada()
+
+        resultado_paginado = paginacao.paginate_queryset(
+            polos, request, view=self
         )
+
+        serializer = PoloElegivelSerializer(resultado_paginado, many=True)
+        return paginacao.get_paginated_response(serializer.data)
+
 
     @extend_schema(
         summary="Lista polos que foram oficiais ao menos uma vez",
         responses=PoloElegivelSerializer(many=True),
         tags=["Inscrições"],
+        parameters=[
+            OpenApiParameter(
+                name="desabilita_paginacao",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Se true, retorna todos os registros sem paginação.",
+            ),
+        ],
     )
     @action(detail=False, methods=["get"], url_path="polos-oficiais")
     def polos_oficiais(self, request, *args, **kwargs):
         """Lista polos oficiais para o filtro da consulta de inscrições."""
         polos = self.service_class().listar_polos_oficiais()
-        page = self.paginate_queryset(polos)
-        if page is not None:
-            return self.get_paginated_response(
-                PoloElegivelSerializer(page, many=True).data
-            )
-        return Response(
-            PoloElegivelSerializer(polos, many=True).data,
-            status=status.HTTP_200_OK,
+
+        # Paginação automática - validação centralizada em PaginacaoCustomizada
+        paginacao = PaginacaoCustomizada()
+
+        resultado_paginado = paginacao.paginate_queryset(
+            polos, request, view=self
         )
+
+        serializer = PoloElegivelSerializer(resultado_paginado, many=True)
+        return paginacao.get_paginated_response(serializer.data)
 
     @extend_schema(
         summary="Consulta participante da rede pelo código EOL",
@@ -280,7 +297,7 @@ class InscricaoViewSet(viewsets.ModelViewSet):
                 "status_inscricao": serializers.ListField(
                     child=serializers.DictField()
                 ),
-            }
+            },
         ),
         tags=["Inscrições"],
     )
