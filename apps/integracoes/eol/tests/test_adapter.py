@@ -839,3 +839,47 @@ def test_consultar_participante_mantem_aluno_quando_ficha_ausente() -> None:
         logradouro="",
     )
     assert client.calls_informacoes == ["1234567"]
+
+
+def test_consultar_participante_por_cpf_vazio_nao_chama_ficha() -> None:
+    """Lista vazia devolve ``None`` e não consulta a ficha."""
+    client = FakeClient(alunos_por_cpf=[])
+
+    participante = EolAdapter(client=client).consultar_participante_por_cpf(
+        "123.456.789-09"
+    )
+
+    assert participante is None
+    assert client.calls_informacoes == []
+
+
+def test_consultar_participante_por_cpf_usa_o_primeiro_codigo() -> None:
+    """O primeiro código reusa a consulta do participante."""
+    client = FakeClient(
+        alunos_por_cpf=[_aluno_bruto(), {"codigoAluno": 1}],
+        alunos=[_aluno_bruto()],
+        informacoes=_informacoes_brutas(),
+    )
+
+    participante = EolAdapter(client=client).consultar_participante_por_cpf(
+        "123.456.789-09"
+    )
+
+    assert participante == _participante_esperado()
+    assert client.calls_informacoes == ["1234567"]
+
+
+def test_consultar_participante_por_cpf_devolve_none_sem_codigo() -> None:
+    """Código ausente ou zero no primeiro item devolve ``None``."""
+    client = FakeClient(
+        alunos_por_cpf=[{"codigoAluno": 0}, _aluno_bruto()],
+        alunos=[_aluno_bruto()],
+        informacoes=_informacoes_brutas(),
+    )
+
+    participante = EolAdapter(client=client).consultar_participante_por_cpf(
+        "12345678909"
+    )
+
+    assert participante is None
+    assert client.calls_informacoes == []

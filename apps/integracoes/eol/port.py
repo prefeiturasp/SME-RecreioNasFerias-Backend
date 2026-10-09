@@ -252,3 +252,10 @@ class EolPort(ABC):
         codigo_eol: str,
     ) -> ParticipanteRedeEol | None:
         """Une aluno e ficha. ``None`` quando a lista de alunos vem vazia."""
+
+    @abstractmethod
+    def consultar_participante_por_cpf(
+        self,
+        cpf: str,
+    ) -> ParticipanteRedeEol | None:
+        """Une o primeiro aluno do CPF à ficha. ``None`` sem código útil."""

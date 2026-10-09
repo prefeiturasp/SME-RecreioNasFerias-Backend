@@ -282,6 +282,29 @@ class EolAdapter(EolPort):
         ficha = self.obter_informacoes_aluno(codigo_eol)
         return self._montar_participante(alunos[0], ficha)
 
+    def consultar_participante_por_cpf(
+        self,
+        cpf: str,
+    ) -> ParticipanteRedeEol | None:
+        """Reusa a consulta do participante com o primeiro código do CPF.
+
+        Lista vazia, código ausente ou zero devolve ``None`` e não
+        consulta a ficha.
+
+        Args:
+            cpf: CPF do responsável.
+
+        Returns:
+            Participante unido ou ``None`` quando não há código útil.
+        """
+        alunos = self.listar_alunos_por_cpf_responsavel(cpf)
+        if not alunos:
+            return None
+        codigo = alunos[0].codigo_aluno
+        if not codigo:
+            return None
+        return self.consultar_participante(str(codigo))
+
     def _normalizar_unidade(self, payload: dict[str, Any]) -> UnidadeEol:
         """Converte um item do catálogo bruto em ``UnidadeEol``."""
         return UnidadeEol(
