@@ -23,9 +23,6 @@
   ],
   "DefinicaoPoloHistorico": [
     "edicao",
-    "ponto_focal_email",
-    "ponto_focal_nome",
-    "ponto_focal_telefone",
     "projecao_inscritos",
     "resultado_final_de_inscritos",
     "tipo",
