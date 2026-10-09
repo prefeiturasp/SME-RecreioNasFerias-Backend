@@ -17,6 +17,7 @@ from apps.integracoes.eol.exceptions import (
 TEST_EOL = "094633"
 TEST_CARGO = 3360
 TEST_CODIGO_ALUNO = "1000001"
+TEST_CPF_RESPONSAVEL = "12345678909"
 
 
 class FakeResponse:
@@ -561,3 +562,110 @@ def test_obter_informacoes_aluno_mapeia_erro_de_rede(
         EolClient(
             session=FakeSession(requests.RequestException("falha de rede"))
         ).obter_informacoes_aluno(TEST_CODIGO_ALUNO)
+
+
+def test_listar_alunos_por_cpf_responsavel_envia_requisicao_esperada(
+    settings: Any,
+) -> None:
+    """Garante o request esperado da consulta pelo CPF do responsável."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(
+        status_code=200,
+        data=[{"codigoAluno": int(TEST_CODIGO_ALUNO)}],
+    )
+    session = FakeSession(response)
+
+    dados = EolClient(session=session).listar_alunos_por_cpf_responsavel(
+        "123.456.789-09"
+    )
+
+    assert dados == [{"codigoAluno": int(TEST_CODIGO_ALUNO)}]
+    assert session.request_args == {
+        "method": "GET",
+        "url": (
+            "https://eol.exemplo.gov.br/api/alunos/responsaveis/"
+            f"{TEST_CPF_RESPONSAVEL}"
+        ),
+        "headers": {"x-api-eol-key": "api-key"},
+        "timeout": (5, 60),
+    }
+
+
+def test_listar_alunos_por_cpf_responsavel_devolve_lista_vazia(
+    settings: Any,
+) -> None:
+    """Lista vazia significa CPF não encontrado, sem erro de contrato."""
+    _configurar_ambiente(settings)
+
+    dados = EolClient(
+        session=FakeSession(FakeResponse(status_code=200, data=[]))
+    ).listar_alunos_por_cpf_responsavel(TEST_CPF_RESPONSAVEL)
+
+    assert dados == []
+
+
+def test_listar_alunos_por_cpf_responsavel_trata_404_como_lista_vazia(
+    settings: Any,
+) -> None:
+    """HTTP 404 do responsável também significa CPF não encontrado."""
+    _configurar_ambiente(settings)
+
+    dados = EolClient(
+        session=FakeSession(FakeResponse(status_code=404, data={}))
+    ).listar_alunos_por_cpf_responsavel(TEST_CPF_RESPONSAVEL)
+
+    assert dados == []
+
+
+def test_listar_alunos_por_cpf_responsavel_rejeita_resposta_invalida(
+    settings: Any,
+) -> None:
+    """Rejeita consulta de responsável cujo corpo não é uma lista."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolContratoError):
+        EolClient(
+            session=FakeSession(FakeResponse(status_code=200, data={}))
+        ).listar_alunos_por_cpf_responsavel(TEST_CPF_RESPONSAVEL)
+
+
+def test_listar_alunos_por_cpf_responsavel_ignora_itens_nao_dicionarios(
+    settings: Any,
+) -> None:
+    """Filtra itens que não são objeto na lista do responsável."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(
+        status_code=200,
+        data=[{"codigoAluno": int(TEST_CODIGO_ALUNO)}, "item-invalido"],
+    )
+
+    client = EolClient(session=FakeSession(response))
+
+    dados = client.listar_alunos_por_cpf_responsavel(TEST_CPF_RESPONSAVEL)
+
+    assert dados == [{"codigoAluno": int(TEST_CODIGO_ALUNO)}]
+
+
+def test_listar_alunos_por_cpf_responsavel_falha_sem_configuracao(
+    settings: Any,
+) -> None:
+    """Impede a consulta por CPF sem URL e chave configuradas."""
+    settings.AUTH_API_BASE_URL = ""
+    settings.AUTH_API_EOL_KEY = ""
+
+    with pytest.raises(EolConfigError):
+        EolClient(
+            session=FakeSession(FakeResponse(status_code=200, data=[]))
+        ).listar_alunos_por_cpf_responsavel(TEST_CPF_RESPONSAVEL)
+
+
+def test_listar_alunos_por_cpf_responsavel_mapeia_erro_de_rede(
+    settings: Any,
+) -> None:
+    """Converte falha de rede da consulta por CPF em indisponibilidade."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolIndisponivelError):
+        EolClient(
+            session=FakeSession(requests.RequestException("falha de rede"))
+        ).listar_alunos_por_cpf_responsavel(TEST_CPF_RESPONSAVEL)

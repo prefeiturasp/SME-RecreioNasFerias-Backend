@@ -9,6 +9,7 @@ alimentar a sincronização de polos de gestão direta:
 - ``GET /api/escolas/dados/{eol}``
 - ``GET /api/escolas/{eol}/funcionarios/cargos/{codigo}``
 - ``GET /api/alunos/alunos?codigosAluno={codigo}``
+- ``GET /api/alunos/responsaveis/{cpf}``
 - ``GET /api/alunos/{codigo}/informacoes``
 """
 
@@ -251,6 +252,50 @@ class EolClient:
         dados = self._parse_json(response)
         if not isinstance(dados, list):
             raise EolContratoError(f"Aluno {codigo} em formato inesperado.")
+        return [item for item in dados if isinstance(item, dict)]
+
+    def listar_alunos_por_cpf_responsavel(
+        self,
+        cpf: str,
+    ) -> list[dict[str, Any]]:
+        """Consulta alunos brutos pelo CPF do responsável.
+
+        Args:
+            cpf: CPF do responsável. A máscara é descartada; só os dígitos
+                entram na URL.
+
+        Returns:
+            Lista bruta retornada pela integração. Lista vazia significa
+            que o CPF não foi encontrado. HTTP 404 também vira lista vazia.
+
+        Raises:
+            EolConfigError: Quando a configuração obrigatória estiver ausente.
+            EolIndisponivelError: Quando houver erro de rede ou HTTP 4xx/5xx,
+                exceto o 404.
+            EolContratoError: Quando a resposta não seguir o contrato esperado.
+        """
+        self._validar_configuracao()
+
+        digitos = "".join(
+            caractere for caractere in str(cpf) if caractere.isdigit()
+        )
+        url = (
+            f"{settings.AUTH_API_BASE_URL}"
+            f"/api/alunos/responsaveis/{digitos}"
+        )
+        response = self._requisicao("GET", url)
+        if response.status_code == 404:
+            return []
+        self._garantir_sucesso_http(
+            response,
+            "listar alunos do responsável",
+        )
+
+        dados = self._parse_json(response)
+        if not isinstance(dados, list):
+            raise EolContratoError(
+                "Resposta de alunos do responsável em formato inesperado."
+            )
         return [item for item in dados if isinstance(item, dict)]
 
     def obter_informacoes_aluno(
