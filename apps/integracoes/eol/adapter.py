@@ -58,6 +58,12 @@ class EolEscolasClient(Protocol):
     def listar_alunos(self, codigo_eol: str) -> list[dict[str, Any]]:
         """Devolve a lista bruta de alunos pelo código EOL."""
 
+    def listar_alunos_por_cpf_responsavel(
+        self,
+        cpf: str,
+    ) -> list[dict[str, Any]]:
+        """Devolve a lista bruta de alunos pelo CPF do responsável."""
+
     def obter_informacoes_aluno(
         self,
         codigo_aluno: str,
@@ -218,6 +224,23 @@ class EolAdapter(EolPort):
         return tuple(
             self._normalizar_aluno(aluno)
             for aluno in self.client.listar_alunos(codigo_eol)
+        )
+
+    def listar_alunos_por_cpf_responsavel(
+        self,
+        cpf: str,
+    ) -> tuple[AlunoEol, ...]:
+        """Normaliza a lista bruta de alunos da consulta pelo CPF.
+
+        Args:
+            cpf: CPF do responsável.
+
+        Returns:
+            Alunos normalizados. Tupla vazia significa CPF não encontrado.
+        """
+        return tuple(
+            self._normalizar_aluno(aluno)
+            for aluno in self.client.listar_alunos_por_cpf_responsavel(cpf)
         )
 
     def obter_informacoes_aluno(

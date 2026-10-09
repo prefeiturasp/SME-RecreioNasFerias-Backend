@@ -233,6 +233,13 @@ class EolPort(ABC):
         """Lista os alunos normalizados pelo código EOL."""
 
     @abstractmethod
+    def listar_alunos_por_cpf_responsavel(
+        self,
+        cpf: str,
+    ) -> tuple[AlunoEol, ...]:
+        """Lista os alunos normalizados pelo CPF do responsável."""
+
+    @abstractmethod
     def obter_informacoes_aluno(
         self,
         codigo_eol: str,

@@ -33,6 +33,7 @@ class FakeClient:
         falhas_dados: set[str] | None = None,
         falhas_diretores: set[str] | None = None,
         alunos: list[dict[str, Any]] | None = None,
+        alunos_por_cpf: list[dict[str, Any]] | None = None,
         informacoes: dict[str, Any] | None = None,
     ) -> None:
         """Inicializa o fake com os payloads que serão devolvidos."""
@@ -44,9 +45,11 @@ class FakeClient:
         self.falhas_dados = falhas_dados or set()
         self.falhas_diretores = falhas_diretores or set()
         self.alunos = alunos or []
+        self.alunos_por_cpf = alunos_por_cpf or []
         self.informacoes = informacoes
         self.calls_obter_dados: list[str] = []
         self.calls_obter_diretor: list[tuple[str, int]] = []
+        self.calls_alunos_por_cpf: list[str] = []
         self.calls_informacoes: list[str] = []
 
     def listar_todas_unidades(self) -> list[dict[str, Any]]:
@@ -85,6 +88,14 @@ class FakeClient:
     def listar_alunos(self, codigo_eol: str) -> list[dict[str, Any]]:
         """Devolve a lista bruta de alunos configurada."""
         return self.alunos
+
+    def listar_alunos_por_cpf_responsavel(
+        self,
+        cpf: str,
+    ) -> list[dict[str, Any]]:
+        """Devolve a lista bruta configurada para o CPF do responsável."""
+        self.calls_alunos_por_cpf.append(cpf)
+        return self.alunos_por_cpf
 
     def obter_informacoes_aluno(
         self,
@@ -629,6 +640,43 @@ def test_listar_alunos_normaliza_payload() -> None:
             data_atualizacao_tabela="2026-02-01",
         ),
     )
+
+
+def test_listar_alunos_por_cpf_responsavel_normaliza_payload() -> None:
+    """Converte os alunos brutos do responsável em ``AlunoEol``."""
+    client = FakeClient(alunos_por_cpf=[_aluno_bruto()])
+
+    alunos = EolAdapter(client=client).listar_alunos_por_cpf_responsavel(
+        "123.456.789-09"
+    )
+
+    assert alunos == (
+        AlunoEol(
+            codigo_aluno=1234567,
+            tipo_turno=1,
+            ano_letivo=2026,
+            nome_aluno="Aluna de Teste",
+            nome_social_aluno="Aluna",
+            codigo_situacao_matricula=1,
+            situacao_matricula="Ativo",
+            data_situacao="2026-02-01",
+            data_nascimento="2015-03-10",
+            numero_aluno_chamada="12",
+            codigo_turma=99,
+            nome_responsavel="Maria Responsavel",
+            tipo_responsavel="Mae",
+            celular_responsavel="11999999999",
+            data_atualizacao_contato="2026-01-15",
+            codigo_tipo_turma=3,
+            turma_nome="1A",
+            etapa_ensino="EFI",
+            ciclo_ensino="C1",
+            desc_etapa_ensino="Ensino Fundamental",
+            desc_ciclo_ensino="Ciclo 1",
+            data_atualizacao_tabela="2026-02-01",
+        ),
+    )
+    assert client.calls_alunos_por_cpf == ["123.456.789-09"]
 
 
 def test_listar_alunos_trata_inteiro_ausente_ou_bool() -> None:
