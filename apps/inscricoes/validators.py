@@ -21,6 +21,10 @@ MENSAGEM_CODIGO_EOL_OBRIGATORIO = "Informe o código EOL."
 MENSAGEM_EOL_NAO_ENCONTRADO = (
     "Código EOL não encontrado. Verifique o número digitado e tente novamente."
 )
+MENSAGEM_CPF_OBRIGATORIO = "Informe o CPF do responsável."
+MENSAGEM_CPF_NAO_ENCONTRADO = (
+    "CPF não encontrado. Verifique o número digitado e tente novamente."
+)
 
 CAMPOS_COMPLETUDE = (
     "tipo_estudante",
