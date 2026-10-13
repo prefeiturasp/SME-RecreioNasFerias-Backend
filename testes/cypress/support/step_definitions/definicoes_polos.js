@@ -77,6 +77,7 @@ const criarDados = () => autenticar().then(() => {
 				nome_osc: 'OSC automatizada', dre_nome: 'DRE automatizada',
 				dre_codigo_eol: `TESTE-${identificador}`, tipo_ue: 'EMEF',
 				quantidade_maxima_alunos: 100, tipo: 'oficial', gestao: 'direta',
+				ponto_focal_nome: 'Contato de teste', ponto_focal_email: 'teste@example.com', ponto_focal_telefone: '11999999999',
 			} }).then((res) => { contexto.polos.push(registrar(res, 'polos')) })
 		}))
 	})
@@ -85,8 +86,6 @@ const criarDados = () => autenticar().then(() => {
 const payload = (indice = 0) => ({
 	polo: contexto.polos[indice].uuid, edicao: contexto.edicoes[0].uuid,
 	tipo: 'pendente', projecao_inscritos: 20,
-	ponto_focal_nome: 'Contato de teste', ponto_focal_email: 'teste@example.com',
-	ponto_focal_telefone: '11999999999',
 })
 
 const criarDefinicao = (indice = 0) => requisitar('POST', raiz, { body: payload(indice) }).then((response) => {
@@ -110,7 +109,7 @@ When('filtro as definicoes pela edicao e codigo EOL do teste', () => responder(r
 When('vinculo o primeiro polo a primeira edicao', () => responder(criarDefinicao()))
 When('consulto a definicao de polo do teste', () => responder(requisitar('GET', detalhe())))
 When('atualizo a definicao de polo com {string}', (metodo) => {
-	contexto.alteracoes = { projecao_inscritos: 35, tipo: 'reserva', ponto_focal_nome: 'Contato atualizado' }
+	contexto.alteracoes = { projecao_inscritos: 35, tipo: 'reserva' }
 	return responder(requisitar(metodo, detalhe(), { body: metodo === 'PUT' ? { ...payload(), ...contexto.alteracoes } : contexto.alteracoes }))
 })
 When('excluo a definicao de polo do teste', () => responder(requisitar('DELETE', detalhe())))
@@ -170,6 +169,7 @@ Then('o detalhe deve identificar o polo e a edicao do teste', () => cy.get('@def
 	validarCampos(body, 'DefinicaoPoloDetalhamento')
 	expect(body.uuid).to.eq(contexto.definicoes[0].uuid)
 	expect(body.polo.uuid).to.eq(contexto.polos[0].uuid)
+	expect(body).to.include({ ponto_focal_nome: 'Contato de teste', ponto_focal_email: 'teste@example.com', ponto_focal_telefone: '11999999999' })
 	expect(body.edicao.uuid).to.eq(contexto.edicoes[0].uuid)
 }))
 Then('as alteracoes da definicao devem estar persistidas', () => {

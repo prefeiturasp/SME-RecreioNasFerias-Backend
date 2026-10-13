@@ -16,6 +16,39 @@ const registrar = (res) => {
 	return res
 }
 const autenticar = () => autenticarNaApi().then(({ body }) => { estado.token = body.token })
+When('cadastro e atualizo polos com nome repetido {string}', (variacao) => {
+	estado.nomeRepetido = variacao === 'em maiusculas' ? estado.polos[1].nome_polo.toUpperCase() : estado.polos[1].nome_polo
+	const codigos = estado.polos.map((polo) => polo.codigo_eol)
+	let codigo
+	do { codigo = String(Cypress._.random(1000000, 9999999)) } while (codigos.includes(codigo))
+	const body = { ...estado.payloads[0], nome_polo: estado.nomeRepetido, codigo_eol: codigo }
+	return request('POST', '', { body }).then(registrar).then((res) => {
+		status(res, 201)
+		expect(res.body).to.include(body)
+		estado.repetido = res.body
+		return request('PUT', `${estado.polos[0].uuid}/`, { body: { ...estado.payloads[0], nome_polo: estado.nomeRepetido } })
+	}).then((res) => {
+		status(res, 200)
+		expect(res.body.nome_polo).to.eq(estado.nomeRepetido)
+		return request('GET', `${estado.polos[0].uuid}/`)
+	}).then((res) => {
+		status(res, 200)
+		expect(res.body.nome_polo).to.eq(estado.nomeRepetido)
+		return request('PATCH', `${estado.repetido.uuid}/`, { body: { nome_polo: estado.polos[1].nome_polo } })
+	}).then((res) => {
+		status(res, 200)
+		expect(res.body.nome_polo).to.eq(estado.polos[1].nome_polo)
+	})
+})
+Then('os nomes repetidos devem persistir com codigos EOL distintos', () => {
+	const polos = [...estado.polos, estado.repetido]
+	expect(new Set(polos.map((polo) => polo.codigo_eol)).size).to.eq(3)
+	return cy.wrap(polos, { log: false }).each((polo, indice) => request('GET', `${polo.uuid}/`).then((res) => {
+		status(res, 200)
+		expect(res.body.codigo_eol).to.eq(polo.codigo_eol)
+		expect(res.body.nome_polo).to.eq(indice === 0 ? estado.nomeRepetido : estado.polos[1].nome_polo)
+	}))
+})
 const rota = (nome) => nome === 'lista' ? '' : nome === 'detalhe' ? `${inexistente}/` : `${nome}/`
 After({ tags: '@polos_validacoes' }, () => {
 	const falhas = []
@@ -32,6 +65,7 @@ Given('que existem dois polos exclusivos de validacao', () => autenticar().then(
 			nome_osc: `${estado.marca}-osc-${indice}`, dre_nome: `DRE teste ${indice}`, dre_codigo_eol: `${estado.marca}-${indice}`,
 			tipo_ue: indice ? 'CEI' : 'EMEF', gestao: indice ? 'parceira' : 'direta', tipo: 'pendente',
 			quantidade_maxima_alunos: 100,
+			ponto_focal_nome: 'Contato de teste', ponto_focal_email: 'teste@example.com', ponto_focal_telefone: '11999999999',
 		}
 		estado.payloads.push(body)
 		return request('POST', '', { body }).then(registrar).then((res) => {
@@ -50,8 +84,6 @@ Then('a validacao de polos deve retornar {int}', (esperado) => cy.get('@polosVal
 
 When('valido a regra de polos {string} por POST PUT e PATCH', (regra) => {
 	const erros = {
-		'nome duplicado': { nome_polo: estado.polos[1].nome_polo },
-		'nome duplicado em maiusculas': { nome_polo: estado.polos[1].nome_polo.toUpperCase() },
 		'codigo duplicado': { codigo_eol: estado.polos[1].codigo_eol },
 		'codigo curto': { codigo_eol: '12345' }, 'codigo longo': { codigo_eol: '12345678' },
 		'nome longo': { nome_polo: 'X'.repeat(256) }, 'capacidade negativa': { quantidade_maxima_alunos: -1 },
@@ -106,7 +138,7 @@ Then('a busca de polos deve retornar lista vazia', () => cy.get('@polosValidacao
 When('verifico a persistencia da criacao e das atualizacoes do polo', () => request('GET', `${estado.polos[0].uuid}/`).then((res) => {
 	status(res, 200)
 	expect(res.body).to.include(estado.payloads[0])
-	estado.put = { ...estado.payloads[0], nome_polo: `${estado.marca}-PUT`, quantidade_maxima_alunos: 120 }
+	estado.put = { ...estado.payloads[0], nome_polo: `${estado.marca}-PUT`, quantidade_maxima_alunos: 120, ponto_focal_nome: 'Contato atualizado' }
 	return request('PUT', `${estado.polos[0].uuid}/`, { body: estado.put })
 }).then((res) => {
 	status(res, 200)

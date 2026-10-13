@@ -133,8 +133,6 @@ Funcionalidade: Gerenciamento de polos
 
     Exemplos:
       | regra |
-      | nome duplicado |
-      | nome duplicado em maiusculas |
       | codigo duplicado |
       | codigo curto |
       | codigo longo |
@@ -188,3 +186,14 @@ Funcionalidade: Gerenciamento de polos
     Quando consulto dados da unidade sem codigo EOL
     Entao a validacao de polos deve retornar 200
     E os dados da unidade sem codigo devem estar vazios
+
+  @polos_validacoes
+  Esquema do Cenario: Aceitar nomes de polos repetidos <variacao> com codigos EOL distintos
+    Dado que existem dois polos exclusivos de validacao
+    Quando cadastro e atualizo polos com nome repetido "<variacao>"
+    Entao os nomes repetidos devem persistir com codigos EOL distintos
+
+    Exemplos:
+      | variacao |
+      | identico |
+      | em maiusculas |
