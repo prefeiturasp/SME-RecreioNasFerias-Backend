@@ -869,6 +869,24 @@ def test_consultar_participante_por_cpf_usa_o_primeiro_codigo() -> None:
     assert client.calls_informacoes == ["1234567"]
 
 
+def test_consultar_participante_por_cpf_aceita_codigo_em_texto() -> None:
+    """A SME envia codigoAluno como texto na consulta por CPF."""
+    bruto = _aluno_bruto()
+    bruto["codigoAluno"] = "1234567"
+    client = FakeClient(
+        alunos_por_cpf=[bruto],
+        alunos=[_aluno_bruto()],
+        informacoes=_informacoes_brutas(),
+    )
+
+    participante = EolAdapter(client=client).consultar_participante_por_cpf(
+        "12345678909"
+    )
+
+    assert participante == _participante_esperado()
+    assert client.calls_informacoes == ["1234567"]
+
+
 def test_consultar_participante_por_cpf_devolve_none_sem_codigo() -> None:
     """Código ausente ou zero no primeiro item devolve ``None``."""
     client = FakeClient(

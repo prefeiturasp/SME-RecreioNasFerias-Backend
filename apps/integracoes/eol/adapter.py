@@ -590,9 +590,13 @@ class EolAdapter(EolPort):
 
     @staticmethod
     def _inteiro(valor: object) -> int:
-        """Converte valor inteiro. Ausente ou inválido vira zero."""
-        if isinstance(valor, int) and not isinstance(valor, bool):
+        """Converte valor inteiro. Texto numérico entra. Ausente vira zero."""
+        if isinstance(valor, bool):
+            return 0
+        if isinstance(valor, int):
             return valor
+        if isinstance(valor, str) and valor.strip().isdigit():
+            return int(valor.strip())
         return 0
 
     @staticmethod

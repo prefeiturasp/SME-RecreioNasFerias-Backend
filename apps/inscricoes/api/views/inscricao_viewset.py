@@ -266,6 +266,47 @@ class InscricaoViewSet(viewsets.ModelViewSet):
         return Response(ParticipanteRedeSerializer(participante).data)
 
     @extend_schema(
+        summary="Consulta participante da rede pelo CPF do responsável",
+        parameters=[
+            OpenApiParameter(
+                name="cpf",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=True,
+            )
+        ],
+        responses={
+            200: ParticipanteRedeSerializer,
+            500: OpenApiResponse(description="Erro de configuração da EOL."),
+            502: OpenApiResponse(description="Falha na integração com a EOL."),
+        },
+        tags=["Inscrições"],
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="participante-cpf",
+        url_name="participante-cpf",
+    )
+    def participante_cpf(self, request: Request) -> Response:
+        """Devolve o participante enriquecido a partir do CPF."""
+        try:
+            participante = self.service_class().consultar_participante_por_cpf(
+                request.query_params.get("cpf")
+            )
+        except EolConfigError as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        except (EolIndisponivelError, EolContratoError) as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response(ParticipanteRedeSerializer(participante).data)
+
+    @extend_schema(
         summary="Valores de choices do domínio de inscrições",
         request=None,
         responses=inline_serializer(
