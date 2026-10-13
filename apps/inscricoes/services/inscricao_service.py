@@ -14,6 +14,8 @@ from apps.inscricoes.constants import StatusInscricao
 from apps.inscricoes.models import Inscricao
 from apps.inscricoes.validators import (
     MENSAGEM_CODIGO_EOL_OBRIGATORIO,
+    MENSAGEM_CPF_NAO_ENCONTRADO,
+    MENSAGEM_CPF_OBRIGATORIO,
     MENSAGEM_EOL_NAO_ENCONTRADO,
 )
 from apps.integracoes.eol.adapter import EolAdapter
@@ -60,6 +62,30 @@ class InscricaoService:
         participante = self.eol.consultar_participante(codigo)
         if participante is None:
             raise ValidationError({"codigo_eol": MENSAGEM_EOL_NAO_ENCONTRADO})
+        return participante
+
+    def consultar_participante_por_cpf(
+        self,
+        cpf: str | None,
+    ) -> ParticipanteRedeEol:
+        """Consulta o participante da rede pelo CPF do responsável.
+
+        Args:
+            cpf: CPF informado na busca. Vazio não chama a SME.
+
+        Returns:
+            Participante enriquecido.
+
+        Raises:
+            ValidationError: Quando o CPF está vazio ou a SME devolve
+                lista vazia.
+        """
+        documento = (cpf or "").strip()
+        if not documento:
+            raise ValidationError({"cpf": MENSAGEM_CPF_OBRIGATORIO})
+        participante = self.eol.consultar_participante_por_cpf(documento)
+        if participante is None:
+            raise ValidationError({"cpf": MENSAGEM_CPF_NAO_ENCONTRADO})
         return participante
 
     def listar(self, **filtros: object) -> QuerySet[Inscricao]:

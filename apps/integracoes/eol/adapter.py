@@ -58,6 +58,12 @@ class EolEscolasClient(Protocol):
     def listar_alunos(self, codigo_eol: str) -> list[dict[str, Any]]:
         """Devolve a lista bruta de alunos pelo código EOL."""
 
+    def listar_alunos_por_cpf_responsavel(
+        self,
+        cpf: str,
+    ) -> list[dict[str, Any]]:
+        """Devolve a lista bruta de alunos pelo CPF do responsável."""
+
     def obter_informacoes_aluno(
         self,
         codigo_aluno: str,
@@ -220,6 +226,23 @@ class EolAdapter(EolPort):
             for aluno in self.client.listar_alunos(codigo_eol)
         )
 
+    def listar_alunos_por_cpf_responsavel(
+        self,
+        cpf: str,
+    ) -> tuple[AlunoEol, ...]:
+        """Normaliza a lista bruta de alunos da consulta pelo CPF.
+
+        Args:
+            cpf: CPF do responsável.
+
+        Returns:
+            Alunos normalizados. Tupla vazia significa CPF não encontrado.
+        """
+        return tuple(
+            self._normalizar_aluno(aluno)
+            for aluno in self.client.listar_alunos_por_cpf_responsavel(cpf)
+        )
+
     def obter_informacoes_aluno(
         self,
         codigo_eol: str,
@@ -258,6 +281,29 @@ class EolAdapter(EolPort):
             return None
         ficha = self.obter_informacoes_aluno(codigo_eol)
         return self._montar_participante(alunos[0], ficha)
+
+    def consultar_participante_por_cpf(
+        self,
+        cpf: str,
+    ) -> ParticipanteRedeEol | None:
+        """Reusa a consulta do participante com o primeiro código do CPF.
+
+        Lista vazia, código ausente ou zero devolve ``None`` e não
+        consulta a ficha.
+
+        Args:
+            cpf: CPF do responsável.
+
+        Returns:
+            Participante unido ou ``None`` quando não há código útil.
+        """
+        alunos = self.listar_alunos_por_cpf_responsavel(cpf)
+        if not alunos:
+            return None
+        codigo = alunos[0].codigo_aluno
+        if not codigo:
+            return None
+        return self.consultar_participante(str(codigo))
 
     def _normalizar_unidade(self, payload: dict[str, Any]) -> UnidadeEol:
         """Converte um item do catálogo bruto em ``UnidadeEol``."""
@@ -544,9 +590,13 @@ class EolAdapter(EolPort):
 
     @staticmethod
     def _inteiro(valor: object) -> int:
-        """Converte valor inteiro. Ausente ou inválido vira zero."""
-        if isinstance(valor, int) and not isinstance(valor, bool):
+        """Converte valor inteiro. Texto numérico entra. Ausente vira zero."""
+        if isinstance(valor, bool):
+            return 0
+        if isinstance(valor, int):
             return valor
+        if isinstance(valor, str) and valor.strip().isdigit():
+            return int(valor.strip())
         return 0
 
     @staticmethod

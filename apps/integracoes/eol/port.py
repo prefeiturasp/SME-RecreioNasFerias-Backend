@@ -233,6 +233,13 @@ class EolPort(ABC):
         """Lista os alunos normalizados pelo código EOL."""
 
     @abstractmethod
+    def listar_alunos_por_cpf_responsavel(
+        self,
+        cpf: str,
+    ) -> tuple[AlunoEol, ...]:
+        """Lista os alunos normalizados pelo CPF do responsável."""
+
+    @abstractmethod
     def obter_informacoes_aluno(
         self,
         codigo_eol: str,
@@ -245,3 +252,10 @@ class EolPort(ABC):
         codigo_eol: str,
     ) -> ParticipanteRedeEol | None:
         """Une aluno e ficha. ``None`` quando a lista de alunos vem vazia."""
+
+    @abstractmethod
+    def consultar_participante_por_cpf(
+        self,
+        cpf: str,
+    ) -> ParticipanteRedeEol | None:
+        """Une o primeiro aluno do CPF à ficha. ``None`` sem código útil."""

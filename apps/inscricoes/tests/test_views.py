@@ -21,7 +21,10 @@ from apps.inscricoes.constants import (
 )
 from apps.inscricoes.models import Inscricao
 from apps.inscricoes.services.inscricao_service import InscricaoService
-from apps.inscricoes.validators import MENSAGEM_EOL_NAO_ENCONTRADO
+from apps.inscricoes.validators import (
+    MENSAGEM_CPF_NAO_ENCONTRADO,
+    MENSAGEM_EOL_NAO_ENCONTRADO,
+)
 from apps.integracoes.eol.exceptions import (
     EolConfigError,
     EolContratoError,
@@ -473,6 +476,152 @@ def test_participante_eol_retorna_erro_de_integracao(
     )
 
     response = cliente_autenticado.get(f"{URL}participante-eol/")
+
+    assert response.status_code == status.HTTP_502_BAD_GATEWAY
+    assert response.data == {"detalhe": str(erro)}
+
+
+def test_participante_cpf_exige_autenticacao(api_client) -> None:
+    """A consulta de participante pelo CPF exige autenticação."""
+    response = api_client.get(f"{URL}participante-cpf/")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_participante_cpf_devolve_nome(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """O GET devolve só os campos que preenchem o formulário."""
+    participante = _participante()
+
+    def _consultar(
+        _self: InscricaoService,
+        cpf: str | None,
+    ) -> ParticipanteRedeEol:
+        assert cpf == "12345678909"
+        return participante
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_cpf",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(
+        f"{URL}participante-cpf/",
+        {"cpf": "12345678909"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert set(response.data) == {
+        "codigo_eol",
+        "nome_participante",
+        "data_nascimento",
+        "responsavel_nome",
+        "responsavel_nome_social",
+        "cep",
+        "logradouro",
+        "numero",
+        "complemento",
+        "bairro",
+        "cidade",
+        "telefone_contato_1",
+        "telefone_contato_2",
+        "email",
+    }
+    assert response.data["codigo_eol"] == "6034178"
+    assert response.data["nome_participante"] == "ANNA JULIA ARAUJO SA"
+    assert response.data["responsavel_nome"] == "SAMARA LIMA ARAUJO"
+    assert response.data["data_nascimento"] == "2013-10-16"
+    assert response.data["cep"] == "08411-010"
+    assert response.data["logradouro"] == "DA PASSAGEM FUNDA"
+    assert response.data["numero"] == "72"
+    assert response.data["bairro"] == "VILA SANTA CRUZ ZONA LESTE"
+    assert response.data["cidade"] == "SAO PAULO"
+    assert response.data["telefone_contato_1"] == ""
+    assert response.data["email"] == ""
+    assert response.data["telefone_contato_2"] == ""
+    assert response.data["responsavel_nome_social"] == ""
+    assert response.data["complemento"] == ""
+
+
+def test_participante_cpf_nao_encontrado_nao_grava(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """CPF ausente na SME responde 400 e não cria inscrição."""
+
+    def _consultar(
+        _self: InscricaoService,
+        cpf: str | None,
+    ) -> ParticipanteRedeEol:
+        raise ValidationError({"cpf": MENSAGEM_CPF_NAO_ENCONTRADO})
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_cpf",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(
+        f"{URL}participante-cpf/",
+        {"cpf": "000"},
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data == {"detalhe": MENSAGEM_CPF_NAO_ENCONTRADO}
+    assert Inscricao.objects.count() == 0
+
+
+def test_participante_cpf_retorna_erro_de_configuracao(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """Falha de configuração da EOL retorna HTTP 500."""
+
+    def _consultar(
+        _self: InscricaoService,
+        cpf: str | None,
+    ) -> ParticipanteRedeEol:
+        raise EolConfigError("config")
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_cpf",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(f"{URL}participante-cpf/")
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.data == {"detalhe": "config"}
+
+
+@pytest.mark.parametrize(
+    "erro",
+    [EolIndisponivelError("indisponivel"), EolContratoError("contrato")],
+)
+def test_participante_cpf_retorna_erro_de_integracao(
+    cliente_autenticado,
+    monkeypatch,
+    erro: Exception,
+) -> None:
+    """Falhas externas da EOL retornam HTTP 502."""
+
+    def _consultar(
+        _self: InscricaoService,
+        cpf: str | None,
+    ) -> ParticipanteRedeEol:
+        raise erro
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_cpf",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(f"{URL}participante-cpf/")
 
     assert response.status_code == status.HTTP_502_BAD_GATEWAY
     assert response.data == {"detalhe": str(erro)}
