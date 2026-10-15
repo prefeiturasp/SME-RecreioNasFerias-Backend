@@ -53,14 +53,10 @@ def test_service_vincula_participacao_com_defaults(
         polo,
         edicao,
         175,
-        ponto_focal_nome="Ollyver",
-        ponto_focal_telefone="11999999999",
-        ponto_focal_email="ollyver@example.com",
     )
 
     assert definicao.tipo == TipoPolo.PENDENTE
     assert definicao.total_inscritos == 227
-    assert definicao.ponto_focal_nome == "Ollyver"
 
 
 def test_service_atualiza_participacao_e_ignora_campos_protegidos(
@@ -73,7 +69,6 @@ def test_service_atualiza_participacao_e_ignora_campos_protegidos(
     atualizada = DefinicaoPoloService().atualizar(
         definicao,
         projecao_inscritos=100,
-        ponto_focal_nome="Novo ponto focal",
         total_inscritos=999,
         ativo=False,
         uuid="outro",
@@ -81,29 +76,26 @@ def test_service_atualiza_participacao_e_ignora_campos_protegidos(
 
     assert atualizada.uuid == uuid_original
     assert atualizada.total_inscritos == 130
-    assert atualizada.ponto_focal_nome == "Novo ponto focal"
     assert atualizada.ativo is True
 
 
-def test_service_atualiza_capacidade_e_ponto_focal(
-    definicao_polo_factory,
-) -> None:
-    """O caso de uso específico atualiza apenas seus campos permitidos."""
+def test_service_atualiza_ponto_focal_no_polo(definicao_polo_factory) -> None:
+    """A atualização da participação persiste os dados no polo associado."""
     definicao = definicao_polo_factory()
+    polo = definicao.polo
 
-    atualizada = DefinicaoPoloService().atualizar_capacidade_e_ponto_focal(
+    atualizada = DefinicaoPoloService().atualizar(
         definicao,
-        projecao_inscritos=175,
-        ponto_focal_nome="Ponto atualizado",
-        ponto_focal_telefone="11111111111",
-        ponto_focal_email="atualizado@example.com",
-        tipo=TipoPolo.OFICIAL,
+        ponto_focal_nome="Ponto focal atualizado",
+        ponto_focal_telefone="11988887777",
+        ponto_focal_email="focal.atualizado@example.com",
     )
 
-    assert atualizada.projecao_inscritos == 175
-    assert atualizada.total_inscritos == 227
-    assert atualizada.ponto_focal_nome == "Ponto atualizado"
-    assert atualizada.tipo != TipoPolo.OFICIAL
+    polo.refresh_from_db()
+    assert atualizada.polo == polo
+    assert polo.ponto_focal_nome == "Ponto focal atualizado"
+    assert polo.ponto_focal_telefone == "11988887777"
+    assert polo.ponto_focal_email == "focal.atualizado@example.com"
 
 
 def test_service_altera_tipo_e_exclui(definicao_polo_factory) -> None:
@@ -158,9 +150,7 @@ def test_service_vincula_em_massa_preserva_tipo_da_definicao_mais_recente(
     )
     edicao = _criar_edicao(edicao_factory, 22)
 
-    resultado = DefinicaoPoloService().vincular_em_massa(
-        [polo], edicao, 200
-    )
+    resultado = DefinicaoPoloService().vincular_em_massa([polo], edicao, 200)
 
     criada = resultado["criadas"][0]
     assert criada.tipo == historico.tipo
@@ -174,9 +164,7 @@ def test_service_vincula_em_massa_inicia_pendente_sem_historico(
     polo = polo_factory()
     edicao = _criar_edicao(edicao_factory, 23)
 
-    resultado = DefinicaoPoloService().vincular_em_massa(
-        [polo], edicao, 200
-    )
+    resultado = DefinicaoPoloService().vincular_em_massa([polo], edicao, 200)
 
     assert resultado["criadas"][0].tipo == TipoPolo.PENDENTE
 
@@ -239,8 +227,7 @@ def test_service_define_tipo_em_massa_ignora_polo_sem_edicao(
         }
     ]
     assert (
-        "Houve polos que não tiveram o tipo alterado"
-        in resultado["mensagem"]
+        "Houve polos que não tiveram o tipo alterado" in resultado["mensagem"]
     )
 
 
@@ -348,6 +335,13 @@ def test_service_lista_polos_sem_edicao_com_ultima_participacao(
     assert por_nome[polo.nome_polo].total_inscritos_edicao == 227
     assert por_nome[sem_vinculo.nome_polo].definicao_uuid is None
     assert por_nome[sem_vinculo.nome_polo].tipo_polo_edicao == TipoPolo.RESERVA
+
+    resultado_filtrado = list(
+        DefinicaoPoloService().listar_polos_com_definicao(
+            tipo_polo=TipoPolo.OFICIAL
+        )
+    )
+    assert [item.nome_polo for item in resultado_filtrado] == [polo.nome_polo]
 
 
 def test_service_lista_polos_filtrada_por_edicao_e_demais_filtros(

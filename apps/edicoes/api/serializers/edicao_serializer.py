@@ -19,6 +19,8 @@ class EdicaoResumoSerializer(serializers.ModelSerializer):
 class EdicaoSerializer(serializers.ModelSerializer):
     """Representa o contrato de entrada e saída de uma edição."""
 
+    status_label = serializers.CharField(source="get_status_display", read_only=True)
+
     class Meta:
         """Configuração do serializer de edição."""
 
@@ -35,6 +37,7 @@ class EdicaoSerializer(serializers.ModelSerializer):
             "quantidade_passeios",
             "quantidade_apresentacoes",
             "status",
+            "status_label",
             "ativo",
             "criado_em",
             "atualizado_em",

@@ -20,6 +20,6 @@
 		"prettier": "^3.4.1"
 	},
 	"cypress-cucumber-preprocessor": {
-		"stepDefinitions": "cypress/support/step_definitions/**/*.js"
+		"stepDefinitions": ["cypress/support/step_definitions/**/*.js", "cypress/support/step_definitions/**/*.cjs"]
 	}
 }

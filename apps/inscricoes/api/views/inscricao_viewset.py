@@ -5,6 +5,7 @@ from __future__ import annotations
 from django.http import Http404
 from drf_spectacular.utils import (
     OpenApiParameter,
+    OpenApiResponse,
     OpenApiTypes,
     extend_schema,
     extend_schema_view,
@@ -13,6 +14,7 @@ from drf_spectacular.utils import (
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.core.utils.paginacao_customizada import PaginacaoCustomizada
@@ -20,10 +22,16 @@ from apps.inscricoes.api.serializers import (
     InscricaoDetalheSerializer,
     InscricaoInformacoesBasicasSerializer,
     InscricaoListagemSerializer,
+    ParticipanteRedeSerializer,
     PoloElegivelSerializer,
 )
 from apps.inscricoes.models import Inscricao
 from apps.inscricoes.services.inscricao_service import InscricaoService
+from apps.integracoes.eol.exceptions import (
+    EolConfigError,
+    EolContratoError,
+    EolIndisponivelError,
+)
 
 
 @extend_schema_view(
@@ -74,7 +82,7 @@ from apps.inscricoes.services.inscricao_service import InscricaoService
                 required=False,
             ),
         ],
-        ),
+    ),
     create=extend_schema(summary="Cria inscrição", tags=["Inscrições"]),
     retrieve=extend_schema(summary="Detalha inscrição", tags=["Inscrições"]),
     update=extend_schema(summary="Atualiza inscrição", tags=["Inscrições"]),
@@ -169,34 +177,151 @@ class InscricaoViewSet(viewsets.ModelViewSet):
         return Response(InscricaoDetalheSerializer(inscricao).data)
 
     @extend_schema(
-        summary="Lista polos elegíveis para inscrição",
+        summary="Lista polos oficiais da edição com inscrições abertas",
         parameters=[
             OpenApiParameter(
                 name="dre_codigo_eol",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.QUERY,
                 required=False,
-            )
+            ),
+            OpenApiParameter(
+                name="desabilita_paginacao",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Se true, retorna todos os registros sem paginação.",
+            ),
         ],
         responses=PoloElegivelSerializer(many=True),
         tags=["Inscrições"],
     )
     @action(detail=False, methods=["get"], url_path="polos-elegiveis")
     def polos_elegiveis(self, request, *args, **kwargs):
-        """Lista polos ativos oficialmente definidos em alguma edição."""
+        """Lista polos ativos oficiais da edição com inscrições abertas."""
         polos = self.service_class().listar_polos_elegiveis(
             request.query_params.get("dre_codigo_eol")
         )
-        page = self.paginate_queryset(polos)
-        if page is not None:
-            return self.get_paginated_response(
-                PoloElegivelSerializer(page, many=True).data
-            )
-        return Response(
-            PoloElegivelSerializer(polos, many=True).data,
-            status=status.HTTP_200_OK,
+
+        # Paginação automática - validação centralizada em PaginacaoCustomizada
+        paginacao = PaginacaoCustomizada()
+
+        resultado_paginado = paginacao.paginate_queryset(
+            polos, request, view=self
         )
 
+        serializer = PoloElegivelSerializer(resultado_paginado, many=True)
+        return paginacao.get_paginated_response(serializer.data)
+
+
+    @extend_schema(
+        summary="Lista polos que foram oficiais ao menos uma vez",
+        responses=PoloElegivelSerializer(many=True),
+        tags=["Inscrições"],
+        parameters=[
+            OpenApiParameter(
+                name="desabilita_paginacao",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Se true, retorna todos os registros sem paginação.",
+            ),
+        ],
+    )
+    @action(detail=False, methods=["get"], url_path="polos-oficiais")
+    def polos_oficiais(self, request, *args, **kwargs):
+        """Lista polos oficiais para o filtro da consulta de inscrições."""
+        polos = self.service_class().listar_polos_oficiais()
+
+        # Paginação automática - validação centralizada em PaginacaoCustomizada
+        paginacao = PaginacaoCustomizada()
+
+        resultado_paginado = paginacao.paginate_queryset(
+            polos, request, view=self
+        )
+
+        serializer = PoloElegivelSerializer(resultado_paginado, many=True)
+        return paginacao.get_paginated_response(serializer.data)
+
+    @extend_schema(
+        summary="Consulta participante da rede pelo código EOL",
+        parameters=[
+            OpenApiParameter(
+                name="codigo_eol",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=True,
+            )
+        ],
+        responses={
+            200: ParticipanteRedeSerializer,
+            500: OpenApiResponse(description="Erro de configuração da EOL."),
+            502: OpenApiResponse(description="Falha na integração com a EOL."),
+        },
+        tags=["Inscrições"],
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="participante-eol",
+        url_name="participante-eol",
+    )
+    def participante_eol(self, request: Request) -> Response:
+        """Devolve o participante enriquecido a partir do código EOL."""
+        try:
+            participante = self.service_class().consultar_participante_por_eol(
+                request.query_params.get("codigo_eol")
+            )
+        except EolConfigError as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        except (EolIndisponivelError, EolContratoError) as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response(ParticipanteRedeSerializer(participante).data)
+
+    @extend_schema(
+        summary="Consulta participante da rede pelo CPF do responsável",
+        parameters=[
+            OpenApiParameter(
+                name="cpf",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=True,
+            )
+        ],
+        responses={
+            200: ParticipanteRedeSerializer,
+            500: OpenApiResponse(description="Erro de configuração da EOL."),
+            502: OpenApiResponse(description="Falha na integração com a EOL."),
+        },
+        tags=["Inscrições"],
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="participante-cpf",
+        url_name="participante-cpf",
+    )
+    def participante_cpf(self, request: Request) -> Response:
+        """Devolve o participante enriquecido a partir do CPF."""
+        try:
+            participante = self.service_class().consultar_participante_por_cpf(
+                request.query_params.get("cpf")
+            )
+        except EolConfigError as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        except (EolIndisponivelError, EolContratoError) as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response(ParticipanteRedeSerializer(participante).data)
 
     @extend_schema(
         summary="Valores de choices do domínio de inscrições",
@@ -213,7 +338,7 @@ class InscricaoViewSet(viewsets.ModelViewSet):
                 "status_inscricao": serializers.ListField(
                     child=serializers.DictField()
                 ),
-            }
+            },
         ),
         tags=["Inscrições"],
     )

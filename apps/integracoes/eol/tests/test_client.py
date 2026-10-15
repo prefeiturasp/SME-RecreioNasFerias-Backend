@@ -16,6 +16,8 @@ from apps.integracoes.eol.exceptions import (
 
 TEST_EOL = "094633"
 TEST_CARGO = 3360
+TEST_CODIGO_ALUNO = "1000001"
+TEST_CPF_RESPONSAVEL = "12345678909"
 
 
 class FakeResponse:
@@ -340,9 +342,9 @@ def test_client_rejeita_dados_inesperados_no_cargo(settings: Any) -> None:
     response = FakeResponse(status_code=200, data={}, content=b"{}")
 
     with pytest.raises(EolContratoError):
-        EolClient(
-            session=FakeSession(response)
-        ).obter_funcionarios_por_cargo(TEST_EOL, TEST_CARGO)
+        EolClient(session=FakeSession(response)).obter_funcionarios_por_cargo(
+            TEST_EOL, TEST_CARGO
+        )
 
 
 def test_client_retorna_vazio_para_corpo_sem_conteudo(settings: Any) -> None:
@@ -386,3 +388,284 @@ def test_client_extrai_mensagem_de_campo_generico_de_erro(
 
     with pytest.raises(EolIndisponivelError, match="falha"):
         EolClient(session=FakeSession(response)).listar_dres()
+
+
+def test_client_extrai_mensagem_quando_erro_e_texto_json(
+    settings: Any,
+) -> None:
+    """Usa o texto quando a SME devolve o erro como string JSON."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(
+        status_code=601,
+        data="Os códigos dos Alunos são obrigatórios.",
+    )
+
+    with pytest.raises(
+        EolIndisponivelError,
+        match="Os códigos dos Alunos são obrigatórios.",
+    ):
+        EolClient(session=FakeSession(response)).listar_alunos(
+            TEST_CODIGO_ALUNO
+        )
+
+
+def test_listar_alunos_envia_requisicao_esperada(settings: Any) -> None:
+    """Garante o request esperado da consulta de aluno pelo código EOL."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(
+        status_code=200,
+        data=[
+            {
+                "codigoAluno": int(TEST_CODIGO_ALUNO),
+                "nomeAluno": "Aluna de Teste",
+            }
+        ],
+    )
+    session = FakeSession(response)
+
+    dados = EolClient(session=session).listar_alunos(TEST_CODIGO_ALUNO)
+
+    assert dados == [
+        {
+            "codigoAluno": int(TEST_CODIGO_ALUNO),
+            "nomeAluno": "Aluna de Teste",
+        }
+    ]
+    assert session.request_args == {
+        "method": "GET",
+        "url": (
+            "https://eol.exemplo.gov.br/api/alunos/alunos"
+            f"?codigosAluno={TEST_CODIGO_ALUNO}"
+        ),
+        "headers": {"x-api-eol-key": "api-key"},
+        "timeout": (5, 60),
+    }
+
+
+def test_listar_alunos_devolve_lista_vazia(settings: Any) -> None:
+    """Lista vazia significa código não encontrado, sem erro de contrato."""
+    _configurar_ambiente(settings)
+
+    dados = EolClient(
+        session=FakeSession(FakeResponse(status_code=200, data=[]))
+    ).listar_alunos("000")
+
+    assert dados == []
+
+
+def test_obter_informacoes_aluno_retorna_none_para_404(
+    settings: Any,
+) -> None:
+    """Trata aluno nao encontrado como ausencia de dados."""
+    _configurar_ambiente(settings)
+
+    response = FakeResponse(status_code=404, data={})
+
+    dados = EolClient(session=FakeSession(response)).obter_informacoes_aluno(
+        TEST_CODIGO_ALUNO
+    )
+
+    assert dados is None
+
+
+def test_listar_alunos_rejeita_resposta_invalida(settings: Any) -> None:
+    """Rejeita consulta de aluno cujo corpo não é uma lista."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolContratoError):
+        EolClient(
+            session=FakeSession(FakeResponse(status_code=200, data={}))
+        ).listar_alunos(TEST_CODIGO_ALUNO)
+
+
+def test_listar_alunos_ignora_itens_nao_dicionarios(settings: Any) -> None:
+    """Filtra itens que não são objeto na lista de alunos."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(
+        status_code=200,
+        data=[{"codigoAluno": int(TEST_CODIGO_ALUNO)}, "item-invalido"],
+    )
+
+    dados = EolClient(session=FakeSession(response)).listar_alunos(
+        TEST_CODIGO_ALUNO
+    )
+
+    assert dados == [{"codigoAluno": int(TEST_CODIGO_ALUNO)}]
+
+
+def test_listar_alunos_falha_sem_configuracao(settings: Any) -> None:
+    """Impede a consulta de aluno sem URL e chave configuradas."""
+    settings.AUTH_API_BASE_URL = ""
+    settings.AUTH_API_EOL_KEY = ""
+
+    with pytest.raises(EolConfigError):
+        EolClient(
+            session=FakeSession(FakeResponse(status_code=200, data=[]))
+        ).listar_alunos(TEST_CODIGO_ALUNO)
+
+
+def test_listar_alunos_mapeia_erro_de_rede(settings: Any) -> None:
+    """Converte falha de rede da consulta de aluno em indisponibilidade."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolIndisponivelError):
+        EolClient(
+            session=FakeSession(requests.RequestException("falha de rede"))
+        ).listar_alunos(TEST_CODIGO_ALUNO)
+
+
+def test_obter_informacoes_aluno_retorna_payload_bruto(
+    settings: Any,
+) -> None:
+    """Devolve a ficha bruta e a URL do aluno."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(status_code=200, data={"nomeMae": "Maria Mae"})
+    session = FakeSession(response)
+
+    dados = EolClient(session=session).obter_informacoes_aluno(
+        TEST_CODIGO_ALUNO
+    )
+
+    assert dados == {"nomeMae": "Maria Mae"}
+    assert session.request_args == {
+        "method": "GET",
+        "url": (
+            "https://eol.exemplo.gov.br/api/alunos/"
+            f"{TEST_CODIGO_ALUNO}/informacoes"
+        ),
+        "headers": {"x-api-eol-key": "api-key"},
+        "timeout": (5, 60),
+    }
+
+
+def test_obter_informacoes_aluno_rejeita_resposta_invalida(
+    settings: Any,
+) -> None:
+    """Rejeita ficha cujo corpo não é um objeto."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolContratoError):
+        EolClient(
+            session=FakeSession(
+                FakeResponse(status_code=200, data=[{"nomeMae": "Maria"}])
+            )
+        ).obter_informacoes_aluno(TEST_CODIGO_ALUNO)
+
+
+def test_obter_informacoes_aluno_mapeia_erro_de_rede(
+    settings: Any,
+) -> None:
+    """Converte falha de rede da ficha em indisponibilidade."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolIndisponivelError):
+        EolClient(
+            session=FakeSession(requests.RequestException("falha de rede"))
+        ).obter_informacoes_aluno(TEST_CODIGO_ALUNO)
+
+
+def test_listar_alunos_por_cpf_responsavel_envia_requisicao_esperada(
+    settings: Any,
+) -> None:
+    """Garante o request esperado da consulta pelo CPF do responsável."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(
+        status_code=200,
+        data=[{"codigoAluno": int(TEST_CODIGO_ALUNO)}],
+    )
+    session = FakeSession(response)
+
+    dados = EolClient(session=session).listar_alunos_por_cpf_responsavel(
+        "123.456.789-09"
+    )
+
+    assert dados == [{"codigoAluno": int(TEST_CODIGO_ALUNO)}]
+    assert session.request_args == {
+        "method": "GET",
+        "url": (
+            "https://eol.exemplo.gov.br/api/alunos/responsaveis/"
+            f"{TEST_CPF_RESPONSAVEL}"
+        ),
+        "headers": {"x-api-eol-key": "api-key"},
+        "timeout": (5, 60),
+    }
+
+
+def test_listar_alunos_por_cpf_responsavel_devolve_lista_vazia(
+    settings: Any,
+) -> None:
+    """Lista vazia significa CPF não encontrado, sem erro de contrato."""
+    _configurar_ambiente(settings)
+
+    dados = EolClient(
+        session=FakeSession(FakeResponse(status_code=200, data=[]))
+    ).listar_alunos_por_cpf_responsavel(TEST_CPF_RESPONSAVEL)
+
+    assert dados == []
+
+
+def test_listar_alunos_por_cpf_responsavel_trata_404_como_lista_vazia(
+    settings: Any,
+) -> None:
+    """HTTP 404 do responsável também significa CPF não encontrado."""
+    _configurar_ambiente(settings)
+
+    dados = EolClient(
+        session=FakeSession(FakeResponse(status_code=404, data={}))
+    ).listar_alunos_por_cpf_responsavel(TEST_CPF_RESPONSAVEL)
+
+    assert dados == []
+
+
+def test_listar_alunos_por_cpf_responsavel_rejeita_resposta_invalida(
+    settings: Any,
+) -> None:
+    """Rejeita consulta de responsável cujo corpo não é uma lista."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolContratoError):
+        EolClient(
+            session=FakeSession(FakeResponse(status_code=200, data={}))
+        ).listar_alunos_por_cpf_responsavel(TEST_CPF_RESPONSAVEL)
+
+
+def test_listar_alunos_por_cpf_responsavel_ignora_itens_nao_dicionarios(
+    settings: Any,
+) -> None:
+    """Filtra itens que não são objeto na lista do responsável."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(
+        status_code=200,
+        data=[{"codigoAluno": int(TEST_CODIGO_ALUNO)}, "item-invalido"],
+    )
+
+    client = EolClient(session=FakeSession(response))
+
+    dados = client.listar_alunos_por_cpf_responsavel(TEST_CPF_RESPONSAVEL)
+
+    assert dados == [{"codigoAluno": int(TEST_CODIGO_ALUNO)}]
+
+
+def test_listar_alunos_por_cpf_responsavel_falha_sem_configuracao(
+    settings: Any,
+) -> None:
+    """Impede a consulta por CPF sem URL e chave configuradas."""
+    settings.AUTH_API_BASE_URL = ""
+    settings.AUTH_API_EOL_KEY = ""
+
+    with pytest.raises(EolConfigError):
+        EolClient(
+            session=FakeSession(FakeResponse(status_code=200, data=[]))
+        ).listar_alunos_por_cpf_responsavel(TEST_CPF_RESPONSAVEL)
+
+
+def test_listar_alunos_por_cpf_responsavel_mapeia_erro_de_rede(
+    settings: Any,
+) -> None:
+    """Converte falha de rede da consulta por CPF em indisponibilidade."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolIndisponivelError):
+        EolClient(
+            session=FakeSession(requests.RequestException("falha de rede"))
+        ).listar_alunos_por_cpf_responsavel(TEST_CPF_RESPONSAVEL)

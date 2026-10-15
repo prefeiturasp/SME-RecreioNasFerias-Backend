@@ -17,6 +17,14 @@ MENSAGEM_POLO_INVALIDO = (
     "O polo deve estar ativo e ter sido oficial ao menos uma vez."
 )
 MENSAGEM_DRE_POLO = "O polo selecionado não pertence à DRE informada."
+MENSAGEM_CODIGO_EOL_OBRIGATORIO = "Informe o código EOL."
+MENSAGEM_EOL_NAO_ENCONTRADO = (
+    "Código EOL não encontrado. Verifique o número digitado e tente novamente."
+)
+MENSAGEM_CPF_OBRIGATORIO = "Informe o CPF do responsável."
+MENSAGEM_CPF_NAO_ENCONTRADO = (
+    "CPF não encontrado. Verifique o número digitado e tente novamente."
+)
 
 CAMPOS_COMPLETUDE = (
     "tipo_estudante",

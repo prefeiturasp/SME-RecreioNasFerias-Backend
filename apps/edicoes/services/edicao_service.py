@@ -42,19 +42,19 @@ class EdicaoService:
             status=StatusEdicao.ENCERRADA
         ).update(status=StatusEdicao.ENCERRADA)
 
-        Edicao.objects.filter(data_inicio__gt=hoje).exclude(
+        Edicao.objects.filter(inscricoes_inicio__gt=hoje).exclude(
             status=StatusEdicao.PLANEJADA
         ).update(status=StatusEdicao.PLANEJADA)
 
         Edicao.objects.filter(
-            data_inicio__lte=hoje,
+            inscricoes_inicio__lte=hoje,
             data_fim__gte=hoje,
         ).exclude(status=StatusEdicao.ATIVA).update(status=StatusEdicao.ATIVA)
 
     def listar(self):
         """Sincroniza status e retorna as edições ordenadas."""
         self.sincronizar_status()
-        return Edicao.objects.all()
+        return Edicao.objects.all().order_by("-inscricoes_fim")
 
     def obter(self, uuid: object) -> Edicao:
         """Sincroniza status e obtém uma edição pelo UUID público."""

@@ -108,7 +108,8 @@ Integração com outros domínios
 ------------------------------
 
 As definições de polos usam a edição como referência para vincular polos,
-projeções de inscritos, tipos de participação e dados de ponto focal. O
+projeções de inscritos e tipos de participação. Os dados atuais de ponto
+focal pertencem ao polo e não fazem parte do histórico da edição. O
 serializer resumido de edição, utilizado nesses vínculos, expõe apenas
 ``uuid`` e ``nome``.
 

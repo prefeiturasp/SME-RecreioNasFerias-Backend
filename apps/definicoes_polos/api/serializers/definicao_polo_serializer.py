@@ -36,9 +36,6 @@ class DefinicaoPoloSerializer(serializers.ModelSerializer):
             "projecao_inscritos",
             "total_inscritos",
             "resultado_final_de_inscritos",
-            "ponto_focal_nome",
-            "ponto_focal_telefone",
-            "ponto_focal_email",
             "ativo",
         )
         read_only_fields = (
@@ -49,11 +46,53 @@ class DefinicaoPoloSerializer(serializers.ModelSerializer):
         )
 
 
+class DefinicaoPoloAtualizacaoSerializer(DefinicaoPoloSerializer):
+    """Aceita os dados do ponto focal junto à atualização da participação."""
+
+    ponto_focal_nome = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, write_only=True
+    )
+    ponto_focal_telefone = serializers.CharField(
+        max_length=30, required=False, allow_blank=True, write_only=True
+    )
+    ponto_focal_email = serializers.CharField(
+        max_length=254, required=False, allow_blank=True, write_only=True
+    )
+
+    class Meta(DefinicaoPoloSerializer.Meta):
+        fields = (
+            *DefinicaoPoloSerializer.Meta.fields,
+            "ponto_focal_nome",
+            "ponto_focal_telefone",
+            "ponto_focal_email",
+        )
+
+    def to_representation(self, instance):
+        """Retorna os valores atuais do polo após salvar a participação."""
+        dados = super().to_representation(instance)
+        for campo in (
+            "ponto_focal_nome",
+            "ponto_focal_telefone",
+            "ponto_focal_email",
+        ):
+            dados[campo] = getattr(instance.polo, campo)
+        return dados
+
+
 class DefinicaoPoloDetalhamentoSerializer(serializers.ModelSerializer):
     """Retorna a participação com todos os dados cadastrais do polo."""
 
     polo = PoloSerializer(read_only=True)
     edicao = EdicaoResumoSerializer(read_only=True)
+    ponto_focal_nome = serializers.CharField(
+        source="polo.ponto_focal_nome", read_only=True
+    )
+    ponto_focal_telefone = serializers.CharField(
+        source="polo.ponto_focal_telefone", read_only=True
+    )
+    ponto_focal_email = serializers.CharField(
+        source="polo.ponto_focal_email", read_only=True
+    )
 
     class Meta:
         """Configuração do serializer de detalhamento."""
@@ -94,9 +133,6 @@ class DefinicaoPoloHistoricoSerializer(serializers.ModelSerializer):
             "tipo_label",
             "projecao_inscritos",
             "total_inscritos",
-            "ponto_focal_nome",
-            "ponto_focal_telefone",
-            "ponto_focal_email",
             "resultado_final_de_inscritos",
         )
         read_only_fields = fields
@@ -150,6 +186,9 @@ class PoloComDefinicaoSerializer(serializers.ModelSerializer):
             "status",
             "status_label",
             "ativo",
+            "ponto_focal_nome",
+            "ponto_focal_telefone",
+            "ponto_focal_email",
             "definicao_uuid",
             "edicao_uuid",
             "nome_edicao",

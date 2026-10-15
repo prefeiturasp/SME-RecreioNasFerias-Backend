@@ -3,6 +3,8 @@
 from types import SimpleNamespace
 
 import pytest
+from django.core.exceptions import ValidationError
+from freezegun import freeze_time
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -17,8 +19,18 @@ from apps.inscricoes.constants import (
     StatusInscricao,
     TipoEstudante,
 )
-
+from apps.inscricoes.models import Inscricao
 from apps.inscricoes.services.inscricao_service import InscricaoService
+from apps.inscricoes.validators import (
+    MENSAGEM_CPF_NAO_ENCONTRADO,
+    MENSAGEM_EOL_NAO_ENCONTRADO,
+)
+from apps.integracoes.eol.exceptions import (
+    EolConfigError,
+    EolContratoError,
+    EolIndisponivelError,
+)
+from apps.integracoes.eol.port import ParticipanteRedeEol
 
 pytestmark = pytest.mark.django_db
 
@@ -163,20 +175,42 @@ def test_lista_polos_elegiveis_com_e_sem_paginacao(
     """A ação retorna polos oficiais com os dois formatos de paginação."""
     polo = inscricao_completa_factory().polo
 
-    paginado = cliente_autenticado.get(
-        f"{URL}polos-elegiveis/",
-        {"dre_codigo_eol": polo.dre_codigo_eol},
-    )
-    sem_paginacao = cliente_autenticado.get(
-        f"{URL}polos-elegiveis/",
-        {
-            "dre_codigo_eol": polo.dre_codigo_eol,
-            "desabilita_paginacao": "true",
-        },
-    )
+    with freeze_time("2099-01-01 12:00:00"):
+        paginado = cliente_autenticado.get(
+            f"{URL}polos-elegiveis/",
+            {"dre_codigo_eol": polo.dre_codigo_eol},
+        )
+        sem_paginacao = cliente_autenticado.get(
+            f"{URL}polos-elegiveis/",
+            {
+                "dre_codigo_eol": polo.dre_codigo_eol,
+                "desabilita_paginacao": "true",
+            },
+        )
 
     assert paginado.status_code == status.HTTP_200_OK
     assert "results" in paginado.data
+    assert sem_paginacao.status_code == status.HTTP_200_OK
+    assert sem_paginacao.data[0]["nome_polo"] == polo.nome_polo
+
+
+def test_lista_polos_oficiais_com_e_sem_paginacao(
+    cliente_autenticado,
+    inscricao_completa_factory,
+) -> None:
+    """A consulta devolve o polo oficial fora do período de inscrição."""
+    polo = inscricao_completa_factory().polo
+
+    with freeze_time("2099-06-10 12:00:00"):
+        paginado = cliente_autenticado.get(f"{URL}polos-oficiais/")
+        sem_paginacao = cliente_autenticado.get(
+            f"{URL}polos-oficiais/",
+            {"desabilita_paginacao": "true"},
+        )
+
+    assert paginado.status_code == status.HTTP_200_OK
+    assert paginado.data["results"][0]["uuid"] == str(polo.uuid)
+    assert paginado.data["results"][0]["nome_polo"] == polo.nome_polo
     assert sem_paginacao.status_code == status.HTTP_200_OK
     assert sem_paginacao.data[0]["nome_polo"] == polo.nome_polo
 
@@ -209,19 +243,38 @@ def test_service_lista_polos_elegiveis_sem_filtro() -> None:
     assert resultado.count() == 0
 
 
-def test_view_polos_elegiveis_sem_paginacao_do_queryset(
+def test_view_polos_elegiveis_com_paginacao_desabilitada(
     inscricao_completa_factory,
-    monkeypatch,
 ) -> None:
     """A action suporta o ramo em que a paginação não retorna página."""
     polo = inscricao_completa_factory().polo
     view = InscricaoViewSet()
     request = SimpleNamespace(
-        query_params={"dre_codigo_eol": polo.dre_codigo_eol}
+        query_params={
+            "dre_codigo_eol": polo.dre_codigo_eol,
+            "desabilita_paginacao": "true",
+        }
     )
-    monkeypatch.setattr(view, "paginate_queryset", lambda queryset: None)
 
-    response = view.polos_elegiveis(request)
+    with freeze_time("2099-01-01 12:00:00"):
+        response = view.polos_elegiveis(request)
+
+    assert isinstance(response, Response)
+    assert response.status_code == 200
+    assert response.data[0]["nome_polo"] == polo.nome_polo
+
+
+def test_view_polos_oficiais_com_paginacao_desabilitada(
+    inscricao_completa_factory,
+) -> None:
+    """A action suporta o ramo em que a paginação não retorna página."""
+    polo = inscricao_completa_factory().polo
+    view = InscricaoViewSet()
+    request = SimpleNamespace(
+        query_params={"desabilita_paginacao": "true"}
+    )
+
+    response = view.polos_oficiais(request)
 
     assert isinstance(response, Response)
     assert response.status_code == 200
@@ -237,3 +290,338 @@ def test_view_retorna_valores_dos_choices(cliente_autenticado) -> None:
         "value": "BERCARIO_I",
         "label": "Berçário I",
     }
+
+
+def _participante() -> ParticipanteRedeEol:
+    """Monta um participante mínimo para o contrato HTTP."""
+    return ParticipanteRedeEol(
+        codigo_aluno=6034178,
+        tipo_turno=0,
+        ano_letivo=2026,
+        nome_aluno="ANNA JULIA ARAUJO SA",
+        nome_social_aluno="",
+        codigo_situacao_matricula=3,
+        situacao_matricula="Transferido",
+        data_situacao="2026-05-15T17:25:21.483",
+        data_nascimento="2013-10-16",
+        numero_aluno_chamada="001",
+        codigo_turma=3026798,
+        nome_responsavel="SAMARA LIMA ARAUJO",
+        tipo_responsavel="1",
+        celular_responsavel="",
+        data_atualizacao_contato="2024-02-09T11:18:16.11",
+        codigo_tipo_turma=1,
+        turma_nome="",
+        etapa_ensino="",
+        ciclo_ensino="",
+        desc_etapa_ensino="",
+        desc_ciclo_ensino="",
+        data_atualizacao_tabela="2026-05-15T17:25:21.483",
+        nome_mae="SAMARA LIMA ARAUJO",
+        sexo="F",
+        grupo_etnico="RECUSOU INFORMAR",
+        nacionalidade="B",
+        eh_imigrante=False,
+        nis="23703487417",
+        cns="",
+        numero="72",
+        complemento="",
+        bairro="VILA SANTA CRUZ ZONA LESTE",
+        cep="08411-010",
+        cidade="SAO PAULO",
+        uf="SP",
+        tipo_logradouro="Rua",
+        logradouro="DA PASSAGEM FUNDA",
+    )
+
+
+def test_participante_eol_exige_autenticacao(api_client) -> None:
+    """A consulta de participante exige autenticação."""
+    response = api_client.get(f"{URL}participante-eol/")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_participante_eol_devolve_nome(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """O GET devolve só os campos que preenchem o formulário."""
+    participante = _participante()
+
+    def _consultar(
+        _self: InscricaoService,
+        codigo_eol: str | None,
+    ) -> ParticipanteRedeEol:
+        assert codigo_eol == "6034178"
+        return participante
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_eol",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(
+        f"{URL}participante-eol/",
+        {"codigo_eol": "6034178"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert set(response.data) == {
+        "codigo_eol",
+        "nome_participante",
+        "data_nascimento",
+        "responsavel_nome",
+        "responsavel_nome_social",
+        "cep",
+        "logradouro",
+        "numero",
+        "complemento",
+        "bairro",
+        "cidade",
+        "telefone_contato_1",
+        "telefone_contato_2",
+        "email",
+    }
+    assert response.data["codigo_eol"] == "6034178"
+    assert response.data["nome_participante"] == "ANNA JULIA ARAUJO SA"
+    assert response.data["responsavel_nome"] == "SAMARA LIMA ARAUJO"
+    assert response.data["data_nascimento"] == "2013-10-16"
+    assert response.data["cep"] == "08411-010"
+    assert response.data["logradouro"] == "DA PASSAGEM FUNDA"
+    assert response.data["numero"] == "72"
+    assert response.data["bairro"] == "VILA SANTA CRUZ ZONA LESTE"
+    assert response.data["cidade"] == "SAO PAULO"
+    assert response.data["telefone_contato_1"] == ""
+    assert response.data["email"] == ""
+    assert response.data["telefone_contato_2"] == ""
+    assert response.data["responsavel_nome_social"] == ""
+    assert response.data["complemento"] == ""
+
+
+def test_participante_eol_nao_encontrado_nao_grava(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """Código ausente na SME responde 400 e não cria inscrição."""
+
+    def _consultar(
+        _self: InscricaoService,
+        codigo_eol: str | None,
+    ) -> ParticipanteRedeEol:
+        raise ValidationError({"codigo_eol": MENSAGEM_EOL_NAO_ENCONTRADO})
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_eol",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(
+        f"{URL}participante-eol/",
+        {"codigo_eol": "000"},
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data == {"detalhe": MENSAGEM_EOL_NAO_ENCONTRADO}
+    assert Inscricao.objects.count() == 0
+
+
+def test_participante_eol_retorna_erro_de_configuracao(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """Falha de configuração da EOL retorna HTTP 500."""
+
+    def _consultar(
+        _self: InscricaoService,
+        codigo_eol: str | None,
+    ) -> ParticipanteRedeEol:
+        raise EolConfigError("config")
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_eol",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(f"{URL}participante-eol/")
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.data == {"detalhe": "config"}
+
+
+@pytest.mark.parametrize(
+    "erro",
+    [EolIndisponivelError("indisponivel"), EolContratoError("contrato")],
+)
+def test_participante_eol_retorna_erro_de_integracao(
+    cliente_autenticado,
+    monkeypatch,
+    erro: Exception,
+) -> None:
+    """Falhas externas da EOL retornam HTTP 502."""
+
+    def _consultar(
+        _self: InscricaoService,
+        codigo_eol: str | None,
+    ) -> ParticipanteRedeEol:
+        raise erro
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_eol",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(f"{URL}participante-eol/")
+
+    assert response.status_code == status.HTTP_502_BAD_GATEWAY
+    assert response.data == {"detalhe": str(erro)}
+
+
+def test_participante_cpf_exige_autenticacao(api_client) -> None:
+    """A consulta de participante pelo CPF exige autenticação."""
+    response = api_client.get(f"{URL}participante-cpf/")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_participante_cpf_devolve_nome(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """O GET devolve só os campos que preenchem o formulário."""
+    participante = _participante()
+
+    def _consultar(
+        _self: InscricaoService,
+        cpf: str | None,
+    ) -> ParticipanteRedeEol:
+        assert cpf == "12345678909"
+        return participante
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_cpf",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(
+        f"{URL}participante-cpf/",
+        {"cpf": "12345678909"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert set(response.data) == {
+        "codigo_eol",
+        "nome_participante",
+        "data_nascimento",
+        "responsavel_nome",
+        "responsavel_nome_social",
+        "cep",
+        "logradouro",
+        "numero",
+        "complemento",
+        "bairro",
+        "cidade",
+        "telefone_contato_1",
+        "telefone_contato_2",
+        "email",
+    }
+    assert response.data["codigo_eol"] == "6034178"
+    assert response.data["nome_participante"] == "ANNA JULIA ARAUJO SA"
+    assert response.data["responsavel_nome"] == "SAMARA LIMA ARAUJO"
+    assert response.data["data_nascimento"] == "2013-10-16"
+    assert response.data["cep"] == "08411-010"
+    assert response.data["logradouro"] == "DA PASSAGEM FUNDA"
+    assert response.data["numero"] == "72"
+    assert response.data["bairro"] == "VILA SANTA CRUZ ZONA LESTE"
+    assert response.data["cidade"] == "SAO PAULO"
+    assert response.data["telefone_contato_1"] == ""
+    assert response.data["email"] == ""
+    assert response.data["telefone_contato_2"] == ""
+    assert response.data["responsavel_nome_social"] == ""
+    assert response.data["complemento"] == ""
+
+
+def test_participante_cpf_nao_encontrado_nao_grava(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """CPF ausente na SME responde 400 e não cria inscrição."""
+
+    def _consultar(
+        _self: InscricaoService,
+        cpf: str | None,
+    ) -> ParticipanteRedeEol:
+        raise ValidationError({"cpf": MENSAGEM_CPF_NAO_ENCONTRADO})
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_cpf",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(
+        f"{URL}participante-cpf/",
+        {"cpf": "000"},
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data == {"detalhe": MENSAGEM_CPF_NAO_ENCONTRADO}
+    assert Inscricao.objects.count() == 0
+
+
+def test_participante_cpf_retorna_erro_de_configuracao(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """Falha de configuração da EOL retorna HTTP 500."""
+
+    def _consultar(
+        _self: InscricaoService,
+        cpf: str | None,
+    ) -> ParticipanteRedeEol:
+        raise EolConfigError("config")
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_cpf",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(f"{URL}participante-cpf/")
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.data == {"detalhe": "config"}
+
+
+@pytest.mark.parametrize(
+    "erro",
+    [EolIndisponivelError("indisponivel"), EolContratoError("contrato")],
+)
+def test_participante_cpf_retorna_erro_de_integracao(
+    cliente_autenticado,
+    monkeypatch,
+    erro: Exception,
+) -> None:
+    """Falhas externas da EOL retornam HTTP 502."""
+
+    def _consultar(
+        _self: InscricaoService,
+        cpf: str | None,
+    ) -> ParticipanteRedeEol:
+        raise erro
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_cpf",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(f"{URL}participante-cpf/")
+
+    assert response.status_code == status.HTTP_502_BAD_GATEWAY
+    assert response.data == {"detalhe": str(erro)}

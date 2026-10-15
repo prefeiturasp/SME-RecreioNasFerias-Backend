@@ -55,9 +55,6 @@ class DefinicaoPoloService:
         edicao: object,
         projecao_inscritos: int,
         tipo: str = TipoPolo.PENDENTE,
-        ponto_focal_nome: str = "",
-        ponto_focal_telefone: str = "",
-        ponto_focal_email: str = "",
     ) -> DefinicaoPolo:
         """Cria uma participação com o tipo informado ou pendente."""
         definicao = DefinicaoPolo(
@@ -65,9 +62,6 @@ class DefinicaoPoloService:
             edicao=edicao,
             tipo=tipo,
             projecao_inscritos=projecao_inscritos,
-            ponto_focal_nome=ponto_focal_nome,
-            ponto_focal_telefone=ponto_focal_telefone,
-            ponto_focal_email=ponto_focal_email,
         )
         definicao.save()
         return definicao
@@ -76,34 +70,34 @@ class DefinicaoPoloService:
     def atualizar(
         self, definicao: DefinicaoPolo, **dados: Any
     ) -> DefinicaoPolo:
-        """Atualiza os dados editáveis de uma participação."""
+        """Atualiza participação e ponto focal do polo atomicamente."""
         dados.pop("uuid", None)
         dados.pop("total_inscritos", None)
         dados.pop("ativo", None)
-        for campo, valor in dados.items():
-            setattr(definicao, campo, valor)
-        definicao.save()
-        return definicao
 
-    @transaction.atomic
-    def atualizar_capacidade_e_ponto_focal(
-        self, definicao: DefinicaoPolo, **dados: Any
-    ) -> DefinicaoPolo:
-        """Atualiza projeção e dados do ponto focal."""
-        permitidos = {
-            "projecao_inscritos",
+        campos_ponto_focal = (
             "ponto_focal_nome",
             "ponto_focal_telefone",
             "ponto_focal_email",
-        }
-        return self.atualizar(
-            definicao,
-            **{
-                campo: valor
-                for campo, valor in dados.items()
-                if campo in permitidos
-            },
         )
+        ponto_focal = {
+            campo: dados.pop(campo)
+            for campo in campos_ponto_focal
+            if campo in dados
+        }
+
+        for campo, valor in dados.items():
+            setattr(definicao, campo, valor)
+
+        if ponto_focal:
+            polo = Polo.objects.select_for_update().get(pk=definicao.polo_id)
+            for campo, valor in ponto_focal.items():
+                setattr(polo, campo, valor)
+            polo.save()
+            definicao.polo = polo
+
+        definicao.save()
+        return definicao
 
     @transaction.atomic
     def alterar_tipo(
