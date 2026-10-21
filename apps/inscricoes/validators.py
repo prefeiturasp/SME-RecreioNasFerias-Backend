@@ -43,6 +43,11 @@ CAMPOS_COMPLETUDE = (
     "dre_codigo_eol",
     "dre_nome",
     "polo_id",
+    "possui_deficiencia",
+    "possui_problema_saude",
+    "usuario_medicacao_ou_tratamento_continuo",
+    "possui_restricao_medicamento_pronto_atendimento",
+    "possui_convenio_medico"
 )
 
 
@@ -139,19 +144,19 @@ def validar_informacoes_de_saude(inscricao: object) -> None:
         raise ValidationError({"outro_problema_saude": "É obrigatório informar o outro problema de saúde."})
 
     usuario_medicacao_ou_tratamento = getattr(inscricao, "usuario_medicacao_ou_tratamento_continuo", True)
-    detalhe_medicacao_ou_tratamento = getattr(inscricao, "detalhe_medicacao_ou_tratamento_continuo", "")
+    detalhe_medicacao_ou_tratamento = getattr(inscricao, "medicacao_ou_tratamento_continuo", "")
     if usuario_medicacao_ou_tratamento and not detalhe_medicacao_ou_tratamento:
-        raise ValidationError({"detalhe_medicacao_ou_tratamento_continuo": "Detalhe da medicação ou tratamento contínuo é obrigatório."})
+        raise ValidationError({"medicacao_ou_tratamento_continuo": "Detalhe da medicação ou tratamento contínuo é obrigatório."})
 
     possui_restricao_medicamento_pronto_atendimento = getattr(inscricao, "possui_restricao_medicamento_pronto_atendimento", True)
     detalhe_restricao_medicamento_pronto_atendimento = getattr(inscricao, "restricao_medicamento_pronto_atendimento", "")
     if possui_restricao_medicamento_pronto_atendimento and not detalhe_restricao_medicamento_pronto_atendimento:
-        raise ValidationError({"detalhe_restricao_medicamento_pronto_atendimento": "Detalhe da restrição de medicamento no pronto atendimento é obrigatório."})
+        raise ValidationError({"restricao_medicamento_pronto_atendimento": "Detalhe da restrição de medicamento no pronto atendimento é obrigatório."})
 
     possui_convenio_medico = getattr(inscricao, "possui_convenio_medico", True)
-    detalhe_convenio_medico = getattr(inscricao, "detalhe_convenio_medico", "")
+    detalhe_convenio_medico = getattr(inscricao, "convenio_medico", "")
     if possui_convenio_medico and not detalhe_convenio_medico:
-        raise ValidationError({"detalhe_convenio_medico": "Detalhe do convênio médico é obrigatório."})
+        raise ValidationError({"convenio_medico": "Detalhe do convênio médico é obrigatório."})
 
 
 

@@ -190,20 +190,20 @@ def test_unicidade_ignora_identificadores_vazios_e_o_proprio_registro(
         (
             {
                 "usuario_medicacao_ou_tratamento_continuo": True,
-                "detalhe_medicacao_ou_tratamento_continuo": "",
+                "medicacao_ou_tratamento_continuo": "",
             },
-            "detalhe_medicacao_ou_tratamento_continuo",
+            "medicacao_ou_tratamento_continuo",
         ),
         (
             {
                 "possui_restricao_medicamento_pronto_atendimento": True,
                 "restricao_medicamento_pronto_atendimento": "",
             },
-            "detalhe_restricao_medicamento_pronto_atendimento",
+            "restricao_medicamento_pronto_atendimento",
         ),
         (
-            {"possui_convenio_medico": True, "detalhe_convenio_medico": ""},
-            "detalhe_convenio_medico",
+            {"possui_convenio_medico": True, "convenio_medico": ""},
+            "convenio_medico",
         ),
     ],
 )
@@ -219,11 +219,11 @@ def test_validar_informacoes_de_saude_rejeita_detalhes_ausentes(
         "problemas_saude": [],
         "outro_problema_saude": "",
         "usuario_medicacao_ou_tratamento_continuo": False,
-        "detalhe_medicacao_ou_tratamento_continuo": "",
+        "medicacao_ou_tratamento_continuo": "",
         "possui_restricao_medicamento_pronto_atendimento": False,
         "restricao_medicamento_pronto_atendimento": "",
         "possui_convenio_medico": False,
-        "detalhe_convenio_medico": "",
+        "convenio_medico": "",
     }
     inscricao = SimpleNamespace(**{**dados_validos, **dados})
 
@@ -243,11 +243,11 @@ def test_validar_informacoes_de_saude_aceita_detalhes_preenchidos() -> None:
         problemas_saude=["OUTRO"],
         outro_problema_saude="Descrição do problema de saúde",
         usuario_medicacao_ou_tratamento_continuo=True,
-        detalhe_medicacao_ou_tratamento_continuo="Medicação informada",
+        medicacao_ou_tratamento_continuo="Medicação informada",
         possui_restricao_medicamento_pronto_atendimento=True,
         restricao_medicamento_pronto_atendimento="Restrição informada",
         possui_convenio_medico=True,
-        detalhe_convenio_medico="Convênio informado",
+        convenio_medico="Convênio informado",
     )
 
     assert validar_informacoes_de_saude(inscricao) is None
