@@ -6,13 +6,23 @@ from apps.edicoes.api.serializers.edicao_serializer import (
     EdicaoResumoSerializer,
 )
 from apps.edicoes.models import Edicao
+from apps.inscricoes.constants import Deficiencias, ProblemasSaude
 from apps.inscricoes.models import Inscricao
 from apps.polos.api.serializers.polo_serializer import PoloResumoSerializer
 from apps.polos.models import Polo
 
 
-class InscricaoInformacoesBasicasSerializer(serializers.ModelSerializer):
-    """Contrato de entrada e saída da primeira etapa do formulário."""
+class InscricaoCadastroSerializer(serializers.ModelSerializer):
+    """Contrato de entrada e saída do formulário de inscrições."""
+
+    deficiencias = serializers.ListField(
+        child=serializers.ChoiceField(choices=Deficiencias.choices),
+        required=False,
+    )
+    problemas_saude = serializers.ListField(
+        child=serializers.ChoiceField(choices=ProblemasSaude.choices),
+        required=False,
+    )
 
     polo = serializers.SlugRelatedField(
         slug_field="uuid",
@@ -40,7 +50,7 @@ class InscricaoInformacoesBasicasSerializer(serializers.ModelSerializer):
     )
     
     class Meta:
-        """Configuração do contrato da primeira etapa."""
+        """Configuração do contrato do formulário de inscrições."""
 
         model = Inscricao
         fields = (
@@ -72,6 +82,19 @@ class InscricaoInformacoesBasicasSerializer(serializers.ModelSerializer):
             "status",
             "status_label",
             "ativo",
+            # informações de saúde
+            "possui_deficiencia",
+            "deficiencias",
+            "outra_deficiencia",
+            "possui_problema_saude",
+            "problemas_saude",
+            "outro_problema_saude",
+            "usuario_medicacao_ou_tratamento_continuo",
+            "medicacao_ou_tratamento_continuo",
+            "possui_restricao_medicamento_pronto_atendimento",
+            "restricao_medicamento_pronto_atendimento",
+            "possui_convenio_medico",
+            "convenio_medico"
         )
         read_only_fields = ("uuid", "status", "ativo")
 
@@ -119,7 +142,7 @@ class InscricaoListagemSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class InscricaoDetalheSerializer(InscricaoInformacoesBasicasSerializer):
+class InscricaoDetalheSerializer(InscricaoCadastroSerializer):
     """Contrato de detalhamento da inscrição."""
 
     polo = PoloResumoSerializer(read_only=True, allow_null=True)
@@ -136,10 +159,10 @@ class InscricaoDetalheSerializer(InscricaoInformacoesBasicasSerializer):
         source="get_status_display", read_only=True, allow_null=True
     )
 
-    class Meta(InscricaoInformacoesBasicasSerializer.Meta):
+    class Meta(InscricaoCadastroSerializer.Meta):
         """Configuração do contrato somente leitura de detalhe."""
 
-        read_only_fields = InscricaoInformacoesBasicasSerializer.Meta.fields
+        read_only_fields = InscricaoCadastroSerializer.Meta.fields
 
 
 class PoloElegivelSerializer(serializers.ModelSerializer):
