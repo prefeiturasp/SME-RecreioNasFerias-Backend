@@ -150,7 +150,6 @@ class Inscricao(ModeloAtualizavel):
     outra_deficiencia = models.CharField(
         max_length=300,
         blank=True,
-        null=True,
         verbose_name="Especifique a outra deficiência"
     )
 
@@ -174,7 +173,6 @@ class Inscricao(ModeloAtualizavel):
     outro_problema_saude = models.CharField(
         max_length=300,
         blank=True,
-        null=True,
         verbose_name="Especifique o outro problema de saúde"
     )
 
@@ -187,7 +185,6 @@ class Inscricao(ModeloAtualizavel):
     medicacao_ou_tratamento_continuo = models.CharField(
         max_length=300,
         blank=True,
-        null=True,
         verbose_name="Medicação ou tratamento contínuo"
     )
 
@@ -200,7 +197,6 @@ class Inscricao(ModeloAtualizavel):
     restricao_medicamento_pronto_atendimento = models.CharField(
         max_length=300,
         blank=True,
-        null=True,
         verbose_name="Especifique a restrição de medicamento em pronto atendimento"
     )
 
@@ -213,7 +209,6 @@ class Inscricao(ModeloAtualizavel):
     convenio_medico = models.CharField(
         max_length=50,
         blank=True,
-        null=True,
         verbose_name="Especifique o convênio médico"
     )
 
