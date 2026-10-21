@@ -4,12 +4,14 @@ import pytest
 
 from apps.inscricoes.api.serializers import (
     InscricaoDetalheSerializer,
-    InscricaoInformacoesBasicasSerializer,
+    InscricaoCadastroSerializer,
     InscricaoListagemSerializer,
     PoloElegivelSerializer,
 )
 from apps.inscricoes.constants import (
+    Deficiencias,
     GrupoInscricao,
+    ProblemasSaude,
     StatusInscricao,
     TipoEstudante,
 )
@@ -23,7 +25,7 @@ def test_serializer_basico_retorna_campos_e_choices(
     """O contrato básico expõe campos editáveis e status somente leitura."""
     inscricao = inscricao_factory()
 
-    dados = InscricaoInformacoesBasicasSerializer(inscricao).data
+    dados = InscricaoCadastroSerializer(inscricao).data
 
     assert dados["uuid"] == str(inscricao.uuid)
     assert dados["tipo_logradouro"] == "Rua"
@@ -35,7 +37,7 @@ def test_serializer_basico_marca_status_e_metadados_como_somente_leitura(
 ) -> None:
     """Status não pode ser controlado pelo payload do cliente."""
     inscricao = inscricao_factory()
-    serializer = InscricaoInformacoesBasicasSerializer(
+    serializer = InscricaoCadastroSerializer(
         inscricao,
         data={
             "tipo_estudante": TipoEstudante.ESTUDANTE_EXTERNO,
@@ -49,6 +51,41 @@ def test_serializer_basico_marca_status_e_metadados_como_somente_leitura(
     assert serializer.is_valid(), serializer.errors
     assert "status" not in serializer.validated_data
     assert "ativo" not in serializer.validated_data
+
+
+def test_serializer_aceita_multiplas_deficiencias_e_problemas_de_saude() -> None:
+    """As seleções múltiplas preservam todas as opções válidas."""
+    serializer = InscricaoCadastroSerializer(
+        data={
+            "deficiencias": [Deficiencias.AUTISMO, Deficiencias.SURDOCEGUEIRA],
+            "problemas_saude": [
+                ProblemasSaude.ASMA_OU_BRONQUITE,
+                ProblemasSaude.DIABETES,
+            ],
+        },
+        partial=True,
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["deficiencias"] == [
+        Deficiencias.AUTISMO,
+        Deficiencias.SURDOCEGUEIRA,
+    ]
+    assert serializer.validated_data["problemas_saude"] == [
+        ProblemasSaude.ASMA_OU_BRONQUITE,
+        ProblemasSaude.DIABETES,
+    ]
+
+
+def test_serializer_rejeita_opcao_invalida_em_selecao_multipla() -> None:
+    """Cada item das listas precisa pertencer às choices do campo."""
+    serializer = InscricaoCadastroSerializer(
+        data={"deficiencias": [Deficiencias.AUTISMO, "INVALIDA"]},
+        partial=True,
+    )
+
+    assert not serializer.is_valid()
+    assert "deficiencias" in serializer.errors
 
 
 def test_serializer_detalhe_aninha_polo_e_edicao(

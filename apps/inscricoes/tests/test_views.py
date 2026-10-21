@@ -10,7 +10,7 @@ from rest_framework.response import Response
 
 from apps.inscricoes.api.serializers import (
     InscricaoDetalheSerializer,
-    InscricaoInformacoesBasicasSerializer,
+    InscricaoCadastroSerializer,
     InscricaoListagemSerializer,
 )
 from apps.inscricoes.api.views.inscricao_viewset import InscricaoViewSet
@@ -233,7 +233,7 @@ def test_view_seleciona_serializers_por_acao() -> None:
     view.action = "retrieve"
     assert view.get_serializer_class() is InscricaoDetalheSerializer
     view.action = "create"
-    assert view.get_serializer_class() is InscricaoInformacoesBasicasSerializer
+    assert view.get_serializer_class() is InscricaoCadastroSerializer
 
 
 def test_service_lista_polos_elegiveis_sem_filtro() -> None:
