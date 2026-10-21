@@ -20,7 +20,7 @@ from rest_framework.response import Response
 from apps.core.utils.paginacao_customizada import PaginacaoCustomizada
 from apps.inscricoes.api.serializers import (
     InscricaoDetalheSerializer,
-    InscricaoInformacoesBasicasSerializer,
+    InscricaoCadastroSerializer,
     InscricaoListagemSerializer,
     ParticipanteRedeSerializer,
     PoloElegivelSerializer,
@@ -95,7 +95,7 @@ class InscricaoViewSet(viewsets.ModelViewSet):
     """Expõe cadastro, gestão e polos elegíveis das inscrições."""
 
     queryset = Inscricao.objects.select_related("polo", "edicao")
-    serializer_class = InscricaoInformacoesBasicasSerializer
+    serializer_class = InscricaoCadastroSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = "uuid"
     pagination_class = PaginacaoCustomizada
@@ -123,7 +123,7 @@ class InscricaoViewSet(viewsets.ModelViewSet):
             return InscricaoListagemSerializer
         if self.action == "retrieve":
             return InscricaoDetalheSerializer
-        return InscricaoInformacoesBasicasSerializer
+        return InscricaoCadastroSerializer
 
     def get_object(self):
         """Converte recurso inexistente em erro de validação da API."""

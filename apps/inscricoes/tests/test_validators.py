@@ -1,5 +1,7 @@
 """Testes das validações do domínio de inscrições."""
 
+from types import SimpleNamespace
+
 import pytest
 from django.core.exceptions import ValidationError
 
@@ -8,6 +10,7 @@ from apps.inscricoes.constants import GrupoInscricao, TipoEstudante
 from apps.inscricoes.validators import (
     inscricao_eh_completa,
     validar_inscricao,
+    validar_informacoes_de_saude,
     validar_polo_e_dre,
     validar_tipo_e_grupo,
     validar_unicidade,
@@ -168,6 +171,88 @@ def test_unicidade_ignora_identificadores_vazios_e_o_proprio_registro(
     assert validar_unicidade(inscricao) is None
 
 
+@pytest.mark.parametrize(
+    ("dados", "campo"),
+    [
+        ({"possui_deficiencia": True, "deficiencias": []}, "deficiencias"),
+        (
+            {"deficiencias": ["OUTRA"], "outra_deficiencia": ""},
+            "outra_deficiencia",
+        ),
+        (
+            {"possui_problema_saude": True, "problemas_saude": []},
+            "problemas_saude",
+        ),
+        (
+            {"problemas_saude": ["OUTRO"], "outro_problema_saude": ""},
+            "outro_problema_saude",
+        ),
+        (
+            {
+                "usuario_medicacao_ou_tratamento_continuo": True,
+                "medicacao_ou_tratamento_continuo": "",
+            },
+            "medicacao_ou_tratamento_continuo",
+        ),
+        (
+            {
+                "possui_restricao_medicamento_pronto_atendimento": True,
+                "restricao_medicamento_pronto_atendimento": "",
+            },
+            "restricao_medicamento_pronto_atendimento",
+        ),
+        (
+            {"possui_convenio_medico": True, "convenio_medico": ""},
+            "convenio_medico",
+        ),
+    ],
+)
+def test_validar_informacoes_de_saude_rejeita_detalhes_ausentes(
+    dados, campo
+) -> None:
+    """Cada informação de saúde marcada exige seu detalhe correspondente."""
+    dados_validos = {
+        "possui_deficiencia": False,
+        "deficiencias": [],
+        "outra_deficiencia": "",
+        "possui_problema_saude": False,
+        "problemas_saude": [],
+        "outro_problema_saude": "",
+        "usuario_medicacao_ou_tratamento_continuo": False,
+        "medicacao_ou_tratamento_continuo": "",
+        "possui_restricao_medicamento_pronto_atendimento": False,
+        "restricao_medicamento_pronto_atendimento": "",
+        "possui_convenio_medico": False,
+        "convenio_medico": "",
+    }
+    inscricao = SimpleNamespace(**{**dados_validos, **dados})
+
+    with pytest.raises(ValidationError) as contexto:
+        validar_informacoes_de_saude(inscricao)
+
+    assert list(contexto.value.message_dict) == [campo]
+
+
+def test_validar_informacoes_de_saude_aceita_detalhes_preenchidos() -> None:
+    """Dados de saúde completos percorrem todas as regras sem erro."""
+    inscricao = SimpleNamespace(
+        possui_deficiencia=True,
+        deficiencias=["OUTRA"],
+        outra_deficiencia="Descrição da deficiência",
+        possui_problema_saude=True,
+        problemas_saude=["OUTRO"],
+        outro_problema_saude="Descrição do problema de saúde",
+        usuario_medicacao_ou_tratamento_continuo=True,
+        medicacao_ou_tratamento_continuo="Medicação informada",
+        possui_restricao_medicamento_pronto_atendimento=True,
+        restricao_medicamento_pronto_atendimento="Restrição informada",
+        possui_convenio_medico=True,
+        convenio_medico="Convênio informado",
+    )
+
+    assert validar_informacoes_de_saude(inscricao) is None
+
+
 def test_validar_inscricao_agrega_erros(
     monkeypatch, inscricao_factory
 ) -> None:
@@ -188,3 +273,10 @@ def test_validar_inscricao_agrega_erros(
 
     assert "Erro de tipo." in _mensagens(contexto.value)
     assert "Erro genérico." in _mensagens(contexto.value)
+
+
+def test_validar_inscricao_sem_erros(inscricao_factory) -> None:
+    """A inscrição válida percorre todos os validadores até o final."""
+    inscricao = inscricao_factory.build()
+
+    assert validar_inscricao(inscricao) is None
