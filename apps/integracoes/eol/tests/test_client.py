@@ -17,6 +17,7 @@ from apps.integracoes.eol.exceptions import (
 TEST_EOL = "094633"
 TEST_CARGO = 3360
 TEST_CODIGO_ALUNO = "1000001"
+TEST_CODIGO_TURMA = 3026805
 TEST_CPF_RESPONSAVEL = "12345678909"
 
 
@@ -669,3 +670,53 @@ def test_listar_alunos_por_cpf_responsavel_mapeia_erro_de_rede(
         EolClient(
             session=FakeSession(requests.RequestException("falha de rede"))
         ).listar_alunos_por_cpf_responsavel(TEST_CPF_RESPONSAVEL)
+
+
+def test_obter_dados_turma_envia_requisicao_esperada(settings: Any) -> None:
+    """Devolve o payload bruto e a URL da turma."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(
+        status_code=200,
+        data={"codigo": TEST_CODIGO_TURMA, "nomeTurma": "7C", "ano": "7"},
+    )
+    session = FakeSession(response)
+
+    dados = EolClient(session=session).obter_dados_turma(TEST_CODIGO_TURMA)
+
+    assert dados == {
+        "codigo": TEST_CODIGO_TURMA,
+        "nomeTurma": "7C",
+        "ano": "7",
+    }
+    assert session.request_args == {
+        "method": "GET",
+        "url": (
+            "https://eol.exemplo.gov.br/api/turmas/"
+            f"{TEST_CODIGO_TURMA}/dados"
+        ),
+        "headers": {"x-api-eol-key": "api-key"},
+        "timeout": (5, 60),
+    }
+
+
+def test_obter_dados_turma_retorna_none_para_404(settings: Any) -> None:
+    """Trata turma não encontrada como ausência de dados."""
+    _configurar_ambiente(settings)
+
+    dados = EolClient(
+        session=FakeSession(FakeResponse(status_code=404, data={}))
+    ).obter_dados_turma(TEST_CODIGO_TURMA)
+
+    assert dados is None
+
+
+def test_obter_dados_turma_rejeita_resposta_invalida(settings: Any) -> None:
+    """Rejeita dados da turma cujo corpo não é um objeto."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolContratoError):
+        EolClient(
+            session=FakeSession(
+                FakeResponse(status_code=200, data=[{"nomeTurma": "7C"}])
+            )
+        ).obter_dados_turma(TEST_CODIGO_TURMA)
