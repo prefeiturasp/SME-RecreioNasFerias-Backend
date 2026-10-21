@@ -467,10 +467,13 @@ class EolAdapter(EolPort):
         turma = self.obter_dados_turma(codigo_turma)
         if turma is None:
             return participante
-        return replace(
-            participante,
-            nome_turma=turma.nome_turma,
-            ano=turma.ano,
+        return cast(
+            ParticipanteRedeEol,
+            replace(
+                participante,
+                nome_turma=turma.nome_turma,
+                ano=turma.ano,
+            ),
         )
 
     def _normalizar_turma(self, payload: dict[str, Any]) -> TurmaEol:
