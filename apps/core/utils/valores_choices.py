@@ -4,6 +4,8 @@ from apps.inscricoes.constants import (
     GrupoInscricao,
     TipoEstudante,
     StatusInscricao,
+    Deficiencias,
+    ProblemasSaude,
 )
 
 
@@ -26,7 +28,7 @@ class ValoresChoices:
             Dict mapeando nomes de choice classes (snake_case) para listas de dicionários
             contendo 'value' e 'label' de cada opção.
         """
-        choices_classes = [GrupoInscricao, TipoEstudante, StatusInscricao]
+        choices_classes = [GrupoInscricao, TipoEstudante, StatusInscricao, Deficiencias, ProblemasSaude]
 
         return {
             self.to_snake_case(cls.__name__): [
