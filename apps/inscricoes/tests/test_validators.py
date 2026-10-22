@@ -1,16 +1,19 @@
 """Testes das validações do domínio de inscrições."""
 
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
 from django.core.exceptions import ValidationError
+from freezegun import freeze_time
 
 from apps.inscricoes import validators
 from apps.inscricoes.constants import GrupoInscricao, TipoEstudante
 from apps.inscricoes.validators import (
+    calcular_idade_cheia,
     inscricao_eh_completa,
-    validar_inscricao,
     validar_informacoes_de_saude,
+    validar_inscricao,
     validar_polo_e_dre,
     validar_tipo_e_grupo,
     validar_unicidade,
@@ -280,3 +283,32 @@ def test_validar_inscricao_sem_erros(inscricao_factory) -> None:
     inscricao = inscricao_factory.build()
 
     assert validar_inscricao(inscricao) is None
+
+
+def test_idade_cheia_antes_do_aniversario() -> None:
+    """Seis anos, onze meses e trinta dias contam como seis."""
+    with freeze_time("2026-05-18 12:00:00"):
+        assert calcular_idade_cheia(date(2019, 5, 19)) == 6
+
+
+def test_idade_cheia_no_dia_do_aniversario() -> None:
+    """A idade aumenta no dia do aniversário."""
+    with freeze_time("2026-05-19 12:00:00"):
+        assert calcular_idade_cheia(date(2019, 5, 19)) == 7
+
+
+def test_idade_cheia_trata_29_de_fevereiro() -> None:
+    """Em ano não bissexto, o aniversário de 29/02 vale 1º de março."""
+    nascimento = date(2020, 2, 29)
+
+    with freeze_time("2021-02-28 12:00:00"):
+        assert calcular_idade_cheia(nascimento) == 0
+    with freeze_time("2021-03-01 12:00:00"):
+        assert calcular_idade_cheia(nascimento) == 1
+    with freeze_time("2024-02-29 12:00:00"):
+        assert calcular_idade_cheia(nascimento) == 4
+
+
+def test_idade_cheia_sem_data_de_nascimento() -> None:
+    """Sem data de nascimento, a idade não é calculada."""
+    assert calcular_idade_cheia(None) is None

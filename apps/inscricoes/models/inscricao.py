@@ -13,7 +13,10 @@ from apps.inscricoes.constants import (
     StatusInscricao,
     TipoEstudante,
 )
-from apps.inscricoes.validators import validar_inscricao
+from apps.inscricoes.validators import (
+    calcular_idade_cheia,
+    validar_inscricao,
+)
 
 
 class Inscricao(ModeloAtualizavel):
@@ -269,6 +272,11 @@ class Inscricao(ModeloAtualizavel):
         from apps.inscricoes.validators import inscricao_eh_completa
 
         return inscricao_eh_completa(self)
+
+    @property
+    def idade(self) -> int | None:
+        """Idade em anos completos na data local de hoje."""
+        return calcular_idade_cheia(self.data_nascimento)
 
     def clean(self) -> None:
         """Executa as validações compartilhadas do domínio."""

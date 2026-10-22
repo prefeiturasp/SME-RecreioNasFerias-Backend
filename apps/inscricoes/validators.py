@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from apps.definicoes_polos.constants import TipoPolo
 from apps.definicoes_polos.models import DefinicaoPolo
@@ -70,6 +73,29 @@ def inscricao_eh_completa(inscricao: object) -> bool:
         "codigo_eol" if tipo == TipoEstudante.ESTUDANTE_DA_REDE else "cpf"
     )
     return _preenchido(getattr(inscricao, campo_condicional, None))
+
+
+def calcular_idade_cheia(data_nascimento: date | None) -> int | None:
+    """Devolve a idade em anos completos na data local de hoje.
+
+    Sem data de nascimento, devolve ``None``. Em 29 de fevereiro, num
+    ano que não é bissexto, o aniversário vale 1º de março.
+    """
+    if data_nascimento is None:
+        return None
+    hoje = timezone.localdate()
+    idade = hoje.year - data_nascimento.year
+    if hoje < _aniversario(data_nascimento, hoje.year):
+        idade -= 1
+    return idade
+
+
+def _aniversario(nascimento: date, ano: int) -> date:
+    """Monta o aniversário no ano pedido, tratando 29 de fevereiro."""
+    try:
+        return date(ano, nascimento.month, nascimento.day)
+    except ValueError:
+        return date(ano, 3, 1)
 
 
 def validar_tipo_e_grupo(inscricao: object) -> None:
