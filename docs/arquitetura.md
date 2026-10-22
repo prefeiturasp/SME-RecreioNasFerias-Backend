@@ -70,6 +70,7 @@ Nesta etapa ele concentra:
 
 - autenticação institucional via CoreSSO com sessão JWT local
 - usuário local e vínculo ao cargo permitido autorizado
+- grupos e permissões RBAC compartilhados pelos domínios
 - auditoria simples de login
 - healthcheck e contratos HTTP de autenticação
 - tradução centralizada de exceções REST para respostas mais consistentes
@@ -81,6 +82,15 @@ Os pontos centrais do fluxo atual ficam distribuídos em:
 - `apps/core/api/serializers/auth_serializer.py`
 - `apps/core/api/views/auth.py`
 - `apps/core/models/identidade.py`
+- `apps/core/permission_catalog.py`
+- `apps/core/migrations/0005_permissionamento_customizado.py`
+
+O RBAC usa os modelos nativos `Group` e `Permission`. Os ViewSets aplicam as
+permissões por ação, e os cargos do CoreSSO continuam sendo a condição para o
+login institucional. O catálogo dos perfis está disponível em
+`GET /api/v1/perfis/`; a resposta de `GET /api/v1/auth/me/` também informa os
+grupos e as permissões efetivas do usuário. Veja
+`docs/dominios/permissionamento/index.rst` para a matriz e as regras.
 
 ## Apps de domínio
 
