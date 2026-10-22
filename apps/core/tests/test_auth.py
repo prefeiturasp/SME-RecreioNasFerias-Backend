@@ -15,6 +15,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import InvalidToken
 
 from apps.core.api.views.auth import (
     LoginView,
@@ -28,6 +29,12 @@ from apps.core.services import (
     AuthenticatedSessionData,
     AuthService,
     CargoNaoAutorizadoError,
+)
+from apps.integracoes.coresso.exceptions import (
+    CoressoAutenticacaoError,
+    CoressoConfigError,
+    CoressoContratoError,
+    CoressoIndisponivelError,
 )
 from apps.integracoes.coresso.port import (
     CargoCoresso,
@@ -59,8 +66,10 @@ def test_authentication_falha_quando_header_existe() -> None:
         HTTP_AUTHORIZATION="Bearer token-placeholder",
     )
 
+    authentication = RfTokenAuthentication()
+
     with pytest.raises(AuthenticationFailed):
-        RfTokenAuthentication().authenticate(request)
+        authentication.authenticate(request)
 
 
 class FakeCoresso(CoressoPort):
@@ -208,6 +217,10 @@ def test_auth_service_persiste_usuario_com_cargo_efetivo_sobreposto() -> None:
     assert usuario.nome_completo == TEST_NOME
     assert usuario.cargo_permitido == cargo_permitido
     assert usuario.has_usable_password() is False
+    assert usuario.groups.filter(name="USUARIO_UE").exists()
+    assert usuario.has_perm(
+        "core.visualizar_inscricoes_participantes"
+    )
 
 
 def test_auth_service_seleciona_o_cargo_autorizado_para_o_usuario() -> None:
@@ -263,10 +276,10 @@ def test_auth_service_bloqueia_quando_nao_ha_cargo_autorizado() -> None:
         payload_bruto={},
     )
 
+    service = AuthService(coresso=FakeCoresso(identidade))
+
     with pytest.raises(CargoNaoAutorizadoError):
-        AuthService(coresso=FakeCoresso(identidade)).login(
-            TEST_RF, TEST_AUTH_INPUT
-        )
+        service.login(TEST_RF, TEST_AUTH_INPUT)
 
 
 def test_login_view_usa_contrato_de_resposta_previsto(
@@ -335,8 +348,64 @@ def test_login_view_usa_contrato_de_resposta_previsto(
                 "descricaoCargo": "Assistente Tecnico",
             }
         ],
+        "perfis": [],
+        "permissoes": [],
     }
     assert response.cookies["refresh_token"].value == "refresh-token"
+
+
+@pytest.mark.parametrize(
+    ("erro", "codigo_http"),
+    [
+        (CoressoAutenticacaoError("credenciais inválidas"), 401),
+        (CargoNaoAutorizadoError("cargo não autorizado"), 403),
+        (CoressoIndisponivelError("CoreSSO indisponível"), 502),
+        (CoressoContratoError("resposta inválida"), 502),
+        (CoressoConfigError("configuração inválida"), 500),
+    ],
+)
+def test_login_view_mapeia_erros_do_fluxo_de_autenticacao(
+    monkeypatch: pytest.MonkeyPatch,
+    erro: Exception,
+    codigo_http: int,
+) -> None:
+    """Converte falhas do login em status HTTP e registra auditoria."""
+    from apps.core.api.views import auth
+
+    registros_auditoria: list[dict[str, object]] = []
+
+    class FakeAuthService:
+        def login(self, login: str, senha: str) -> AuthenticatedSessionData:
+            raise erro
+
+    class FakeAuthAuditService:
+        def registrar_tentativa_login(
+            self, request: Request, **dados: object
+        ) -> None:
+            registros_auditoria.append(dados)
+
+    monkeypatch.setattr(auth, "auth_service", FakeAuthService())
+    monkeypatch.setattr(
+        auth, "auth_audit_service", FakeAuthAuditService()
+    )
+    request = APIRequestFactory().post(
+        "/api/v1/auth/login/",
+        {"login": "123", "senha": "senha"},
+        format="json",
+    )
+
+    response = auth.LoginView.as_view()(request)
+
+    assert response.status_code == codigo_http
+    assert response.data == {"detalhe": str(erro)}
+    assert registros_auditoria == [
+        {
+            "sucesso": False,
+            "login_tentativa": "123",
+            "codigo_http": codigo_http,
+            "mensagem": str(erro),
+        }
+    ]
 
 
 def test_refresh_view_le_cookie_e_retorna_token(
@@ -376,6 +445,35 @@ def test_refresh_view_le_cookie_e_retorna_token(
         "refresh": "refresh-cookie-token"
     }
     assert response.cookies["refresh_token"].value == "novo-refresh-token"
+
+
+def test_refresh_view_retorna_401_e_limpa_cookie_para_token_invalido(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Remove o cookie quando o serializer rejeita o refresh token."""
+
+    class FakeTokenRefreshSerializer:
+        def __init__(self, data: dict[str, str]) -> None:
+            self.initial_data = data
+
+        def is_valid(self, raise_exception: bool = False) -> bool:
+            raise InvalidToken("Token expirado")
+
+    from apps.core.api.views import auth
+
+    monkeypatch.setattr(
+        auth, "TokenRefreshSerializer", FakeTokenRefreshSerializer
+    )
+    request = APIRequestFactory().post(
+        "/api/v1/auth/token/refresh/", {}, format="json"
+    )
+    request.COOKIES["refresh_token"] = "token-expirado"
+
+    response = auth.RefreshView.as_view()(request)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.data == {"detalhe": "Token invalido ou expirado."}
+    assert response.cookies["refresh_token"].value == ""
 
 
 def test_verify_view_retorna_200_para_token_valido(
@@ -496,4 +594,16 @@ def test_me_view_retorna_snapshot_local_do_usuario() -> None:
                 "descricaoCargo": "Assistente Tecnico",
             }
         ],
+        "perfis": [],
+        "permissoes": [],
     }
+
+
+def test_me_view_rejeita_usuario_nao_autenticado() -> None:
+    """Garante a proteção interna para requisições sem usuário logado."""
+    request = Request(APIRequestFactory().get("/api/v1/auth/me/"))
+
+    view = MeView()
+
+    with pytest.raises(NotAuthenticated):
+        view.get(request)

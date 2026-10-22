@@ -9,7 +9,6 @@ from drf_spectacular.utils import (
 )
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.core.utils.paginacao_customizada import PaginacaoCustomizada
@@ -19,14 +18,14 @@ from apps.integracoes.eol.exceptions import (
     EolIndisponivelError,
 )
 from apps.polos.api.serializers import (
+    DadosUnidadeSerializer,
     DreSerializer,
     PoloSerializer,
     PopularUnidadesDiretasSerializer,
     TipoEscolaSerializer,
-    DadosUnidadeSerializer,
 )
-
 from apps.polos.models import Polo
+from apps.polos.permissions import PermissaoPolo
 from apps.polos.services.polo_service import PoloService
 
 
@@ -88,7 +87,7 @@ class PoloViewSet(viewsets.ModelViewSet):
 
     queryset = Polo.objects.all()
     serializer_class = PoloSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [PermissaoPolo]
     lookup_field = "uuid"
     service_class = PoloService
     pagination_class = PaginacaoCustomizada

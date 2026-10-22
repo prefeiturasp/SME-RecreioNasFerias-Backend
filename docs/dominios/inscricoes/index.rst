@@ -12,7 +12,8 @@ Visão resumida
 - endpoint base: ``/api/v1/inscricoes/``
 - entidade principal: ``Inscricao``
 - serviço: ``InscricaoService``
-- acesso: todas as rotas exigem autenticação
+- acesso: permissões RBAC por ação; Usuário UE pode criar, visualizar e editar
+  inscrições de participantes
 - identificação pública: UUID
 - vínculo com edição: opcional nesta fase
 

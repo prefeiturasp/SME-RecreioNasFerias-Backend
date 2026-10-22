@@ -26,6 +26,26 @@ def test_modelo_base_define_timestamps() -> None:
     assert cargo.atualizado_em is not None
 
 
+@pytest.mark.parametrize(
+    ("descricao", "representacao_esperada"),
+    [
+        ("CARGO TESTE", "8800102 - CARGO TESTE"),
+        ("", "8800102"),
+    ],
+)
+def test_cargo_permitido_tem_representacao_textual(
+    descricao: str,
+    representacao_esperada: str,
+) -> None:
+    """Formata o código com descrição ou retorna somente o código."""
+    cargo = CargoPermitido(
+        codigo_cargo=8800102,
+        descricao_cargo=descricao,
+    )
+
+    assert str(cargo) == representacao_esperada
+
+
 def test_usuario_manager_cria_usuario_por_rf() -> None:
     """Garante criação de usuário com username padrão e RF armazenado."""
     cargo = CargoPermitido.objects.create(

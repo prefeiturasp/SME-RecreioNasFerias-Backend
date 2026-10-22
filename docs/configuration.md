@@ -67,7 +67,13 @@ mesmas variáveis para criar um banco temporário no mesmo servidor.
 | `AUTH_API_CONNECT_TIMEOUT_SECONDS` | `5` | timeout de conexão TCP |
 | `AUTH_API_TIMEOUT_SECONDS` | `60` | timeout genérico reservado para integrações `AUTH_API_*` |
 | `AUTH_CODIGO_SISTEMA` | `1009` | código do sistema enviado ao CoreSSO |
+| `PRIMEIRO_ADMIN_COCEU_RF` | sem padrão | RF do usuário associado ao perfil inicial Administrador COCEU pela migration RBAC |
 | `AUTH_REFRESH_COOKIE_SECURE` | `not DEBUG` | atributo `Secure` do cookie de refresh |
+
+`PRIMEIRO_ADMIN_COCEU_RF` deve estar configurada antes da primeira aplicação da
+migration de permissionamento em cada banco. O valor não deve ser versionado;
+em ambientes hospedados, injete-o por meio do mecanismo seguro de configuração
+da plataforma.
 
 Pontos fixos no código atual:
 

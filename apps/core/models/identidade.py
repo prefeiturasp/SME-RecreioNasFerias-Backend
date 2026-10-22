@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 from apps.core.models.modelo_base import ModeloBase
+from apps.core.permission_catalog import PERMISSOES_PERSONALIZADAS_USUARIO
 
 
 class CargoPermitido(ModeloBase):
@@ -46,6 +47,7 @@ class Usuario(AbstractUser, ModeloBase):
         verbose_name = "user"
         verbose_name_plural = "users"
         swappable = "AUTH_USER_MODEL"
+        permissions = PERMISSOES_PERSONALIZADAS_USUARIO
 
     def __str__(self) -> str:
         """Representação textual curta do usuário."""
