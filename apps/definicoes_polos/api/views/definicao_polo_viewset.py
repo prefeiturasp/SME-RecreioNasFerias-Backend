@@ -13,34 +13,34 @@ from drf_spectacular.utils import (
 )
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.core.utils.paginacao_customizada import PaginacaoCustomizada
-from apps.integracoes.eol.exceptions import (
-    EolConfigError,
-    EolContratoError,
-    EolIndisponivelError,
-)
 from apps.definicoes_polos.api.serializers import (
     AlterarEdicaoEmMassaSerializer,
-    DefinicaoPoloDetalhamentoSerializer,
-    DefinicaoPoloHistoricoSerializer,
-    DefinicaoPoloSerializer,
     AlterarTipoEmMassaAlteradoSerializer,
     AlterarTipoEmMassaIgnoradoSerializer,
     AlterarTipoEmMassaRespostaSerializer,
     AlterarTipoEmMassaSerializer,
     DefinicaoPoloAtualizacaoSerializer,
+    DefinicaoPoloDetalhamentoSerializer,
+    DefinicaoPoloHistoricoSerializer,
+    DefinicaoPoloSerializer,
     PoloComDefinicaoSerializer,
     VincularEmMassaResponseSerializer,
     VincularEmMassaSerializer,
 )
 from apps.definicoes_polos.models import DefinicaoPolo
+from apps.definicoes_polos.permissions import PermissaoDefinicaoPolo
 from apps.definicoes_polos.services.definicao_polo_service import (
     DefinicaoPoloService,
 )
 from apps.edicoes.models import Edicao
+from apps.integracoes.eol.exceptions import (
+    EolConfigError,
+    EolContratoError,
+    EolIndisponivelError,
+)
 from apps.polos.models import Polo
 from apps.polos.services.polo_service import PoloService
 
@@ -133,7 +133,7 @@ class DefinicaoPoloViewSet(viewsets.ModelViewSet):
 
     queryset = DefinicaoPolo.objects.select_related("polo", "edicao")
     serializer_class = DefinicaoPoloSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [PermissaoDefinicaoPolo]
     lookup_field = "uuid"
     service_class = DefinicaoPoloService
     pagination_class = PaginacaoCustomizada

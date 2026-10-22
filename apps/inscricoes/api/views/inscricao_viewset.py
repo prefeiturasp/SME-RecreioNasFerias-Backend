@@ -13,7 +13,6 @@ from drf_spectacular.utils import (
 )
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -26,6 +25,7 @@ from apps.inscricoes.api.serializers import (
     PoloElegivelSerializer,
 )
 from apps.inscricoes.models import Inscricao
+from apps.inscricoes.permissions import PermissaoInscricaoParticipante
 from apps.inscricoes.services.inscricao_service import InscricaoService
 from apps.integracoes.eol.exceptions import (
     EolConfigError,
@@ -96,7 +96,7 @@ class InscricaoViewSet(viewsets.ModelViewSet):
 
     queryset = Inscricao.objects.select_related("polo", "edicao")
     serializer_class = InscricaoInformacoesBasicasSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [PermissaoInscricaoParticipante]
     lookup_field = "uuid"
     pagination_class = PaginacaoCustomizada
     service_class = InscricaoService
