@@ -20,3 +20,5 @@ class ParticipanteRedeSerializer(serializers.Serializer):
     telefone_contato_1 = serializers.CharField(source="celular_responsavel")
     telefone_contato_2 = serializers.CharField()
     email = serializers.CharField()
+    nome_turma = serializers.CharField()
+    ano = serializers.CharField()
