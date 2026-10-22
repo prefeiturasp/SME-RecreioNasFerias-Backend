@@ -57,6 +57,12 @@ class InscricaoAdminForm(forms.ModelForm):
             "restricao_medicamento_pronto_atendimento",
             "possui_convenio_medico",
             "convenio_medico",
+            "unidade_educacional",
+            "nome_turma",
+            "ano",
+            "pode_ir_embora_sozinho",
+            "responsavel_retirada",
+            "autoriza_uso_piscina",
         ]
 
 

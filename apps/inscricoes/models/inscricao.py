@@ -212,6 +212,45 @@ class Inscricao(ModeloAtualizavel):
         verbose_name="Especifique o convênio médico"
     )
 
+    ## Informações por grupo
+
+    unidade_educacional = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Unidade educacional do participante",
+    )
+    nome_turma = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name="Turma",
+    )
+    ano = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="Ano",
+    )
+    pode_ir_embora_sozinho = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="Pode ir embora sozinho?",
+    )
+    responsavel_retirada = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Responsável por retirar na saída",
+    )
+    autoriza_uso_piscina = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="Autoriza uso da piscina?",
+    )
+
     class Meta:
         """Metadados da inscrição."""
 
