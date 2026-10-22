@@ -9,8 +9,8 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from apps.inscricoes.api.serializers import (
+    InscricaoCadastroSerializer,
     InscricaoDetalheSerializer,
-    InscricaoInformacoesBasicasSerializer,
     InscricaoListagemSerializer,
 )
 from apps.inscricoes.api.views.inscricao_viewset import InscricaoViewSet
@@ -233,7 +233,7 @@ def test_view_seleciona_serializers_por_acao() -> None:
     view.action = "retrieve"
     assert view.get_serializer_class() is InscricaoDetalheSerializer
     view.action = "create"
-    assert view.get_serializer_class() is InscricaoInformacoesBasicasSerializer
+    assert view.get_serializer_class() is InscricaoCadastroSerializer
 
 
 def test_service_lista_polos_elegiveis_sem_filtro() -> None:
@@ -270,9 +270,7 @@ def test_view_polos_oficiais_com_paginacao_desabilitada(
     """A action suporta o ramo em que a paginação não retorna página."""
     polo = inscricao_completa_factory().polo
     view = InscricaoViewSet()
-    request = SimpleNamespace(
-        query_params={"desabilita_paginacao": "true"}
-    )
+    request = SimpleNamespace(query_params={"desabilita_paginacao": "true"})
 
     response = view.polos_oficiais(request)
 
@@ -332,6 +330,8 @@ def _participante() -> ParticipanteRedeEol:
         uf="SP",
         tipo_logradouro="Rua",
         logradouro="DA PASSAGEM FUNDA",
+        nome_turma="7C",
+        ano="7",
     )
 
 
@@ -383,6 +383,8 @@ def test_participante_eol_devolve_nome(
         "telefone_contato_1",
         "telefone_contato_2",
         "email",
+        "nome_turma",
+        "ano",
     }
     assert response.data["codigo_eol"] == "6034178"
     assert response.data["nome_participante"] == "ANNA JULIA ARAUJO SA"
@@ -398,6 +400,8 @@ def test_participante_eol_devolve_nome(
     assert response.data["telefone_contato_2"] == ""
     assert response.data["responsavel_nome_social"] == ""
     assert response.data["complemento"] == ""
+    assert response.data["nome_turma"] == "7C"
+    assert response.data["ano"] == "7"
 
 
 def test_participante_eol_nao_encontrado_nao_grava(
@@ -529,6 +533,8 @@ def test_participante_cpf_devolve_nome(
         "telefone_contato_1",
         "telefone_contato_2",
         "email",
+        "nome_turma",
+        "ano",
     }
     assert response.data["codigo_eol"] == "6034178"
     assert response.data["nome_participante"] == "ANNA JULIA ARAUJO SA"
@@ -544,6 +550,8 @@ def test_participante_cpf_devolve_nome(
     assert response.data["telefone_contato_2"] == ""
     assert response.data["responsavel_nome_social"] == ""
     assert response.data["complemento"] == ""
+    assert response.data["nome_turma"] == "7C"
+    assert response.data["ano"] == "7"
 
 
 def test_participante_cpf_nao_encontrado_nao_grava(
