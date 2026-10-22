@@ -1,16 +1,56 @@
 """Fixtures compartilhadas dos testes da aplicação."""
 
-import pytest
 from datetime import date, timedelta
+
+import pytest
+from django.contrib.auth.models import Group, Permission
 from rest_framework.test import APIClient
 
 from apps.factories import (
     DefinicaoPoloFactory,
     EdicaoFactory,
+    InscricaoFactory,
     PoloFactory,
     UsuarioFactory,
-    InscricaoFactory,
 )
+
+
+@pytest.fixture
+def perfis_rbac():
+    """Lista os perfis institucionais usados nos testes da matriz RBAC."""
+    return (
+        "ADMINISTRADOR_COCEU",
+        "GESTOR_DICEU",
+        "GESTOR_CODAE",
+        "GESTOR_ASCOM",
+        "GESTOR_COGED",
+        "GESTOR_POLO",
+        "USUARIO_UE",
+    )
+
+
+@pytest.fixture
+def criar_usuario_rbac():
+    """Cria usuário de teste com grupos e permissões individuais opcionais."""
+    def criar(*, perfis=(), permissoes=()):
+        usuario = UsuarioFactory.create()
+        for perfil in perfis:
+            grupo = Group.objects.get(name=perfil)
+            usuario.groups.add(grupo)
+
+        if permissoes:
+            permissoes_encontradas = Permission.objects.filter(
+                content_type__app_label="core",
+                codename__in=permissoes,
+            )
+            codenames_encontrados = set(
+                permissoes_encontradas.values_list("codename", flat=True)
+            )
+            assert codenames_encontrados == set(permissoes)
+            usuario.user_permissions.add(*permissoes_encontradas)
+        return usuario
+
+    return criar
 
 @pytest.fixture
 def inscricao_factory():
@@ -88,6 +128,10 @@ def api_client() -> APIClient:
 
 @pytest.fixture
 def cliente_autenticado(api_client: APIClient, usuario) -> APIClient:
-    """Autentica o cliente localmente, sem executar o fluxo CoreSSO."""
+    """Autentica o cliente como Administrador COCEU, sem executar CoreSSO."""
+    perfil_admin, _ = Group.objects.get_or_create(
+        name="ADMINISTRADOR_COCEU"
+    )
+    usuario.groups.add(perfil_admin)
     api_client.force_authenticate(user=usuario)
     return api_client
