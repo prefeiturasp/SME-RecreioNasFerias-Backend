@@ -362,16 +362,18 @@ def test_participante_eol_devolve_nome(
         _consultar,
     )
 
-    response = cliente_autenticado.get(
-        f"{URL}participante-eol/",
-        {"codigo_eol": "6034178"},
-    )
+    with freeze_time("2026-10-16 12:00:00"):
+        response = cliente_autenticado.get(
+            f"{URL}participante-eol/",
+            {"codigo_eol": "6034178"},
+        )
 
     assert response.status_code == status.HTTP_200_OK
     assert set(response.data) == {
         "codigo_eol",
         "nome_participante",
         "data_nascimento",
+        "idade",
         "responsavel_nome",
         "responsavel_nome_social",
         "cep",
@@ -390,6 +392,7 @@ def test_participante_eol_devolve_nome(
     assert response.data["nome_participante"] == "ANNA JULIA ARAUJO SA"
     assert response.data["responsavel_nome"] == "SAMARA LIMA ARAUJO"
     assert response.data["data_nascimento"] == "2013-10-16"
+    assert response.data["idade"] == 13
     assert response.data["cep"] == "08411-010"
     assert response.data["logradouro"] == "DA PASSAGEM FUNDA"
     assert response.data["numero"] == "72"
@@ -512,16 +515,18 @@ def test_participante_cpf_devolve_nome(
         _consultar,
     )
 
-    response = cliente_autenticado.get(
-        f"{URL}participante-cpf/",
-        {"cpf": "12345678909"},
-    )
+    with freeze_time("2026-10-16 12:00:00"):
+        response = cliente_autenticado.get(
+            f"{URL}participante-cpf/",
+            {"cpf": "12345678909"},
+        )
 
     assert response.status_code == status.HTTP_200_OK
     assert set(response.data) == {
         "codigo_eol",
         "nome_participante",
         "data_nascimento",
+        "idade",
         "responsavel_nome",
         "responsavel_nome_social",
         "cep",
@@ -540,6 +545,7 @@ def test_participante_cpf_devolve_nome(
     assert response.data["nome_participante"] == "ANNA JULIA ARAUJO SA"
     assert response.data["responsavel_nome"] == "SAMARA LIMA ARAUJO"
     assert response.data["data_nascimento"] == "2013-10-16"
+    assert response.data["idade"] == 13
     assert response.data["cep"] == "08411-010"
     assert response.data["logradouro"] == "DA PASSAGEM FUNDA"
     assert response.data["numero"] == "72"

@@ -1,6 +1,7 @@
 """Testes dos serializers de inscrições."""
 
 from datetime import date
+from types import SimpleNamespace
 
 import pytest
 from freezegun import freeze_time
@@ -9,6 +10,7 @@ from apps.inscricoes.api.serializers import (
     InscricaoCadastroSerializer,
     InscricaoDetalheSerializer,
     InscricaoListagemSerializer,
+    ParticipanteRedeSerializer,
     PoloElegivelSerializer,
 )
 from apps.inscricoes.constants import (
@@ -119,6 +121,41 @@ def test_serializer_devolve_idade_nula_sem_nascimento(
     inscricao = inscricao_factory(data_nascimento=None)
 
     assert InscricaoCadastroSerializer(inscricao).data["idade"] is None
+
+
+def test_serializer_participante_expoe_idade() -> None:
+    """A consulta da rede devolve a idade e a omite sem data."""
+    participante = _participante_rede()
+
+    with freeze_time("2026-10-16 12:00:00"):
+        dados = ParticipanteRedeSerializer(participante).data
+
+    assert dados["idade"] == 13
+
+    participante.data_nascimento = ""
+    assert ParticipanteRedeSerializer(participante).data["idade"] is None
+
+
+def _participante_rede() -> SimpleNamespace:
+    """Monta o mínimo que o contrato da consulta da rede lê."""
+    return SimpleNamespace(
+        codigo_aluno=1,
+        nome_aluno="Ana",
+        data_nascimento="2013-10-16",
+        nome_responsavel="",
+        responsavel_nome_social="",
+        cep="",
+        logradouro="",
+        numero="",
+        complemento="",
+        bairro="",
+        cidade="",
+        celular_responsavel="",
+        telefone_contato_2="",
+        email="",
+        nome_turma="",
+        ano="",
+    )
 
 
 def test_serializer_detalhe_aninha_polo_e_edicao(
