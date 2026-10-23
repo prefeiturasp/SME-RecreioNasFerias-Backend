@@ -83,6 +83,17 @@ def test_modelo_expoe_idade_em_anos_cheios(inscricao_factory) -> None:
         assert inscricao.idade == 10
 
 
+def test_modelo_indica_aluno_da_rede(inscricao_factory) -> None:
+    """Estudante da rede marca aluno_rede_municipal; externo não marca."""
+    rede = inscricao_factory.build(
+        tipo_estudante=TipoEstudante.ESTUDANTE_DA_REDE
+    )
+    externo = inscricao_factory.build()
+
+    assert rede.aluno_rede_municipal is True
+    assert externo.aluno_rede_municipal is False
+
+
 def test_modelo_rejeita_grupo_incompativel(inscricao_completa_factory) -> None:
     """Grupos infantis não podem pertencer a estudante externo."""
     with pytest.raises(ValidationError):

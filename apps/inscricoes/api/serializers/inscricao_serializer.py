@@ -49,6 +49,13 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
         source="get_status_display", read_only=True, allow_null=True
     )
     idade = serializers.IntegerField(read_only=True, allow_null=True)
+    aluno_rede_municipal = serializers.BooleanField(read_only=True)
+    pode_ir_embora_sozinho = serializers.BooleanField(
+        allow_null=True, required=False
+    )
+    autoriza_uso_piscina = serializers.BooleanField(
+        allow_null=True, required=False
+    )
 
     class Meta:
         """Configuração do contrato do formulário de inscrições."""
@@ -60,6 +67,7 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
             "polo",
             "tipo_estudante",
             "tipo_estudante_label",
+            "aluno_rede_municipal",
             "grupo",
             "grupo_label",
             "codigo_eol",
@@ -96,9 +104,21 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
             "possui_restricao_medicamento_pronto_atendimento",
             "restricao_medicamento_pronto_atendimento",
             "possui_convenio_medico",
-            "convenio_medico"
+            "convenio_medico",
+            "unidade_educacional",
+            "nome_turma",
+            "ano",
+            "pode_ir_embora_sozinho",
+            "responsavel_retirada",
+            "autoriza_uso_piscina",
         )
-        read_only_fields = ("uuid", "status", "ativo", "idade")
+        read_only_fields = (
+            "uuid",
+            "status",
+            "ativo",
+            "idade",
+            "aluno_rede_municipal",
+        )
 
 
 class InscricaoListagemSerializer(serializers.ModelSerializer):

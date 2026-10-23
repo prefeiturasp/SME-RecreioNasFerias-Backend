@@ -158,6 +158,41 @@ def _participante_rede() -> SimpleNamespace:
     )
 
 
+def test_serializer_recebe_grupo_e_ignora_campos_derivados(
+    inscricao_factory,
+) -> None:
+    """O contrato grava o grupo e ignora idade e aluno da rede."""
+    inscricao = inscricao_factory(
+        tipo_estudante=TipoEstudante.ESTUDANTE_DA_REDE,
+        unidade_educacional="EMEI Teste",
+        nome_turma="7C",
+        ano="7",
+        pode_ir_embora_sozinho=False,
+        responsavel_retirada="Maria",
+        autoriza_uso_piscina=True,
+    )
+
+    dados = InscricaoCadastroSerializer(inscricao).data
+
+    assert dados["unidade_educacional"] == "EMEI Teste"
+    assert dados["nome_turma"] == "7C"
+    assert dados["ano"] == "7"
+    assert dados["pode_ir_embora_sozinho"] is False
+    assert dados["responsavel_retirada"] == "Maria"
+    assert dados["autoriza_uso_piscina"] is True
+    assert dados["aluno_rede_municipal"] is True
+
+    serializer = InscricaoCadastroSerializer(
+        inscricao,
+        data={"idade": 99, "aluno_rede_municipal": False},
+        partial=True,
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert "idade" not in serializer.validated_data
+    assert "aluno_rede_municipal" not in serializer.validated_data
+
+
 def test_serializer_detalhe_aninha_polo_e_edicao(
     inscricao_completa_factory,
 ) -> None:

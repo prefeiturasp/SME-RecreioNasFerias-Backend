@@ -121,6 +121,50 @@ def test_lista_aplica_filtros_e_retorna_polo_nome(
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
     assert response.data[0]["polo_nome"] == inscricao.polo.nome_polo
+    assert "pode_ir_embora_sozinho" not in response.data[0]
+    assert "aluno_rede_municipal" not in response.data[0]
+
+
+def test_cria_e_recupera_informacoes_de_grupo(
+    cliente_autenticado,
+    polo_factory,
+    definicao_polo_factory,
+    edicao_factory,
+) -> None:
+    """POST grava o grupo e GET devolve os mesmos campos."""
+    polo = polo_factory()
+    edicao = edicao_factory()
+    definicao_polo_factory(polo=polo, edicao=edicao, tipo="oficial")
+    payload = _payload(polo)
+    payload.update(
+        {
+            "edicao": str(edicao.uuid),
+            "unidade_educacional": "EMEI Teste",
+            "nome_turma": "7C",
+            "ano": "7",
+            "pode_ir_embora_sozinho": False,
+            "responsavel_retirada": "Maria",
+            "autoriza_uso_piscina": True,
+            "idade": 1,
+            "aluno_rede_municipal": True,
+        }
+    )
+
+    criado = cliente_autenticado.post(URL, payload, format="json")
+    recuperado = cliente_autenticado.get(f"{URL}{criado.data['uuid']}/")
+
+    assert criado.status_code == status.HTTP_201_CREATED
+    assert criado.data["aluno_rede_municipal"] is False
+    assert criado.data["pode_ir_embora_sozinho"] is False
+    assert criado.data["autoriza_uso_piscina"] is True
+    assert recuperado.status_code == status.HTTP_200_OK
+    assert recuperado.data["unidade_educacional"] == "EMEI Teste"
+    assert recuperado.data["nome_turma"] == "7C"
+    assert recuperado.data["ano"] == "7"
+    assert recuperado.data["responsavel_retirada"] == "Maria"
+    inscricao = Inscricao.objects.get(uuid=criado.data["uuid"])
+    assert inscricao.pode_ir_embora_sozinho is False
+    assert inscricao.responsavel_retirada == "Maria"
 
 
 def test_cria_rascunho_atualiza_e_remove(

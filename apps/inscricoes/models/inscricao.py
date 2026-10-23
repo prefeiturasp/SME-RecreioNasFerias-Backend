@@ -278,6 +278,11 @@ class Inscricao(ModeloAtualizavel):
         """Idade em anos completos na data local de hoje."""
         return calcular_idade_cheia(self.data_nascimento)
 
+    @property
+    def aluno_rede_municipal(self) -> bool:
+        """Indica se o participante é estudante da rede municipal."""
+        return self.tipo_estudante == TipoEstudante.ESTUDANTE_DA_REDE
+
     def clean(self) -> None:
         """Executa as validações compartilhadas do domínio."""
         super().clean()
