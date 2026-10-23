@@ -48,7 +48,8 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
     status_label = serializers.CharField(
         source="get_status_display", read_only=True, allow_null=True
     )
-    
+    idade = serializers.IntegerField(read_only=True, allow_null=True)
+
     class Meta:
         """Configuração do contrato do formulário de inscrições."""
 
@@ -65,6 +66,7 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
             "cpf",
             "nome_participante",
             "data_nascimento",
+            "idade",
             "responsavel_nome",
             "responsavel_nome_social",
             "cep",
@@ -96,7 +98,7 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
             "possui_convenio_medico",
             "convenio_medico"
         )
-        read_only_fields = ("uuid", "status", "ativo")
+        read_only_fields = ("uuid", "status", "ativo", "idade")
 
 
 class InscricaoListagemSerializer(serializers.ModelSerializer):

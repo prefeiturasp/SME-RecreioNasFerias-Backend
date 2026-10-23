@@ -1,10 +1,13 @@
 """Testes dos serializers de inscrições."""
 
+from datetime import date
+
 import pytest
+from freezegun import freeze_time
 
 from apps.inscricoes.api.serializers import (
-    InscricaoDetalheSerializer,
     InscricaoCadastroSerializer,
+    InscricaoDetalheSerializer,
     InscricaoListagemSerializer,
     PoloElegivelSerializer,
 )
@@ -86,6 +89,36 @@ def test_serializer_rejeita_opcao_invalida_em_selecao_multipla() -> None:
 
     assert not serializer.is_valid()
     assert "deficiencias" in serializer.errors
+
+
+def test_serializer_expoe_idade_somente_leitura(inscricao_factory) -> None:
+    """A resposta devolve a idade calculada e ignora o valor enviado."""
+    inscricao = inscricao_factory(data_nascimento=date(2015, 5, 19))
+
+    with freeze_time("2026-05-18 12:00:00"):
+        dados = InscricaoCadastroSerializer(inscricao).data
+        detalhe = InscricaoDetalheSerializer(inscricao).data
+
+    assert dados["idade"] == 10
+    assert detalhe["idade"] == 10
+
+    serializer = InscricaoCadastroSerializer(
+        inscricao,
+        data={"idade": 99},
+        partial=True,
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert "idade" not in serializer.validated_data
+
+
+def test_serializer_devolve_idade_nula_sem_nascimento(
+    inscricao_factory,
+) -> None:
+    """Sem data de nascimento, o contrato devolve idade nula."""
+    inscricao = inscricao_factory(data_nascimento=None)
+
+    assert InscricaoCadastroSerializer(inscricao).data["idade"] is None
 
 
 def test_serializer_detalhe_aninha_polo_e_edicao(
