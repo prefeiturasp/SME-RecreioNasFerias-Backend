@@ -12,6 +12,7 @@ class ParticipanteRedeSerializer(serializers.Serializer):
     responsavel_nome = serializers.CharField(source="nome_responsavel")
     responsavel_nome_social = serializers.CharField()
     cep = serializers.CharField()
+    tipo_logradouro = serializers.CharField()
     logradouro = serializers.CharField()
     numero = serializers.CharField()
     complemento = serializers.CharField()
