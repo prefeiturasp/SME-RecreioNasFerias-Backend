@@ -54,6 +54,9 @@ CAMPOS_COMPLETUDE = (
 )
 
 CAMPOS_GRUPO_REDE = (
+    "unidade_educacional",
+    "unidade_educacional_codigo_eol",
+    "unidade_educacional_tipo",
     "pode_ir_embora_sozinho",
     "autoriza_uso_piscina",
     "responsavel_retirada",
@@ -68,7 +71,7 @@ def _preenchido(valor: object) -> bool:
 
 
 def inscricao_eh_completa(inscricao: object) -> bool:
-    """Aplica a régua da fase e, na rede, a seção de saída e piscina."""
+    """Aplica a régua da fase e, na rede, unidade, saída e piscina."""
     if any(
         not _preenchido(getattr(inscricao, campo, None))
         for campo in CAMPOS_COMPLETUDE

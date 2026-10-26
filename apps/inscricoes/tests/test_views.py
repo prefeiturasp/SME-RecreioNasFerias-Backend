@@ -180,7 +180,7 @@ def test_rede_sem_informacoes_de_grupo_permanece_rascunho(
     definicao_polo_factory,
     edicao_factory,
 ) -> None:
-    """A rede só fica completa com saída, retirada e piscina."""
+    """A rede só fica completa com unidade, saída, retirada e piscina."""
     polo = polo_factory()
     edicao = edicao_factory()
     definicao_polo_factory(polo=polo, edicao=edicao, tipo="oficial")
@@ -195,6 +195,9 @@ def test_rede_sem_informacoes_de_grupo_permanece_rascunho(
             "pode_ir_embora_sozinho": False,
             "autoriza_uso_piscina": False,
             "responsavel_retirada": "Maria",
+            "unidade_educacional": "EMEI Teste - 094633",
+            "unidade_educacional_codigo_eol": "094633",
+            "unidade_educacional_tipo": "EMEI",
         },
         format="json",
     )

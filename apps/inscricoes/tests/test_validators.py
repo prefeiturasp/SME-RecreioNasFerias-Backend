@@ -88,9 +88,43 @@ def test_completude_da_rede_aceita_resposta_negativa(
         pode_ir_embora_sozinho=False,
         autoriza_uso_piscina=False,
         responsavel_retirada="Maria",
+        unidade_educacional="EMEI Teste - 094633",
+        unidade_educacional_codigo_eol="094633",
+        unidade_educacional_tipo="EMEI",
     )
 
     assert inscricao_eh_completa(inscricao) is True
+    assert inscricao.status == StatusInscricao.COMPLETA
+
+
+def test_completude_da_rede_exige_unidade_educacional(
+    inscricao_completa_factory,
+) -> None:
+    """Sem nome, código ou tipo da unidade, a rede fica rascunho."""
+    inscricao = inscricao_completa_factory(
+        tipo_estudante=TipoEstudante.ESTUDANTE_DA_REDE,
+        codigo_eol="6034178",
+        pode_ir_embora_sozinho=False,
+        autoriza_uso_piscina=False,
+        responsavel_retirada="Maria",
+        unidade_educacional="   ",
+        unidade_educacional_codigo_eol="094633",
+        unidade_educacional_tipo="EMEI",
+    )
+
+    assert inscricao_eh_completa(inscricao) is False
+    assert inscricao.status == StatusInscricao.RASCUNHO
+
+    inscricao.unidade_educacional = "EMEI Teste - 094633"
+    inscricao.unidade_educacional_codigo_eol = ""
+    inscricao.save()
+
+    assert inscricao.status == StatusInscricao.RASCUNHO
+
+    inscricao.unidade_educacional_codigo_eol = "094633"
+    inscricao.unidade_educacional_tipo = "EMEI"
+    inscricao.save()
+
     assert inscricao.status == StatusInscricao.COMPLETA
 
 

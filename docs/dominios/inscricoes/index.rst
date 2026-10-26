@@ -63,7 +63,10 @@ preenchidos:
 - DRE e polo.
 
 O Código EOL é obrigatório para estudante da rede. O CPF é obrigatório para
-estudante externo. A ausência de qualquer dado obrigatório mantém ou reverte
+estudante externo. Para a rede, a inscrição também só fica completa com
+unidade educacional, código EOL da unidade, tipo da unidade, saída,
+responsável pela retirada e autorização da piscina. Estudante externo não
+exige esses campos. A ausência de qualquer dado obrigatório mantém ou reverte
 a inscrição para ``RASCUNHO``.
 
 Berçário I/II e Mini Grupo I/II só podem ser utilizados por estudantes da
