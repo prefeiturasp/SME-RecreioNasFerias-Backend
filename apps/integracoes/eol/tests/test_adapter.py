@@ -981,7 +981,7 @@ def test_consultar_participante_mantem_aluno_sem_turma() -> None:
 
 
 def test_consultar_participante_busca_unidade_da_turma() -> None:
-    """A unidade segue o codigoEscola da turma do último registro."""
+    """A unidade segue o ueCodigo da turma do último registro."""
     client = FakeClient(
         alunos=[_aluno_bruto()],
         informacoes=_informacoes_brutas(),
@@ -990,7 +990,7 @@ def test_consultar_participante_busca_unidade_da_turma() -> None:
                 "codigo": 99,
                 "nomeTurma": "7C",
                 "ano": "7",
-                "codigoEscola": " 094633 ",
+                "ueCodigo": " 094633 ",
             }
         },
         dados={
@@ -1025,7 +1025,7 @@ def test_consultar_participante_nao_busca_unidade_sem_codigo() -> None:
                 "codigo": 99,
                 "nomeTurma": "7C",
                 "ano": "7",
-                "codigoEscola": 0,
+                "ueCodigo": 0,
             }
         },
     )
@@ -1050,7 +1050,7 @@ def test_consultar_participante_mantem_aluno_sem_unidade() -> None:
                 "codigo": 99,
                 "nomeTurma": "7C",
                 "ano": "7",
-                "codigoEscola": "094633",
+                "ueCodigo": "094633",
             }
         },
     )
@@ -1076,7 +1076,7 @@ def test_consultar_participante_por_cpf_herda_unidade() -> None:
                 "codigo": 99,
                 "nomeTurma": "7C",
                 "ano": "7",
-                "codigoEscola": "094633",
+                "ueCodigo": "094633",
             }
         },
         dados={

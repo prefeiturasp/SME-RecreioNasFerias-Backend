@@ -292,7 +292,7 @@ class EolAdapter(EolPort):
         Nome, nascimento e os demais dados saem do primeiro item. O código
         usado em ``/api/turmas/{codigo}/dados`` sai do último. Código ausente
         ou zero não chama o endpoint. Turma inexistente deixa nome e ano
-        vazios. O ``codigoEscola`` dessa turma segue para
+        vazios. O ``ueCodigo`` dessa turma segue para
         ``/api/escolas/dados/{codigo}``. Código ausente ou zero não chama
         a unidade. Unidade inexistente deixa nome, código e tipo vazios.
 
@@ -511,7 +511,7 @@ class EolAdapter(EolPort):
             codigo=self._inteiro(payload.get("codigo")),
             nome_turma=self._texto(payload.get("nomeTurma")),
             ano=self._texto(payload.get("ano")),
-            codigo_escola=self._texto(payload.get("codigoEscola")),
+            codigo_escola=self._texto(payload.get("ueCodigo")),
         )
 
     @staticmethod

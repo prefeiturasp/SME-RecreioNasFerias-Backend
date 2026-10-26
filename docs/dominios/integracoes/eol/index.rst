@@ -90,7 +90,7 @@ Da turma, o sistema usa:
 - ``codigo``
 - ``nomeTurma``
 - ``ano``
-- ``codigoEscola``, enviado em seguida a ``/api/escolas/dados/{codigo}``
+- ``ueCodigo``, enviado em seguida a ``/api/escolas/dados/{codigo}``
 
 Dos dados da unidade do aluno, o sistema usa:
 
@@ -132,7 +132,7 @@ Decisões principais de mapeamento:
   item da mesma lista
 - código de turma ausente ou zero não chama esse endpoint
 - ``nomeTurma`` -> ``nome_turma`` e ``ano`` -> ``ano``, sempre texto
-- ``codigoEscola`` da turma segue para ``obter_dados_unidade``
+- ``ueCodigo`` da turma segue para ``obter_dados_unidade``
 - código de escola ausente ou zero não chama esse endpoint
 - ``nome`` e ``codigo`` da unidade viram ``nome - codigo``
 - ``siglaTipoEscola`` -> ``unidade_educacional_tipo``
