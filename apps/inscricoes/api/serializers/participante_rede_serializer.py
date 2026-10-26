@@ -29,6 +29,9 @@ class ParticipanteRedeSerializer(serializers.Serializer):
     email = serializers.CharField()
     nome_turma = serializers.CharField()
     ano = serializers.CharField()
+    unidade_educacional = serializers.CharField()
+    unidade_educacional_codigo_eol = serializers.CharField()
+    unidade_educacional_tipo = serializers.CharField()
 
     def get_idade(self, participante: object) -> int | None:
         """Devolve a idade em anos cheios a partir da data textual."""

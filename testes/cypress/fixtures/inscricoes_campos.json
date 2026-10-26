@@ -35,6 +35,9 @@
     "tipo_estudante",
     "tipo_estudante_label",
     "tipo_logradouro",
+    "unidade_educacional",
+    "unidade_educacional_codigo_eol",
+    "unidade_educacional_tipo",
     "uuid"
   ],
   "InscricaoListagem": [

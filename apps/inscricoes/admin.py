@@ -18,7 +18,7 @@ class InscricaoAdminForm(forms.ModelForm):
         widget=forms.CheckboxSelectMultiple,
         required=False,
     )
-    
+
     class Meta:
         model = Inscricao
         fields = [
@@ -58,6 +58,8 @@ class InscricaoAdminForm(forms.ModelForm):
             "possui_convenio_medico",
             "convenio_medico",
             "unidade_educacional",
+            "unidade_educacional_codigo_eol",
+            "unidade_educacional_tipo",
             "nome_turma",
             "ano",
             "pode_ir_embora_sozinho",

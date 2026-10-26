@@ -40,11 +40,11 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
     grupo_label = serializers.CharField(
         source="get_grupo_display", read_only=True, allow_null=True
     )
-    
+
     tipo_estudante_label = serializers.CharField(
         source="get_tipo_estudante_display", read_only=True, allow_null=True
     )
-    
+
     status_label = serializers.CharField(
         source="get_status_display", read_only=True, allow_null=True
     )
@@ -106,6 +106,8 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
             "possui_convenio_medico",
             "convenio_medico",
             "unidade_educacional",
+            "unidade_educacional_codigo_eol",
+            "unidade_educacional_tipo",
             "nome_turma",
             "ano",
             "pode_ir_embora_sozinho",
@@ -130,15 +132,15 @@ class InscricaoListagemSerializer(serializers.ModelSerializer):
     polo_nome = serializers.CharField(
         source="polo.nome_polo", read_only=True, allow_null=True
     )
-    
+
     grupo_label = serializers.CharField(
         source="get_grupo_display", read_only=True, allow_null=True
     )
-    
+
     tipo_estudante_label = serializers.CharField(
         source="get_tipo_estudante_display", read_only=True, allow_null=True
     )
-    
+
     status_label = serializers.CharField(
         source="get_status_display", read_only=True, allow_null=True
     )
@@ -172,11 +174,11 @@ class InscricaoDetalheSerializer(InscricaoCadastroSerializer):
     grupo_label = serializers.CharField(
         source="get_grupo_display", read_only=True, allow_null=True
     )
-    
+
     tipo_estudante_label = serializers.CharField(
         source="get_tipo_estudante_display", read_only=True, allow_null=True
     )
-    
+
     status_label = serializers.CharField(
         source="get_status_display", read_only=True, allow_null=True
     )

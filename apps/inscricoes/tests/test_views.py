@@ -123,6 +123,9 @@ def test_lista_aplica_filtros_e_retorna_polo_nome(
     assert response.data[0]["polo_nome"] == inscricao.polo.nome_polo
     assert "pode_ir_embora_sozinho" not in response.data[0]
     assert "aluno_rede_municipal" not in response.data[0]
+    assert "unidade_educacional" not in response.data[0]
+    assert "unidade_educacional_codigo_eol" not in response.data[0]
+    assert "unidade_educacional_tipo" not in response.data[0]
 
 
 def test_cria_e_recupera_informacoes_de_grupo(
@@ -139,7 +142,9 @@ def test_cria_e_recupera_informacoes_de_grupo(
     payload.update(
         {
             "edicao": str(edicao.uuid),
-            "unidade_educacional": "EMEI Teste",
+            "unidade_educacional": "EMEI Teste - 094633",
+            "unidade_educacional_codigo_eol": "094633",
+            "unidade_educacional_tipo": "EMEI",
             "nome_turma": "7C",
             "ano": "7",
             "pode_ir_embora_sozinho": False,
@@ -158,7 +163,9 @@ def test_cria_e_recupera_informacoes_de_grupo(
     assert criado.data["pode_ir_embora_sozinho"] is False
     assert criado.data["autoriza_uso_piscina"] is True
     assert recuperado.status_code == status.HTTP_200_OK
-    assert recuperado.data["unidade_educacional"] == "EMEI Teste"
+    assert recuperado.data["unidade_educacional"] == "EMEI Teste - 094633"
+    assert recuperado.data["unidade_educacional_codigo_eol"] == "094633"
+    assert recuperado.data["unidade_educacional_tipo"] == "EMEI"
     assert recuperado.data["nome_turma"] == "7C"
     assert recuperado.data["ano"] == "7"
     assert recuperado.data["responsavel_retirada"] == "Maria"
@@ -407,6 +414,9 @@ def _participante() -> ParticipanteRedeEol:
         logradouro="DA PASSAGEM FUNDA",
         nome_turma="7C",
         ano="7",
+        unidade_educacional="EMEF Professora Teste - 094633",
+        unidade_educacional_codigo_eol="094633",
+        unidade_educacional_tipo="EMEF",
     )
 
 
@@ -462,6 +472,9 @@ def test_participante_eol_devolve_nome(
         "email",
         "nome_turma",
         "ano",
+        "unidade_educacional",
+        "unidade_educacional_codigo_eol",
+        "unidade_educacional_tipo",
     }
     assert response.data["codigo_eol"] == "6034178"
     assert response.data["nome_participante"] == "ANNA JULIA ARAUJO SA"
@@ -480,6 +493,11 @@ def test_participante_eol_devolve_nome(
     assert response.data["complemento"] == ""
     assert response.data["nome_turma"] == "7C"
     assert response.data["ano"] == "7"
+    assert response.data["unidade_educacional"] == (
+        "EMEF Professora Teste - 094633"
+    )
+    assert response.data["unidade_educacional_codigo_eol"] == "094633"
+    assert response.data["unidade_educacional_tipo"] == "EMEF"
 
 
 def test_participante_eol_nao_encontrado_nao_grava(
@@ -615,6 +633,9 @@ def test_participante_cpf_devolve_nome(
         "email",
         "nome_turma",
         "ano",
+        "unidade_educacional",
+        "unidade_educacional_codigo_eol",
+        "unidade_educacional_tipo",
     }
     assert response.data["codigo_eol"] == "6034178"
     assert response.data["nome_participante"] == "ANNA JULIA ARAUJO SA"
@@ -633,6 +654,11 @@ def test_participante_cpf_devolve_nome(
     assert response.data["complemento"] == ""
     assert response.data["nome_turma"] == "7C"
     assert response.data["ano"] == "7"
+    assert response.data["unidade_educacional"] == (
+        "EMEF Professora Teste - 094633"
+    )
+    assert response.data["unidade_educacional_codigo_eol"] == "094633"
+    assert response.data["unidade_educacional_tipo"] == "EMEF"
 
 
 def test_participante_cpf_nao_encontrado_nao_grava(

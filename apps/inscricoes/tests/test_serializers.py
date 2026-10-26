@@ -58,7 +58,9 @@ def test_serializer_basico_marca_status_e_metadados_como_somente_leitura(
     assert "ativo" not in serializer.validated_data
 
 
-def test_serializer_aceita_multiplas_deficiencias_e_problemas_de_saude() -> None:
+def test_serializer_aceita_multiplas_deficiencias_e_problemas_de_saude() -> (
+    None
+):
     """As seleções múltiplas preservam todas as opções válidas."""
     serializer = InscricaoCadastroSerializer(
         data={
@@ -155,6 +157,9 @@ def _participante_rede() -> SimpleNamespace:
         email="",
         nome_turma="",
         ano="",
+        unidade_educacional="",
+        unidade_educacional_codigo_eol="",
+        unidade_educacional_tipo="",
     )
 
 
@@ -164,7 +169,9 @@ def test_serializer_recebe_grupo_e_ignora_campos_derivados(
     """O contrato grava o grupo e ignora idade e aluno da rede."""
     inscricao = inscricao_factory(
         tipo_estudante=TipoEstudante.ESTUDANTE_DA_REDE,
-        unidade_educacional="EMEI Teste",
+        unidade_educacional="EMEI Teste - 094633",
+        unidade_educacional_codigo_eol="094633",
+        unidade_educacional_tipo="EMEI",
         nome_turma="7C",
         ano="7",
         pode_ir_embora_sozinho=False,
@@ -174,7 +181,9 @@ def test_serializer_recebe_grupo_e_ignora_campos_derivados(
 
     dados = InscricaoCadastroSerializer(inscricao).data
 
-    assert dados["unidade_educacional"] == "EMEI Teste"
+    assert dados["unidade_educacional"] == "EMEI Teste - 094633"
+    assert dados["unidade_educacional_codigo_eol"] == "094633"
+    assert dados["unidade_educacional_tipo"] == "EMEI"
     assert dados["nome_turma"] == "7C"
     assert dados["ano"] == "7"
     assert dados["pode_ir_embora_sozinho"] is False

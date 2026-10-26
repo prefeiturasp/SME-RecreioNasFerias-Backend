@@ -223,6 +223,18 @@ class Inscricao(ModeloAtualizavel):
         default="",
         verbose_name="Unidade educacional do participante",
     )
+    unidade_educacional_codigo_eol = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="Código EOL da unidade educacional",
+    )
+    unidade_educacional_tipo = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="Tipo da unidade educacional",
+    )
     nome_turma = models.CharField(
         max_length=100,
         blank=True,
