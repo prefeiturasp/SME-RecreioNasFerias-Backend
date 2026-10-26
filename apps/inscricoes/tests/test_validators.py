@@ -8,7 +8,11 @@ from django.core.exceptions import ValidationError
 from freezegun import freeze_time
 
 from apps.inscricoes import validators
-from apps.inscricoes.constants import GrupoInscricao, TipoEstudante
+from apps.inscricoes.constants import (
+    GrupoInscricao,
+    StatusInscricao,
+    TipoEstudante,
+)
 from apps.inscricoes.validators import (
     calcular_idade_cheia,
     inscricao_eh_completa,
@@ -52,6 +56,52 @@ def test_completude_exige_codigo_eol_da_rede(
     )
 
     assert inscricao_eh_completa(inscricao) is False
+
+
+def test_completude_da_rede_exige_saida_retirada_e_piscina(
+    inscricao_completa_factory,
+) -> None:
+    """Sem as três respostas, a inscrição da rede fica rascunho."""
+    inscricao = inscricao_completa_factory(
+        tipo_estudante=TipoEstudante.ESTUDANTE_DA_REDE,
+        codigo_eol="6034178",
+    )
+
+    assert inscricao_eh_completa(inscricao) is False
+    assert inscricao.status == StatusInscricao.RASCUNHO
+
+    inscricao.pode_ir_embora_sozinho = False
+    inscricao.autoriza_uso_piscina = True
+    inscricao.responsavel_retirada = "   "
+    inscricao.save()
+
+    assert inscricao.status == StatusInscricao.RASCUNHO
+
+
+def test_completude_da_rede_aceita_resposta_negativa(
+    inscricao_completa_factory,
+) -> None:
+    """Não em saída e piscina conta como respondido."""
+    inscricao = inscricao_completa_factory(
+        tipo_estudante=TipoEstudante.ESTUDANTE_DA_REDE,
+        codigo_eol="6034178",
+        pode_ir_embora_sozinho=False,
+        autoriza_uso_piscina=False,
+        responsavel_retirada="Maria",
+    )
+
+    assert inscricao_eh_completa(inscricao) is True
+    assert inscricao.status == StatusInscricao.COMPLETA
+
+
+def test_completude_externa_nao_exige_grupo(
+    inscricao_completa_factory,
+) -> None:
+    """Estudante externo completa sem saída, retirada e piscina."""
+    inscricao = inscricao_completa_factory()
+
+    assert inscricao_eh_completa(inscricao) is True
+    assert inscricao.status == StatusInscricao.COMPLETA
 
 
 def test_completude_exige_cpf_de_externo(inscricao_completa_factory) -> None:

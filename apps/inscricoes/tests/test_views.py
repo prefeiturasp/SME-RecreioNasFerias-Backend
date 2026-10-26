@@ -167,6 +167,37 @@ def test_cria_e_recupera_informacoes_de_grupo(
     assert inscricao.responsavel_retirada == "Maria"
 
 
+def test_rede_sem_informacoes_de_grupo_permanece_rascunho(
+    cliente_autenticado,
+    polo_factory,
+    definicao_polo_factory,
+    edicao_factory,
+) -> None:
+    """A rede só fica completa com saída, retirada e piscina."""
+    polo = polo_factory()
+    edicao = edicao_factory()
+    definicao_polo_factory(polo=polo, edicao=edicao, tipo="oficial")
+    payload = _payload(polo, tipo=TipoEstudante.ESTUDANTE_DA_REDE)
+    payload["edicao"] = str(edicao.uuid)
+    payload["codigo_eol"] = "6034178"
+
+    criado = cliente_autenticado.post(URL, payload, format="json")
+    atualizado = cliente_autenticado.patch(
+        f"{URL}{criado.data['uuid']}/",
+        {
+            "pode_ir_embora_sozinho": False,
+            "autoriza_uso_piscina": False,
+            "responsavel_retirada": "Maria",
+        },
+        format="json",
+    )
+
+    assert criado.status_code == status.HTTP_201_CREATED
+    assert criado.data["status"] == StatusInscricao.RASCUNHO
+    assert atualizado.status_code == status.HTTP_200_OK
+    assert atualizado.data["status"] == StatusInscricao.COMPLETA
+
+
 def test_cria_rascunho_atualiza_e_remove(
     cliente_autenticado,
     polo_factory,

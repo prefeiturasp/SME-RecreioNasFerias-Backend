@@ -53,6 +53,12 @@ CAMPOS_COMPLETUDE = (
     "possui_convenio_medico"
 )
 
+CAMPOS_GRUPO_REDE = (
+    "pode_ir_embora_sozinho",
+    "autoriza_uso_piscina",
+    "responsavel_retirada",
+)
+
 
 def _preenchido(valor: object) -> bool:
     """Trata strings vazias e valores nulos como não preenchidos."""
@@ -62,7 +68,7 @@ def _preenchido(valor: object) -> bool:
 
 
 def inscricao_eh_completa(inscricao: object) -> bool:
-    """Aplica a regra de completude da primeira fase."""
+    """Aplica a régua da fase e, na rede, a seção de saída e piscina."""
     if any(
         not _preenchido(getattr(inscricao, campo, None))
         for campo in CAMPOS_COMPLETUDE
@@ -72,7 +78,14 @@ def inscricao_eh_completa(inscricao: object) -> bool:
     campo_condicional = (
         "codigo_eol" if tipo == TipoEstudante.ESTUDANTE_DA_REDE else "cpf"
     )
-    return _preenchido(getattr(inscricao, campo_condicional, None))
+    if not _preenchido(getattr(inscricao, campo_condicional, None)):
+        return False
+    if tipo != TipoEstudante.ESTUDANTE_DA_REDE:
+        return True
+    return all(
+        _preenchido(getattr(inscricao, campo, None))
+        for campo in CAMPOS_GRUPO_REDE
+    )
 
 
 def calcular_idade_cheia(data_nascimento: date | None) -> int | None:
