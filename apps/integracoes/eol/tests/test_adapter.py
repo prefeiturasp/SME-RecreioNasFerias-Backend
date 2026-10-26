@@ -942,7 +942,9 @@ def test_consultar_participante_busca_turma_do_ultimo_registro() -> None:
     assert participante.turma_nome == "1A"
     assert participante.nome_turma == "7C"
     assert participante.ano == "7"
+    assert participante.unidade_educacional == ""
     assert client.calls_turma == [3026805]
+    assert client.calls_obter_dados == []
 
 
 def test_consultar_participante_nao_busca_turma_sem_codigo() -> None:
@@ -959,7 +961,9 @@ def test_consultar_participante_nao_busca_turma_sem_codigo() -> None:
     assert participante is not None
     assert participante.nome_turma == ""
     assert participante.ano == ""
+    assert participante.unidade_educacional == ""
     assert client.calls_turma == []
+    assert client.calls_obter_dados == []
 
 
 def test_consultar_participante_mantem_aluno_sem_turma() -> None:
@@ -973,6 +977,128 @@ def test_consultar_participante_mantem_aluno_sem_turma() -> None:
 
     assert participante == _participante_esperado()
     assert client.calls_turma == [99]
+    assert client.calls_obter_dados == []
+
+
+def test_consultar_participante_busca_unidade_da_turma() -> None:
+    """A unidade segue o codigoEscola da turma do último registro."""
+    client = FakeClient(
+        alunos=[_aluno_bruto()],
+        informacoes=_informacoes_brutas(),
+        turmas={
+            99: {
+                "codigo": 99,
+                "nomeTurma": "7C",
+                "ano": "7",
+                "codigoEscola": " 094633 ",
+            }
+        },
+        dados={
+            "094633": {
+                "nome": " EMEF Professora Teste ",
+                "codigo": "094633",
+                "siglaTipoEscola": " EMEF ",
+            }
+        },
+    )
+
+    participante = EolAdapter(client=client).consultar_participante("1234567")
+
+    assert participante is not None
+    assert participante.nome_turma == "7C"
+    assert participante.unidade_educacional == (
+        "EMEF Professora Teste - 094633"
+    )
+    assert participante.unidade_educacional_codigo_eol == "094633"
+    assert participante.unidade_educacional_tipo == "EMEF"
+    assert client.calls_turma == [99]
+    assert client.calls_obter_dados == ["094633"]
+
+
+def test_consultar_participante_nao_busca_unidade_sem_codigo() -> None:
+    """Código de escola ausente ou zero não chama a unidade."""
+    client = FakeClient(
+        alunos=[_aluno_bruto()],
+        informacoes=_informacoes_brutas(),
+        turmas={
+            99: {
+                "codigo": 99,
+                "nomeTurma": "7C",
+                "ano": "7",
+                "codigoEscola": 0,
+            }
+        },
+    )
+
+    participante = EolAdapter(client=client).consultar_participante("1234567")
+
+    assert participante is not None
+    assert participante.nome_turma == "7C"
+    assert participante.unidade_educacional == ""
+    assert participante.unidade_educacional_codigo_eol == ""
+    assert participante.unidade_educacional_tipo == ""
+    assert client.calls_obter_dados == []
+
+
+def test_consultar_participante_mantem_aluno_sem_unidade() -> None:
+    """Unidade inexistente preserva o aluno e deixa os campos vazios."""
+    client = FakeClient(
+        alunos=[_aluno_bruto()],
+        informacoes=_informacoes_brutas(),
+        turmas={
+            99: {
+                "codigo": 99,
+                "nomeTurma": "7C",
+                "ano": "7",
+                "codigoEscola": "094633",
+            }
+        },
+    )
+
+    participante = EolAdapter(client=client).consultar_participante("1234567")
+
+    assert participante is not None
+    assert participante.nome_turma == "7C"
+    assert participante.unidade_educacional == ""
+    assert participante.unidade_educacional_codigo_eol == ""
+    assert participante.unidade_educacional_tipo == ""
+    assert client.calls_obter_dados == ["094633"]
+
+
+def test_consultar_participante_por_cpf_herda_unidade() -> None:
+    """A consulta por CPF reusa a unidade da turma do último registro."""
+    client = FakeClient(
+        alunos_por_cpf=[_aluno_bruto()],
+        alunos=[_aluno_bruto()],
+        informacoes=_informacoes_brutas(),
+        turmas={
+            99: {
+                "codigo": 99,
+                "nomeTurma": "7C",
+                "ano": "7",
+                "codigoEscola": "094633",
+            }
+        },
+        dados={
+            "094633": {
+                "nome": "EMEF Professora Teste",
+                "codigo": "094633",
+                "siglaTipoEscola": "EMEF",
+            }
+        },
+    )
+
+    participante = EolAdapter(client=client).consultar_participante_por_cpf(
+        "123.456.789-09"
+    )
+
+    assert participante is not None
+    assert participante.unidade_educacional == (
+        "EMEF Professora Teste - 094633"
+    )
+    assert participante.unidade_educacional_codigo_eol == "094633"
+    assert participante.unidade_educacional_tipo == "EMEF"
+    assert client.calls_obter_dados == ["094633"]
 
 
 def test_consultar_participante_por_cpf_herda_turma_do_ultimo() -> None:
