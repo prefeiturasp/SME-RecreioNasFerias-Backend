@@ -6,6 +6,7 @@ from apps.integracoes.eol.port import DreEol, TipoEscolaEol
 from apps.polos.api.serializers import (
     DreSerializer,
     PoloSerializer,
+    PopularUnidadesDiretasSerializer,
     TipoEscolaSerializer,
 )
 from apps.polos.constants import StatusPolo, TipoPolo
@@ -123,3 +124,102 @@ def test_serializer_retorna_tipo_de_escola_normalizado() -> None:
     dados = TipoEscolaSerializer(tipo).data
 
     assert dados == {"codigo": 1, "descricao_sigla": "EMEF"}
+
+
+def test_serializer_retorna_resultado_da_populacao(polo_factory) -> None:
+    """O contrato da população expõe totais e os polos criados."""
+    polo = polo_factory()
+
+    dados = PopularUnidadesDiretasSerializer(
+        {
+            "total_consultados": 1,
+            "total_novos": 1,
+            "total_ja_existentes": 0,
+            "unidades_novas": [polo],
+            "executada": True,
+            "motivo_ignorada": None,
+            "ultima_execucao_em": None,
+        }
+    ).data
+
+    assert dados["total_consultados"] == 1
+    assert dados["total_novos"] == 1
+    assert dados["executada"] is True
+    assert dados["motivo_ignorada"] is None
+    assert dados["ultima_execucao_em"] is None
+    assert dados["unidades_novas"][0]["uuid"] == str(polo.uuid)
+
+
+def test_serializer_formata_endereco_completo_com_todos_campos(polo_factory) -> None:
+    """O método retorna endereço formatado corretamente com todos os campos preenchidos."""
+    polo = polo_factory(
+        tipo_logradouro="Rua",
+        logradouro="TREZE DE MAIO",
+        numero="1279",
+        complemento="",
+        bairro="BELA VISTA",
+    )
+
+    dados = PoloSerializer(polo).data
+
+    assert dados["endereco_completo"] == "Rua TREZE DE MAIO, 1279, BELA VISTA"
+
+
+def test_serializer_formata_endereco_completo_sem_complemento(polo_factory) -> None:
+    """O método omite complemento vazio na formatação do endereço."""
+    polo = polo_factory(
+        tipo_logradouro="Avenida",
+        logradouro="PAULISTA",
+        numero="1000",
+        complemento="",
+        bairro="BELA VISTA",
+    )
+
+    dados = PoloSerializer(polo).data
+
+    assert dados["endereco_completo"] == "Avenida PAULISTA, 1000, BELA VISTA"
+
+
+def test_serializer_formata_endereco_completo_com_complemento(polo_factory) -> None:
+    """O método inclui complemento quando preenchido."""
+    polo = polo_factory(
+        tipo_logradouro="Rua",
+        logradouro="AUGUSTA",
+        numero="500",
+        complemento="Apto 201",
+        bairro="CENTRO",
+    )
+
+    dados = PoloSerializer(polo).data
+
+    assert dados["endereco_completo"] == "Rua AUGUSTA, 500, Apto 201, CENTRO"
+
+
+def test_serializer_formata_endereco_completo_sem_tipo_logradouro(polo_factory) -> None:
+    """O método omite tipo_logradouro vazio."""
+    polo = polo_factory(
+        tipo_logradouro="",
+        logradouro="PRINCIPAL",
+        numero="50",
+        complemento="",
+        bairro="ZONA NORTE",
+    )
+
+    dados = PoloSerializer(polo).data
+
+    assert dados["endereco_completo"] == "PRINCIPAL, 50, ZONA NORTE"
+
+
+def test_serializer_formata_endereco_completo_sem_numero(polo_factory) -> None:
+    """O método omite número vazio."""
+    polo = polo_factory(
+        tipo_logradouro="Travessa",
+        logradouro="SECUNDÁRIA",
+        numero="",
+        complemento="",
+        bairro="ZONA SUL",
+    )
+
+    dados = PoloSerializer(polo).data
+
+    assert dados["endereco_completo"] == "Travessa SECUNDÁRIA, ZONA SUL"

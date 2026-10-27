@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -126,5 +127,15 @@ class AuthService:
         with transaction.atomic():
             usuario.set_unusable_password()
             usuario.save()
+            self._garantir_perfil_usuario_ue(usuario)
 
         return usuario
+
+    @staticmethod
+    def _garantir_perfil_usuario_ue(usuario: Any) -> None:
+        """Associa Usuário UE a quem entrou por cargo sem perfil RBAC."""
+        if usuario.groups.exists() or usuario.user_permissions.exists():
+            return
+
+        perfil_ue, _ = Group.objects.get_or_create(name="USUARIO_UE")
+        usuario.groups.add(perfil_ue)

@@ -6,6 +6,31 @@ from typing import TYPE_CHECKING, Any, TypedDict
 
 from rest_framework import serializers
 
+from apps.core.permission_catalog import PERFIS
+
+
+def _dados_autorizacao(usuario: Any) -> dict[str, list[str]]:
+    """Serializa os grupos RBAC e permissões efetivas do usuário."""
+    codigos_perfis = {str(perfil["codigo"]) for perfil in PERFIS}
+    grupos = getattr(usuario, "groups", None)
+    perfis = (
+        sorted(
+            grupos.filter(name__in=codigos_perfis).values_list(
+                "name", flat=True
+            )
+        )
+        if grupos is not None
+        else []
+    )
+    obter_permissoes = getattr(usuario, "get_all_permissions", None)
+    permissoes = (
+        sorted(obter_permissoes()) if callable(obter_permissoes) else []
+    )
+    return {
+        "perfis": perfis,
+        "permissoes": permissoes,
+    }
+
 if TYPE_CHECKING:
     from apps.core.services.auth_service import AuthenticatedSessionData
 
@@ -67,6 +92,8 @@ class LoginResponseSerializer(serializers.Serializer):
         allow_null=True, allow_blank=True, required=False
     )
     cargos = CargoSerializer(many=True)
+    perfis = serializers.ListField(child=serializers.CharField())
+    permissoes = serializers.ListField(child=serializers.CharField())
 
     @classmethod
     def from_session_data(
@@ -76,16 +103,16 @@ class LoginResponseSerializer(serializers.Serializer):
         token: str,
     ) -> LoginResponseSerializer:
         """Monta a resposta HTTP de login a partir do usuário autenticado."""
-        return cls(
-            {
-                "token": token,
-                "rf": session_data.rf,
-                "nome": session_data.nome,
-                "email": session_data.email,
-                "cpf": session_data.cpf,
-                "cargos": _serializar_cargo_resposta(session_data.cargo),
-            }
-        )
+        dados = {
+            "token": token,
+            "rf": session_data.rf,
+            "nome": session_data.nome,
+            "email": session_data.email,
+            "cpf": session_data.cpf,
+            "cargos": _serializar_cargo_resposta(session_data.cargo),
+            **_dados_autorizacao(session_data.usuario),
+        }
+        return cls(dados)
 
 
 class RefreshResponseSerializer(serializers.Serializer):
@@ -114,16 +141,18 @@ class MeResponseSerializer(serializers.Serializer):
         allow_null=True, allow_blank=True, required=False
     )
     cargos = CargoSerializer(many=True)
+    perfis = serializers.ListField(child=serializers.CharField())
+    permissoes = serializers.ListField(child=serializers.CharField())
 
     @classmethod
     def from_user(cls, usuario: Any) -> MeResponseSerializer:
         """Monta a resposta HTTP a partir do vínculo local do usuário."""
-        return cls(
-            {
-                "rf": usuario.rf or usuario.username,
-                "nome": usuario.nome_completo,
-                "email": usuario.email or None,
-                "cpf": usuario.cpf or None,
-                "cargos": _serializar_cargo_resposta(usuario.cargo_permitido),
-            }
-        )
+        dados = {
+            "rf": usuario.rf or usuario.username,
+            "nome": usuario.nome_completo,
+            "email": usuario.email or None,
+            "cpf": usuario.cpf or None,
+            "cargos": _serializar_cargo_resposta(usuario.cargo_permitido),
+            **_dados_autorizacao(usuario),
+        }
+        return cls(dados)

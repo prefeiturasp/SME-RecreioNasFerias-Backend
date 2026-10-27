@@ -72,6 +72,9 @@ AUTH_API_CONNECT_TIMEOUT_SECONDS = env.int(
     default=5,
 )
 AUTH_CODIGO_SISTEMA = env.int("AUTH_CODIGO_SISTEMA", default=1009)
+PRIMEIRO_ADMIN_COCEU_RF = env.str(
+    "PRIMEIRO_ADMIN_COCEU_RF", default="8080640"
+).strip()
 
 
 # -----------------------------------------------------------------------------
@@ -106,10 +109,13 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
+    "django_extensions",
     # local
     "apps.core.apps.CoreConfig",
     "apps.edicoes.apps.EdicoesConfig",
     "apps.polos.apps.PolosConfig",
+    "apps.definicoes_polos.apps.DefinicoesPolosConfig",
+    "apps.inscricoes.apps.InscricoesConfig",
 ]
 
 
@@ -274,4 +280,44 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "SERVE_AUTHENTICATION": [],
     "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
+}
+
+# -----------------------------------------------------------------------------
+# LOGGING
+# -----------------------------------------------------------------------------
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {"require_debug_false": {"()": "django.utils.log.RequireDebugFalse"}},
+    "formatters": {
+        "verbose": {
+            "format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s",
+        },
+    },
+    "handlers": {
+        "mail_admins": {
+            "level": "ERROR",
+            "filters": ["require_debug_false"],
+            "class": "django.utils.log.AdminEmailHandler",
+        },
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {"level": "INFO", "handlers": ["console"]},
+    "loggers": {
+        "django.request": {
+            "handlers": ["mail_admins"],
+            "level": "ERROR",
+            "propagate": True,
+        },
+        "django.security.DisallowedHost": {
+            "level": "ERROR",
+            "handlers": ["console", "mail_admins"],
+            "propagate": True,
+        },
+    },
 }

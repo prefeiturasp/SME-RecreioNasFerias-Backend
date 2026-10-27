@@ -45,6 +45,7 @@ class DadosUnidadeEol:
     """Dados detalhados normalizados de uma unidade escolar."""
 
     nome: str
+    codigo_eol: str
     sigla_tipo_escola: str
     nome_dre: str
     sigla_dre: str
@@ -52,7 +53,13 @@ class DadosUnidadeEol:
     email: str
     telefone: str
     cep: str
-    endereco: str
+    tipo_logradouro: str
+    logradouro: str
+    bairro: str
+    numero: str
+    complemento: str
+    municipio: str
+    uf: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,8 +75,122 @@ class UnidadeRecreioEol:
     email: str
     telefone: str
     cep: str
-    endereco: str
+    tipo_logradouro: str
+    logradouro: str
+    bairro: str
+    numero: str
+    complemento: str
     nome_diretor: str
+
+
+@dataclass(frozen=True, slots=True)
+class AlunoEol:
+    """Aluno normalizado a partir da consulta por código EOL."""
+
+    codigo_aluno: int
+    tipo_turno: int
+    ano_letivo: int
+    nome_aluno: str
+    nome_social_aluno: str
+    codigo_situacao_matricula: int
+    situacao_matricula: str
+    data_situacao: str
+    data_nascimento: str
+    numero_aluno_chamada: str
+    codigo_turma: int
+    nome_responsavel: str
+    tipo_responsavel: str
+    celular_responsavel: str
+    data_atualizacao_contato: str
+    codigo_tipo_turma: int
+    turma_nome: str
+    etapa_ensino: str
+    ciclo_ensino: str
+    desc_etapa_ensino: str
+    desc_ciclo_ensino: str
+    data_atualizacao_tabela: str
+
+
+@dataclass(frozen=True, slots=True)
+class InformacoesAlunoEol:
+    """Ficha normalizada do aluno, com endereço em campos soltos."""
+
+    nome_mae: str
+    sexo: str
+    grupo_etnico: str
+    nacionalidade: str
+    eh_imigrante: bool
+    nis: str
+    cns: str
+    numero: str
+    complemento: str
+    bairro: str
+    cep: str
+    cidade: str
+    uf: str
+    tipo_logradouro: str
+    logradouro: str
+
+
+@dataclass(frozen=True, slots=True)
+class TurmaEol:
+    """Turma normalizada a partir da consulta por código."""
+
+    codigo: int
+    nome_turma: str
+    ano: str
+    codigo_escola: str
+
+
+@dataclass(frozen=True, slots=True)
+class ParticipanteRedeEol:
+    """Aluno da rede já unido à ficha, pronto para o restante do sistema."""
+
+    codigo_aluno: int
+    tipo_turno: int
+    ano_letivo: int
+    nome_aluno: str
+    nome_social_aluno: str
+    codigo_situacao_matricula: int
+    situacao_matricula: str
+    data_situacao: str
+    data_nascimento: str
+    numero_aluno_chamada: str
+    codigo_turma: int
+    nome_responsavel: str
+    tipo_responsavel: str
+    celular_responsavel: str
+    data_atualizacao_contato: str
+    codigo_tipo_turma: int
+    turma_nome: str
+    etapa_ensino: str
+    ciclo_ensino: str
+    desc_etapa_ensino: str
+    desc_ciclo_ensino: str
+    data_atualizacao_tabela: str
+    nome_mae: str
+    sexo: str
+    grupo_etnico: str
+    nacionalidade: str
+    eh_imigrante: bool
+    nis: str
+    cns: str
+    numero: str
+    complemento: str
+    bairro: str
+    cep: str
+    cidade: str
+    uf: str
+    tipo_logradouro: str
+    logradouro: str
+    responsavel_nome_social: str = ""
+    telefone_contato_2: str = ""
+    email: str = ""
+    nome_turma: str = ""
+    ano: str = ""
+    unidade_educacional: str = ""
+    unidade_educacional_codigo_eol: str = ""
+    unidade_educacional_tipo: str = ""
 
 
 class EolPort(ABC):
@@ -120,3 +241,39 @@ class EolPort(ABC):
         limite: int | None = None,
     ) -> tuple[UnidadeRecreioEol, ...]:
         """Lista unidades elegíveis já enriquecidas para a sincronização."""
+
+    @abstractmethod
+    def listar_alunos(self, codigo_eol: str) -> tuple[AlunoEol, ...]:
+        """Lista os alunos normalizados pelo código EOL."""
+
+    @abstractmethod
+    def listar_alunos_por_cpf_responsavel(
+        self,
+        cpf: str,
+    ) -> tuple[AlunoEol, ...]:
+        """Lista os alunos normalizados pelo CPF do responsável."""
+
+    @abstractmethod
+    def obter_informacoes_aluno(
+        self,
+        codigo_eol: str,
+    ) -> InformacoesAlunoEol | None:
+        """Obtém a ficha normalizada do aluno, ou ``None`` quando ausente."""
+
+    @abstractmethod
+    def obter_dados_turma(self, codigo_turma: int) -> TurmaEol | None:
+        """Obtém a turma normalizada, ou ``None`` quando ausente."""
+
+    @abstractmethod
+    def consultar_participante(
+        self,
+        codigo_eol: str,
+    ) -> ParticipanteRedeEol | None:
+        """Une aluno e ficha. ``None`` quando a lista de alunos vem vazia."""
+
+    @abstractmethod
+    def consultar_participante_por_cpf(
+        self,
+        cpf: str,
+    ) -> ParticipanteRedeEol | None:
+        """Une o primeiro aluno do CPF à ficha. ``None`` sem código útil."""

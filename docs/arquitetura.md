@@ -24,10 +24,12 @@ Na prática, isso significa:
 |-- apps/
 |   |-- core/
 |   |-- edicoes/
-|   |-- polos/
+|   |-- definicoes_polos/
+|   |-- inscricoes/
 |   `-- integracoes/
 |       |-- coresso/
 |       `-- eol/
+|   |-- polos/
 |-- config/
 |-- docs/
 |-- requirements/
@@ -41,7 +43,9 @@ Na prática, isso significa:
 | --- | --- |
 | `apps/core/` | infraestrutura compartilhada, autenticação, modelos base, usuário local e healthcheck |
 | `apps/edicoes/` | domínio de edições |
+| `apps/inscricoes/` | inscrições e participantes |
 | `apps/polos/` | domínio de polos |
+| `apps/definicoes_polos/` | participação de polos em edições |
 | `apps/integracoes/` | bordas externas, como CoreSSO e EOL |
 | `config/` | settings, URLs, ASGI e WSGI |
 | `scripts/` | entrypoints e bootstrap dos containers |
@@ -66,6 +70,7 @@ Nesta etapa ele concentra:
 
 - autenticação institucional via CoreSSO com sessão JWT local
 - usuário local e vínculo ao cargo permitido autorizado
+- grupos e permissões RBAC compartilhados pelos domínios
 - auditoria simples de login
 - healthcheck e contratos HTTP de autenticação
 - tradução centralizada de exceções REST para respostas mais consistentes
@@ -77,13 +82,21 @@ Os pontos centrais do fluxo atual ficam distribuídos em:
 - `apps/core/api/serializers/auth_serializer.py`
 - `apps/core/api/views/auth.py`
 - `apps/core/models/identidade.py`
+- `apps/core/permission_catalog.py`
+- `apps/core/migrations/0005_permissionamento_customizado.py`
+
+O RBAC usa os modelos nativos `Group` e `Permission`. Os ViewSets aplicam as
+permissões por ação, e os cargos do CoreSSO continuam sendo a condição para o
+login institucional. O catálogo dos perfis está disponível em
+`GET /api/v1/perfis/`; a resposta de `GET /api/v1/auth/me/` também informa os
+grupos e as permissões efetivas do usuário. Veja
+`docs/dominios/permissionamento/index.rst` para a matriz e as regras.
 
 ## Apps de domínio
 
-`edicoes` e `polos` já possuem a estrutura base do app, com `api/`, `models/`,
-`services/`, testes e migrations. No estado atual, esses apps ainda não
-concentram a regra real de negócio do produto nem foram publicados como parte
-principal da API.
+`edicoes`, `definicoes_polos`, `polos` e `inscricoes` já possuem a estrutura do app, com `api/`, `models/`,
+`services/`, testes e migrations. O domínio de polos já popula unidades
+diretas a partir da EOL em `POST /api/v1/polos/popular/`.
 
 Quando esses domínios crescerem, o detalhamento arquitetural deve evoluir em
 `docs/dominios/` em vez de inflar esta página.
@@ -109,8 +122,8 @@ Estrutura típica:
 Estado atual:
 
 - `apps/integracoes/coresso/` já executa o login real e normaliza o payload
-- `apps/integracoes/eol/` já consome os três endpoints de escolas da integração EOL,
-  normalizando, filtrando e enriquecendo as unidades elegíveis
+- `apps/integracoes/eol/` já consome os endpoints de escolas da integração EOL,
+  normalizando, filtrando e enriquecendo as unidades elegíveis ao Recreio
 
 ## Regras de organização
 

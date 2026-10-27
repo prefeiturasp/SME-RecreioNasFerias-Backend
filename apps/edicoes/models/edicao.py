@@ -94,9 +94,9 @@ class Edicao(ModeloAtualizavel):
         return self.nome
 
     def atualizar_status_automatico(self) -> None:
-        """Calcula o status com base no período inclusivo da edição."""
+        """Calcula o status da edição com base no período de inscrições e da edição."""
         hoje = timezone.localdate()
-        if hoje < self.data_inicio:
+        if hoje < self.inscricoes_inicio:
             self.status = StatusEdicao.PLANEJADA
         elif hoje <= self.data_fim:
             self.status = StatusEdicao.ATIVA
