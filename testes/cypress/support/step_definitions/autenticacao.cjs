@@ -248,3 +248,21 @@ Then('a API deve responder ao perfil com status 401', () => {
 })
 
 exports.autenticarNaApi = autenticarNaApi
+
+When('envio verificacao sem token no payload', () => cy.request({
+  method: 'POST', url: Cypress.env('api_base_url').replace(/\/$/, '') + '/api/v1/auth/token/verify/',
+  body: {}, failOnStatusCode: false, log: false,
+}).as('verifyResponse'))
+Then('a verificacao sem token deve retornar 400', () => cy.get('@verifyResponse', { log: false }).its('status').should('eq', 400))
+When('envio um refresh token invalido', () => {
+  cy.clearCookies()
+  return cy.request({ method: 'POST', url: Cypress.env('api_base_url').replace(/\/$/, '') + '/api/v1/auth/token/refresh/', body: { refresh: 'token-invalido' }, failOnStatusCode: false, log: false }).as('refreshResponse')
+})
+Then('o refresh invalido deve retornar 401', () => cy.get('@refreshResponse', { log: false }).its('status').should('eq', 401))
+Then('o token renovado deve permitir consultar meu perfil', () => cy.get('@refreshResponse', { log: false }).then(({ body }) => {
+  expect(body.token).to.be.a('string').and.not.be.empty
+  return cy.request({ url: Cypress.env('api_base_url').replace(/\/$/, '') + '/api/v1/auth/me/', headers: { Authorization: 'Bearer ' + body.token }, failOnStatusCode: false, log: false }).then((res) => {
+    expect(res.status).to.eq(200)
+    expect(res.body).to.be.an('object').and.not.be.empty
+  })
+}))

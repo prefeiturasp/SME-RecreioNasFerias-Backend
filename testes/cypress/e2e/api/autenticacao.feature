@@ -64,3 +64,17 @@ Funcionalidade: Autenticacao
   Cenario: Recusar consulta de perfil com token invalido
     Quando eu consulto meu perfil com token invalido
     Entao a API deve responder ao perfil com status 401
+
+  Cenario: Recusar verificacao sem token no payload
+    Quando envio verificacao sem token no payload
+    Entao a verificacao sem token deve retornar 400
+
+  Cenario: Recusar refresh invalido
+    Quando envio um refresh token invalido
+    Entao o refresh invalido deve retornar 401
+
+  Cenario: Consultar perfil com token renovado
+    Dado que o login institucional foi realizado para renovar o token
+    Quando eu envio a requisicao de renovacao do token
+    Entao a API deve responder a renovacao com status 200
+    E o token renovado deve permitir consultar meu perfil

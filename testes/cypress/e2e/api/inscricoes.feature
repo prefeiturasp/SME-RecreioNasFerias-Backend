@@ -56,6 +56,7 @@ Funcionalidade: Inscrições
     Exemplos:
       | rota |
       | polos-elegiveis |
+      | polos-oficiais |
       | valores-choices |
 
   Esquema do Cenario: Recusar <metodo> em <rota> com token <token>
@@ -74,6 +75,8 @@ Funcionalidade: Inscrições
       | POST | reativar | ausente |
       | GET | polos-elegiveis | ausente |
       | GET | participante-eol | ausente |
+      | GET | participante-cpf | ausente |
+      | GET | polos-oficiais | ausente |
       | GET | valores-choices | ausente |
       | GET | lista | invalido |
       | POST | lista | invalido |
@@ -85,6 +88,8 @@ Funcionalidade: Inscrições
       | POST | reativar | invalido |
       | GET | polos-elegiveis | invalido |
       | GET | participante-eol | invalido |
+      | GET | participante-cpf | invalido |
+      | GET | polos-oficiais | invalido |
       | GET | valores-choices | invalido |
 
   Esquema do Cenario: Recusar <metodo> em <rota> para inscricao inexistente
@@ -115,9 +120,25 @@ Funcionalidade: Inscrições
       | tipo invalido |
       | grupo invalido |
       | polo inexistente |
-      | edicao inexistente |
 
   Cenario: Recusar consulta EOL sem codigo
     Dado que autentiquei para gerenciar inscricoes
     Quando consulto o recurso de inscricoes "participante-eol"
     Entao a inscricao deve responder com status 400
+
+  Cenario: Recusar consulta por CPF sem parametro obrigatorio
+    Dado que autentiquei para gerenciar inscricoes
+    Quando consulto o recurso de inscricoes "participante-cpf"
+    Entao a inscricao deve responder com status 400
+    E a resposta de consulta do participante deve informar um erro
+
+  Esquema do Cenario: Consultar <rota> sem paginacao
+    Dado que autentiquei para gerenciar inscricoes
+    Quando consulto os polos de inscricoes "<rota>" sem paginacao
+    Entao a inscricao deve responder com status 200
+    E os polos de inscricoes devem ser retornados sem paginacao
+
+    Exemplos:
+      | rota |
+      | polos-elegiveis |
+      | polos-oficiais |

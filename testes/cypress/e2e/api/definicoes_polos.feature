@@ -121,3 +121,53 @@ Funcionalidade: Definições de Polos
     Quando consulto uma definicao de polo inexistente
     Entao a resposta de definicoes de polos deve ter status 400
     E a resposta deve indicar definicao de polo nao encontrada
+
+  Esquema do Cenario: Recusar <metodo> em <rota> com token invalido
+    Quando acesso definicoes com "<metodo>" em "<rota>" com token invalido
+    Entao a resposta de definicoes de polos deve ter status 401
+
+    Exemplos:
+      | metodo | rota |
+      | GET | lista |
+      | POST | lista |
+      | GET | detalhe |
+      | PUT | detalhe |
+      | PATCH | detalhe |
+      | DELETE | detalhe |
+      | GET | historico |
+      | POST | vincular-em-massa |
+      | POST | alterar-edicao-em-massa |
+      | POST | alterar-tipo-em-massa |
+
+  @conferencia_filtros
+  Esquema do Cenario: Filtrar definicoes por <filtro>
+    Dado que existem duas definicoes de polos exclusivas para o teste
+    Quando filtro as definicoes exclusivas por "<filtro>"
+    Entao a resposta de definicoes de polos deve ter status 200
+    E a listagem deve conter apenas a definicao do teste
+
+    Exemplos:
+      | filtro |
+      | dre |
+      | gestao |
+      | tipo_polo |
+      | tipo_ue |
+
+  Cenario: Paginar historico de participacoes
+    Dado que existe uma definicao de polo exclusiva para o teste
+    Quando consulto o historico exclusivo com limite de um registro
+    Entao a resposta de definicoes de polos deve ter status 200
+    E o historico deve conter a participacao criada
+    E o historico paginado deve indicar um unico registro
+
+  Esquema do Cenario: Recusar <metodo> para definicao inexistente
+    Dado que estou autenticado para gerenciar definicoes de polos
+    Quando acesso definicao inexistente com "<metodo>"
+    Entao a resposta de definicoes de polos deve ter status 400
+    E a resposta deve indicar definicao de polo nao encontrada
+
+    Exemplos:
+      | metodo |
+      | PUT |
+      | PATCH |
+      | DELETE |

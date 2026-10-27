@@ -1,0 +1,50 @@
+{
+  "consulta": {
+    "edicao": "4ff784ab-4c85-41d6-89aa-8acff7b66fd0",
+    "tipo_polo": "pendente"
+  },
+  "vinculos": [
+    {
+      "uuid": "f23dc504-d659-4205-90b3-83f1a0e77626",
+      "tipoEnviado": "pendente",
+      "tipoCriado": "pendente",
+      "tipoPreparado": "pendente",
+      "tipoPersistido": "pendente",
+      "polo": "7889186c-6749-4fd5-98ad-adaeed321db3",
+      "edicao": "4ff784ab-4c85-41d6-89aa-8acff7b66fd0"
+    },
+    {
+      "uuid": "03da801a-59e6-4e71-8233-8e132ef937a2",
+      "tipoEnviado": "reserva",
+      "tipoCriado": "pendente",
+      "tipoPreparado": "reserva",
+      "tipoPersistido": "reserva",
+      "polo": "9ed7b35c-069c-4e2d-a6ef-b0a16385b7cc",
+      "edicao": "4ff784ab-4c85-41d6-89aa-8acff7b66fd0"
+    }
+  ],
+  "paginada": {
+    "status": 200,
+    "count": 1,
+    "next": null,
+    "registros": [
+      {
+        "polo_uuid": "7889186c-6749-4fd5-98ad-adaeed321db3",
+        "definicao_uuid": "f23dc504-d659-4205-90b3-83f1a0e77626",
+        "edicao_uuid": "4ff784ab-4c85-41d6-89aa-8acff7b66fd0",
+        "tipo": "pendente"
+      }
+    ]
+  },
+  "semPaginacao": {
+    "status": 200,
+    "registros": [
+      {
+        "polo_uuid": "7889186c-6749-4fd5-98ad-adaeed321db3",
+        "definicao_uuid": "f23dc504-d659-4205-90b3-83f1a0e77626",
+        "edicao_uuid": "4ff784ab-4c85-41d6-89aa-8acff7b66fd0",
+        "tipo": "pendente"
+      }
+    ]
+  }
+}

@@ -75,8 +75,8 @@ const criarDados = () => autenticar().then(() => {
 				codigo_eol: String(Cypress._.random(1000000, 9999999)),
 				nome_polo: `Polo definicoes ${identificador}-${indice}`,
 				nome_osc: 'OSC automatizada', dre_nome: 'DRE automatizada',
-				dre_codigo_eol: `TESTE-${identificador}`, tipo_ue: 'EMEF',
-				quantidade_maxima_alunos: 100, tipo: 'oficial', gestao: 'direta',
+				dre_codigo_eol: `TESTE-${identificador}-${indice}`, tipo_ue: indice ? 'CEI' : 'EMEF',
+				quantidade_maxima_alunos: 100, tipo: 'oficial', gestao: indice ? 'parceira' : 'direta',
 				ponto_focal_nome: 'Contato de teste', ponto_focal_email: 'teste@example.com', ponto_focal_telefone: '11999999999',
 			} }).then((res) => { contexto.polos.push(registrar(res, 'polos')) })
 		}))
@@ -85,7 +85,7 @@ const criarDados = () => autenticar().then(() => {
 
 const payload = (indice = 0) => ({
 	polo: contexto.polos[indice].uuid, edicao: contexto.edicoes[0].uuid,
-	tipo: 'pendente', projecao_inscritos: 20,
+	tipo: indice ? 'reserva' : 'pendente', projecao_inscritos: 20,
 })
 
 const criarDefinicao = (indice = 0) => requisitar('POST', raiz, { body: payload(indice) }).then((response) => {
@@ -100,7 +100,15 @@ const responder = (chain) => chain.as('definicoesResponse')
 Given('que estou autenticado para gerenciar definicoes de polos', autenticar)
 Given('que existem polos e edicoes exclusivos para definir participacoes', criarDados)
 Given('que existe uma definicao de polo exclusiva para o teste', () => criarDados().then(() => criarDefinicao()))
-Given('que existem duas definicoes de polos exclusivas para o teste', () => criarDados().then(() => criarDefinicao(0)).then(() => criarDefinicao(1)))
+Given('que existem duas definicoes de polos exclusivas para o teste', () => criarDados()
+  .then(() => criarDefinicao(0))
+  .then(() => criarDefinicao(1))
+  .then(() => requisitar('PATCH', detalhe(1), { body: { tipo: 'reserva' } }))
+  .then((res) => {
+    validarStatus(res, 200)
+    expect(res.body.tipo, 'Segundo vinculo preparado como reserva').to.eq('reserva')
+    contexto.definicoes[1].tipoPreparado = res.body.tipo
+  }))
 
 When('consulto as definicoes de polos com paginacao', () => responder(requisitar('GET', raiz, { qs: { page_size: 2 } })))
 When('filtro as definicoes pela edicao e codigo EOL do teste', () => responder(requisitar('GET', raiz, {
@@ -229,3 +237,53 @@ Then('a projecao original da definicao deve ser preservada', () => {
 })
 
 Then('a resposta deve indicar definicao de polo nao encontrada', () => cy.get('@definicoesResponse').its('body').should('deep.eq', { detalhe: 'Definição de Polo não encontrada.' }))
+
+When('acesso definicoes com {string} em {string} com token invalido', (metodo, nome) => {
+  cy.clearCookies()
+  return responder(requisitar(metodo, rota(nome), { headers: { Authorization: 'Bearer token-invalido' }, ...(['POST', 'PUT', 'PATCH'].includes(metodo) ? { body: {} } : {}) }, false))
+})
+When('filtro as definicoes exclusivas por {string}', (filtro) => {
+  const polo = contexto.polos[0]
+  const filtros = { dre: { dre_codigos_eol: [polo.dre_codigo_eol] }, gestao: { gestao: polo.gestao }, tipo_polo: { tipo_polo: 'pendente' }, tipo_ue: { tipo_ue: polo.tipo_ue } }
+  const qs = { edicao: contexto.edicoes[0].uuid, ...filtros[filtro] }
+  if (filtro !== 'tipo_polo') return responder(requisitar('GET', raiz, { qs: { ...qs, desabilita_paginacao: true } }))
+
+  const diagnostico = { consulta: qs, vinculos: [], paginada: null, semPaginacao: null }
+  const resumir = (item) => ({ polo_uuid: item.polo_uuid, definicao_uuid: item.definicao_uuid, edicao_uuid: item.edicao_uuid, tipo: item.tipo_polo_edicao })
+  const salvar = () => cy.writeFile('cypress/results/conferencia-tipo-polo.json', diagnostico, { log: false })
+  return cy.wrap(contexto.definicoes, { log: false }).each((item, indice) => {
+    return requisitar('GET', raiz + item.uuid + '/').then((res) => {
+      validarStatus(res, 200)
+      diagnostico.vinculos.push({ uuid: item.uuid, tipoEnviado: payload(indice).tipo, tipoCriado: item.tipo, tipoPreparado: item.tipoPreparado || item.tipo, tipoPersistido: res.body.tipo, polo: res.body.polo?.uuid, edicao: res.body.edicao?.uuid })
+    })
+  }).then(() => requisitar('GET', raiz, { qs: { ...qs, page_size: 100, desabilita_paginacao: false } })).then((res) => {
+    diagnostico.paginada = { status: res.status, count: res.body.count, next: res.body.next, registros: Array.isArray(res.body.results) ? res.body.results.map(resumir) : null }
+    return requisitar('GET', raiz, { qs: { ...qs, desabilita_paginacao: true } })
+  }).then((res) => {
+    diagnostico.semPaginacao = { status: res.status, registros: Array.isArray(res.body) ? res.body.map(resumir) : null }
+    return salvar().then(() => {
+      diagnostico.vinculos.forEach((item, indice) => {
+        expect(item.tipoPreparado, 'Tipo preparado antes do filtro no vinculo ' + indice).to.eq(item.tipoEnviado)
+        expect(item.tipoPersistido, 'Tipo persistido do vinculo ' + indice).to.eq(item.tipoEnviado)
+        expect(item.polo).to.eq(contexto.polos[indice].uuid)
+        expect(item.edicao).to.eq(contexto.edicoes[0].uuid)
+      })
+      expect(diagnostico.paginada.status, 'HTTP paginado').to.eq(200)
+      expect(diagnostico.semPaginacao.status, 'HTTP sem paginacao').to.eq(200)
+      expect(diagnostico.paginada.registros, 'Registros paginados').to.be.an('array')
+      expect(diagnostico.semPaginacao.registros, 'Registros sem paginacao').to.be.an('array')
+      expect(diagnostico.semPaginacao.registros, 'Consistencia entre as duas consultas').to.have.deep.members(diagnostico.paginada.registros)
+      expect(diagnostico.paginada.count, 'Quantidade filtrada com paginacao').to.eq(1)
+      expect(diagnostico.paginada.registros).to.have.length(1)
+      expect(diagnostico.paginada.registros[0]).to.include({ polo_uuid: polo.uuid, edicao_uuid: qs.edicao, tipo: 'pendente' })
+      return res
+    })
+  }).as('definicoesResponse')
+})
+When('consulto o historico exclusivo com limite de um registro', () => responder(requisitar('GET', raiz + 'historico/', { qs: { polo: contexto.polos[0].uuid, page: 1, page_size: 1 } })))
+Then('o historico paginado deve indicar um unico registro', () => cy.get('@definicoesResponse').then(({ body }) => {
+  expect(body.count).to.eq(1)
+  expect(body.next).to.eq(null)
+  expect(body.previous).to.eq(null)
+}))
+When('acesso definicao inexistente com {string}', (metodo) => responder(requisitar(metodo, rota('detalhe'), ['PUT', 'PATCH'].includes(metodo) ? { body: {} } : {})))
