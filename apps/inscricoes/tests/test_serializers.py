@@ -133,9 +133,30 @@ def test_serializer_participante_expoe_idade() -> None:
         dados = ParticipanteRedeSerializer(participante).data
 
     assert dados["idade"] == 13
+    assert dados["unidade_educacional"] == ""
 
     participante.data_nascimento = ""
     assert ParticipanteRedeSerializer(participante).data["idade"] is None
+
+
+def test_serializer_participante_une_tipo_e_nome() -> None:
+    """A unidade educacional sai como tipo seguido do nome."""
+    participante = _participante_rede()
+    participante.unidade_educacional = "EMEF Professora Teste"
+    participante.unidade_educacional_codigo_eol = "094633"
+    participante.unidade_educacional_tipo = "EMEF"
+
+    dados = ParticipanteRedeSerializer(participante).data
+
+    assert dados["unidade_educacional"] == "EMEF - EMEF Professora Teste"
+    assert dados["unidade_educacional_codigo_eol"] == "094633"
+    assert dados["unidade_educacional_tipo"] == "EMEF"
+
+    participante.unidade_educacional_tipo = ""
+    assert (
+        ParticipanteRedeSerializer(participante).data["unidade_educacional"]
+        == "EMEF Professora Teste"
+    )
 
 
 def _participante_rede() -> SimpleNamespace:

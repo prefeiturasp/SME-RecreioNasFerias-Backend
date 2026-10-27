@@ -30,9 +30,19 @@ class ParticipanteRedeSerializer(serializers.Serializer):
     email = serializers.CharField()
     nome_turma = serializers.CharField()
     ano = serializers.CharField()
-    unidade_educacional = serializers.CharField()
+    unidade_educacional = serializers.SerializerMethodField()
     unidade_educacional_codigo_eol = serializers.CharField()
     unidade_educacional_tipo = serializers.CharField()
+
+    def get_unidade_educacional(self, participante: object) -> str:
+        """Devolve o tipo da unidade seguido do nome."""
+        tipo = str(
+            getattr(participante, "unidade_educacional_tipo", "") or ""
+        ).strip()
+        nome = str(
+            getattr(participante, "unidade_educacional", "") or ""
+        ).strip()
+        return " - ".join(parte for parte in (tipo, nome) if parte)
 
     def get_idade(self, participante: object) -> int | None:
         """Devolve a idade em anos cheios a partir da data textual."""

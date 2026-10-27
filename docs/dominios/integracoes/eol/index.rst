@@ -94,7 +94,8 @@ Da turma, o sistema usa:
 
 Dos dados da unidade do aluno, o sistema usa:
 
-- ``nome`` e ``codigo``, unidos como ``nome - codigo``
+- ``nome``, gravado só com o nome da unidade
+- ``codigo``, gravado à parte em ``unidade_educacional_codigo_eol``
 - ``siglaTipoEscola``
 
 Normalização interna
@@ -134,8 +135,11 @@ Decisões principais de mapeamento:
 - ``nomeTurma`` -> ``nome_turma`` e ``ano`` -> ``ano``, sempre texto
 - ``ueCodigo`` da turma segue para ``obter_dados_unidade``
 - código de escola ausente ou zero não chama esse endpoint
-- ``nome`` e ``codigo`` da unidade viram ``nome - codigo``
+- ``nome`` da unidade fica só com o nome, sem o código EOL
+- ``codigo`` da unidade -> ``unidade_educacional_codigo_eol``
 - ``siglaTipoEscola`` -> ``unidade_educacional_tipo``
+- a consulta do participante devolve ``unidade_educacional`` como
+  ``tipo - nome``
 - HTTP 404 na turma mantém o participante e deixa nome e ano vazios
 - HTTP 404 na unidade mantém o participante e deixa nome, código e tipo vazios
 - lista vazia em ``/api/alunos/alunos`` devolve ``None`` e não chama a ficha

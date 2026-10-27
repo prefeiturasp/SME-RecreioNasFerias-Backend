@@ -496,10 +496,7 @@ class EolAdapter(EolPort):
             ParticipanteRedeEol,
             replace(
                 participante,
-                unidade_educacional=self._rotulo_unidade(
-                    dados.nome,
-                    codigo_eol,
-                ),
+                unidade_educacional=dados.nome,
                 unidade_educacional_codigo_eol=codigo_eol,
                 unidade_educacional_tipo=dados.sigla_tipo_escola,
             ),
@@ -513,14 +510,6 @@ class EolAdapter(EolPort):
             ano=self._texto(payload.get("ano")),
             codigo_escola=self._texto(payload.get("ueCodigo")),
         )
-
-    @staticmethod
-    def _rotulo_unidade(nome: str, codigo_eol: str) -> str:
-        """Une o nome da unidade ao código EOL para exibição."""
-        partes = [
-            parte for parte in (nome.strip(), codigo_eol.strip()) if parte
-        ]
-        return " - ".join(partes)
 
     @staticmethod
     def _informacoes_vazias() -> InformacoesAlunoEol:

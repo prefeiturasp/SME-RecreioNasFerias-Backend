@@ -424,7 +424,7 @@ def _participante() -> ParticipanteRedeEol:
         logradouro="DA PASSAGEM FUNDA",
         nome_turma="7C",
         ano="7",
-        unidade_educacional="EMEF Professora Teste - 094633",
+        unidade_educacional="EMEF Professora Teste",
         unidade_educacional_codigo_eol="094633",
         unidade_educacional_tipo="EMEF",
     )
@@ -505,7 +505,7 @@ def test_participante_eol_devolve_nome(
     assert response.data["nome_turma"] == "7C"
     assert response.data["ano"] == "7"
     assert response.data["unidade_educacional"] == (
-        "EMEF Professora Teste - 094633"
+        "EMEF - EMEF Professora Teste"
     )
     assert response.data["unidade_educacional_codigo_eol"] == "094633"
     assert response.data["unidade_educacional_tipo"] == "EMEF"
@@ -667,7 +667,7 @@ def test_participante_cpf_devolve_nome(
     assert response.data["nome_turma"] == "7C"
     assert response.data["ano"] == "7"
     assert response.data["unidade_educacional"] == (
-        "EMEF Professora Teste - 094633"
+        "EMEF - EMEF Professora Teste"
     )
     assert response.data["unidade_educacional_codigo_eol"] == "094633"
     assert response.data["unidade_educacional_tipo"] == "EMEF"

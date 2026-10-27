@@ -1006,9 +1006,7 @@ def test_consultar_participante_busca_unidade_da_turma() -> None:
 
     assert participante is not None
     assert participante.nome_turma == "7C"
-    assert participante.unidade_educacional == (
-        "EMEF Professora Teste - 094633"
-    )
+    assert participante.unidade_educacional == "EMEF Professora Teste"
     assert participante.unidade_educacional_codigo_eol == "094633"
     assert participante.unidade_educacional_tipo == "EMEF"
     assert client.calls_turma == [99]
@@ -1093,9 +1091,7 @@ def test_consultar_participante_por_cpf_herda_unidade() -> None:
     )
 
     assert participante is not None
-    assert participante.unidade_educacional == (
-        "EMEF Professora Teste - 094633"
-    )
+    assert participante.unidade_educacional == "EMEF Professora Teste"
     assert participante.unidade_educacional_codigo_eol == "094633"
     assert participante.unidade_educacional_tipo == "EMEF"
     assert client.calls_obter_dados == ["094633"]
