@@ -136,12 +136,14 @@ def test_cria_e_recupera_informacoes_de_grupo(
 ) -> None:
     """POST grava o grupo e GET devolve os mesmos campos."""
     polo = polo_factory()
-    edicao = edicao_factory()
+    edicao = edicao_factory(
+        inscricoes_inicio=date.today(),
+        inscricoes_fim=date.today(),
+    )
     definicao_polo_factory(polo=polo, edicao=edicao, tipo="oficial")
     payload = _payload(polo)
     payload.update(
         {
-            "edicao": str(edicao.uuid),
             "unidade_educacional": "EMEI Teste - 094633",
             "unidade_educacional_codigo_eol": "094633",
             "unidade_educacional_tipo": "EMEI",
@@ -182,10 +184,12 @@ def test_rede_sem_informacoes_de_grupo_permanece_rascunho(
 ) -> None:
     """A rede só fica completa com unidade, saída, retirada e piscina."""
     polo = polo_factory()
-    edicao = edicao_factory()
+    edicao = edicao_factory(
+        inscricoes_inicio=date.today(),
+        inscricoes_fim=date.today(),
+    )
     definicao_polo_factory(polo=polo, edicao=edicao, tipo="oficial")
     payload = _payload(polo, tipo=TipoEstudante.ESTUDANTE_DA_REDE)
-    payload["edicao"] = str(edicao.uuid)
     payload["codigo_eol"] = "6034178"
 
     criado = cliente_autenticado.post(URL, payload, format="json")

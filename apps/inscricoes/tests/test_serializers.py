@@ -147,6 +147,7 @@ def _participante_rede() -> SimpleNamespace:
         nome_responsavel="",
         responsavel_nome_social="",
         cep="",
+        tipo_logradouro="",
         logradouro="",
         numero="",
         complemento="",
