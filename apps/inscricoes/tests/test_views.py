@@ -121,6 +121,95 @@ def test_lista_aplica_filtros_e_retorna_polo_nome(
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
     assert response.data[0]["polo_nome"] == inscricao.polo.nome_polo
+    assert "pode_ir_embora_sozinho" not in response.data[0]
+    assert "aluno_rede_municipal" not in response.data[0]
+    assert "unidade_educacional" not in response.data[0]
+    assert "unidade_educacional_codigo_eol" not in response.data[0]
+    assert "unidade_educacional_tipo" not in response.data[0]
+
+
+def test_cria_e_recupera_informacoes_de_grupo(
+    cliente_autenticado,
+    polo_factory,
+    definicao_polo_factory,
+    edicao_factory,
+) -> None:
+    """POST grava o grupo e GET devolve os mesmos campos."""
+    polo = polo_factory()
+    edicao = edicao_factory(
+        inscricoes_inicio=date.today(),
+        inscricoes_fim=date.today(),
+    )
+    definicao_polo_factory(polo=polo, edicao=edicao, tipo="oficial")
+    payload = _payload(polo)
+    payload.update(
+        {
+            "unidade_educacional": "EMEI Teste - 094633",
+            "unidade_educacional_codigo_eol": "094633",
+            "unidade_educacional_tipo": "EMEI",
+            "nome_turma": "7C",
+            "ano": "7",
+            "pode_ir_embora_sozinho": False,
+            "responsavel_retirada": "Maria",
+            "autoriza_uso_piscina": True,
+            "idade": 1,
+            "aluno_rede_municipal": True,
+        }
+    )
+
+    criado = cliente_autenticado.post(URL, payload, format="json")
+    recuperado = cliente_autenticado.get(f"{URL}{criado.data['uuid']}/")
+
+    assert criado.status_code == status.HTTP_201_CREATED
+    assert criado.data["aluno_rede_municipal"] is False
+    assert criado.data["pode_ir_embora_sozinho"] is False
+    assert criado.data["autoriza_uso_piscina"] is True
+    assert recuperado.status_code == status.HTTP_200_OK
+    assert recuperado.data["unidade_educacional"] == "EMEI Teste - 094633"
+    assert recuperado.data["unidade_educacional_codigo_eol"] == "094633"
+    assert recuperado.data["unidade_educacional_tipo"] == "EMEI"
+    assert recuperado.data["nome_turma"] == "7C"
+    assert recuperado.data["ano"] == "7"
+    assert recuperado.data["responsavel_retirada"] == "Maria"
+    inscricao = Inscricao.objects.get(uuid=criado.data["uuid"])
+    assert inscricao.pode_ir_embora_sozinho is False
+    assert inscricao.responsavel_retirada == "Maria"
+
+
+def test_rede_sem_informacoes_de_grupo_permanece_rascunho(
+    cliente_autenticado,
+    polo_factory,
+    definicao_polo_factory,
+    edicao_factory,
+) -> None:
+    """A rede só fica completa com unidade, saída, retirada e piscina."""
+    polo = polo_factory()
+    edicao = edicao_factory(
+        inscricoes_inicio=date.today(),
+        inscricoes_fim=date.today(),
+    )
+    definicao_polo_factory(polo=polo, edicao=edicao, tipo="oficial")
+    payload = _payload(polo, tipo=TipoEstudante.ESTUDANTE_DA_REDE)
+    payload["codigo_eol"] = "6034178"
+
+    criado = cliente_autenticado.post(URL, payload, format="json")
+    atualizado = cliente_autenticado.patch(
+        f"{URL}{criado.data['uuid']}/",
+        {
+            "pode_ir_embora_sozinho": False,
+            "autoriza_uso_piscina": False,
+            "responsavel_retirada": "Maria",
+            "unidade_educacional": "EMEI Teste - 094633",
+            "unidade_educacional_codigo_eol": "094633",
+            "unidade_educacional_tipo": "EMEI",
+        },
+        format="json",
+    )
+
+    assert criado.status_code == status.HTTP_201_CREATED
+    assert criado.data["status"] == StatusInscricao.RASCUNHO
+    assert atualizado.status_code == status.HTTP_200_OK
+    assert atualizado.data["status"] == StatusInscricao.COMPLETA
 
 
 def test_cria_rascunho_atualiza_e_remove(
@@ -335,6 +424,9 @@ def _participante() -> ParticipanteRedeEol:
         logradouro="DA PASSAGEM FUNDA",
         nome_turma="7C",
         ano="7",
+        unidade_educacional="EMEF Professora Teste",
+        unidade_educacional_codigo_eol="094633",
+        unidade_educacional_tipo="EMEF",
     )
 
 
@@ -365,16 +457,18 @@ def test_participante_eol_devolve_nome(
         _consultar,
     )
 
-    response = cliente_autenticado.get(
-        f"{URL}participante-eol/",
-        {"codigo_eol": "6034178"},
-    )
+    with freeze_time("2026-10-16 12:00:00"):
+        response = cliente_autenticado.get(
+            f"{URL}participante-eol/",
+            {"codigo_eol": "6034178"},
+        )
 
     assert response.status_code == status.HTTP_200_OK
     assert set(response.data) == {
         "codigo_eol",
         "nome_participante",
         "data_nascimento",
+        "idade",
         "responsavel_nome",
         "responsavel_nome_social",
         "cep",
@@ -389,11 +483,15 @@ def test_participante_eol_devolve_nome(
         "email",
         "nome_turma",
         "ano",
+        "unidade_educacional",
+        "unidade_educacional_codigo_eol",
+        "unidade_educacional_tipo",
     }
     assert response.data["codigo_eol"] == "6034178"
     assert response.data["nome_participante"] == "ANNA JULIA ARAUJO SA"
     assert response.data["responsavel_nome"] == "SAMARA LIMA ARAUJO"
     assert response.data["data_nascimento"] == "2013-10-16"
+    assert response.data["idade"] == 13
     assert response.data["cep"] == "08411-010"
     assert response.data["logradouro"] == "DA PASSAGEM FUNDA"
     assert response.data["numero"] == "72"
@@ -406,6 +504,11 @@ def test_participante_eol_devolve_nome(
     assert response.data["complemento"] == ""
     assert response.data["nome_turma"] == "7C"
     assert response.data["ano"] == "7"
+    assert response.data["unidade_educacional"] == (
+        "EMEF - EMEF Professora Teste"
+    )
+    assert response.data["unidade_educacional_codigo_eol"] == "094633"
+    assert response.data["unidade_educacional_tipo"] == "EMEF"
 
 
 def test_participante_eol_nao_encontrado_nao_grava(
@@ -516,16 +619,18 @@ def test_participante_cpf_devolve_nome(
         _consultar,
     )
 
-    response = cliente_autenticado.get(
-        f"{URL}participante-cpf/",
-        {"cpf": "12345678909"},
-    )
+    with freeze_time("2026-10-16 12:00:00"):
+        response = cliente_autenticado.get(
+            f"{URL}participante-cpf/",
+            {"cpf": "12345678909"},
+        )
 
     assert response.status_code == status.HTTP_200_OK
     assert set(response.data) == {
         "codigo_eol",
         "nome_participante",
         "data_nascimento",
+        "idade",
         "responsavel_nome",
         "responsavel_nome_social",
         "cep",
@@ -540,11 +645,15 @@ def test_participante_cpf_devolve_nome(
         "email",
         "nome_turma",
         "ano",
+        "unidade_educacional",
+        "unidade_educacional_codigo_eol",
+        "unidade_educacional_tipo",
     }
     assert response.data["codigo_eol"] == "6034178"
     assert response.data["nome_participante"] == "ANNA JULIA ARAUJO SA"
     assert response.data["responsavel_nome"] == "SAMARA LIMA ARAUJO"
     assert response.data["data_nascimento"] == "2013-10-16"
+    assert response.data["idade"] == 13
     assert response.data["cep"] == "08411-010"
     assert response.data["logradouro"] == "DA PASSAGEM FUNDA"
     assert response.data["numero"] == "72"
@@ -557,6 +666,11 @@ def test_participante_cpf_devolve_nome(
     assert response.data["complemento"] == ""
     assert response.data["nome_turma"] == "7C"
     assert response.data["ano"] == "7"
+    assert response.data["unidade_educacional"] == (
+        "EMEF - EMEF Professora Teste"
+    )
+    assert response.data["unidade_educacional_codigo_eol"] == "094633"
+    assert response.data["unidade_educacional_tipo"] == "EMEF"
 
 
 def test_participante_cpf_nao_encontrado_nao_grava(

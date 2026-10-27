@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from apps.definicoes_polos.constants import TipoPolo
 from apps.definicoes_polos.models import DefinicaoPolo
@@ -51,6 +54,15 @@ CAMPOS_COMPLETUDE = (
     "possui_convenio_medico"
 )
 
+CAMPOS_GRUPO_REDE = (
+    "unidade_educacional",
+    "unidade_educacional_codigo_eol",
+    "unidade_educacional_tipo",
+    "pode_ir_embora_sozinho",
+    "autoriza_uso_piscina",
+    "responsavel_retirada",
+)
+
 
 def _preenchido(valor: object) -> bool:
     """Trata strings vazias e valores nulos como não preenchidos."""
@@ -60,7 +72,7 @@ def _preenchido(valor: object) -> bool:
 
 
 def inscricao_eh_completa(inscricao: object) -> bool:
-    """Aplica a regra de completude da primeira fase."""
+    """Aplica a régua da fase e, na rede, unidade, saída e piscina."""
     if any(
         not _preenchido(getattr(inscricao, campo, None))
         for campo in CAMPOS_COMPLETUDE
@@ -70,7 +82,37 @@ def inscricao_eh_completa(inscricao: object) -> bool:
     campo_condicional = (
         "codigo_eol" if tipo == TipoEstudante.ESTUDANTE_DA_REDE else "cpf"
     )
-    return _preenchido(getattr(inscricao, campo_condicional, None))
+    if not _preenchido(getattr(inscricao, campo_condicional, None)):
+        return False
+    if tipo != TipoEstudante.ESTUDANTE_DA_REDE:
+        return True
+    return all(
+        _preenchido(getattr(inscricao, campo, None))
+        for campo in CAMPOS_GRUPO_REDE
+    )
+
+
+def calcular_idade_cheia(data_nascimento: date | None) -> int | None:
+    """Devolve a idade em anos completos na data local de hoje.
+
+    Sem data de nascimento, devolve ``None``. Em 29 de fevereiro, num
+    ano que não é bissexto, o aniversário vale 1º de março.
+    """
+    if data_nascimento is None:
+        return None
+    hoje = timezone.localdate()
+    idade = hoje.year - data_nascimento.year
+    if hoje < _aniversario(data_nascimento, hoje.year):
+        idade -= 1
+    return idade
+
+
+def _aniversario(nascimento: date, ano: int) -> date:
+    """Monta o aniversário no ano pedido, tratando 29 de fevereiro."""
+    try:
+        return date(ano, nascimento.month, nascimento.day)
+    except ValueError:
+        return date(ano, 3, 1)
 
 
 def validar_tipo_e_grupo(inscricao: object) -> None:

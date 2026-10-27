@@ -90,6 +90,13 @@ Da turma, o sistema usa:
 - ``codigo``
 - ``nomeTurma``
 - ``ano``
+- ``ueCodigo``, enviado em seguida a ``/api/escolas/dados/{codigo}``
+
+Dos dados da unidade do aluno, o sistema usa:
+
+- ``nome``, gravado só com o nome da unidade
+- ``codigo``, gravado à parte em ``unidade_educacional_codigo_eol``
+- ``siglaTipoEscola``
 
 Normalização interna
 --------------------
@@ -105,7 +112,7 @@ converte em contratos internos tipados em ``apps/integracoes/eol/port.py``:
 - ``AlunoEol`` — aluno da lista ``/api/alunos/alunos``
 - ``InformacoesAlunoEol`` — ficha com endereço em campos soltos
 - ``ParticipanteRedeEol`` — aluno unido à ficha, pronto para o domínio
-- ``TurmaEol`` — turma com nome e ano normalizados
+- ``TurmaEol`` — turma com nome, ano e código da escola normalizados
 
 Decisões principais de mapeamento:
 
@@ -126,7 +133,15 @@ Decisões principais de mapeamento:
   item da mesma lista
 - código de turma ausente ou zero não chama esse endpoint
 - ``nomeTurma`` -> ``nome_turma`` e ``ano`` -> ``ano``, sempre texto
+- ``ueCodigo`` da turma segue para ``obter_dados_unidade``
+- código de escola ausente ou zero não chama esse endpoint
+- ``nome`` da unidade fica só com o nome, sem o código EOL
+- ``codigo`` da unidade -> ``unidade_educacional_codigo_eol``
+- ``siglaTipoEscola`` -> ``unidade_educacional_tipo``
+- a consulta do participante devolve ``unidade_educacional`` como
+  ``tipo - nome``
 - HTTP 404 na turma mantém o participante e deixa nome e ano vazios
+- HTTP 404 na unidade mantém o participante e deixa nome, código e tipo vazios
 - lista vazia em ``/api/alunos/alunos`` devolve ``None`` e não chama a ficha
   nem a turma
 - HTTP 404 na ficha mantém o aluno e deixa o endereço vazio

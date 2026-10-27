@@ -139,6 +139,7 @@ class TurmaEol:
     codigo: int
     nome_turma: str
     ano: str
+    codigo_escola: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,6 +188,9 @@ class ParticipanteRedeEol:
     email: str = ""
     nome_turma: str = ""
     ano: str = ""
+    unidade_educacional: str = ""
+    unidade_educacional_codigo_eol: str = ""
+    unidade_educacional_tipo: str = ""
 
 
 class EolPort(ABC):

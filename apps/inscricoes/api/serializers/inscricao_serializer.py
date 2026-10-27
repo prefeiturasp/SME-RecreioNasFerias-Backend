@@ -37,15 +37,23 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
     grupo_label = serializers.CharField(
         source="get_grupo_display", read_only=True, allow_null=True
     )
-    
+
     tipo_estudante_label = serializers.CharField(
         source="get_tipo_estudante_display", read_only=True, allow_null=True
     )
-    
+
     status_label = serializers.CharField(
         source="get_status_display", read_only=True, allow_null=True
     )
-    
+    idade = serializers.IntegerField(read_only=True, allow_null=True)
+    aluno_rede_municipal = serializers.BooleanField(read_only=True)
+    pode_ir_embora_sozinho = serializers.BooleanField(
+        allow_null=True, required=False
+    )
+    autoriza_uso_piscina = serializers.BooleanField(
+        allow_null=True, required=False
+    )
+
     class Meta:
         """Configuração do contrato do formulário de inscrições."""
 
@@ -56,12 +64,14 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
             "polo",
             "tipo_estudante",
             "tipo_estudante_label",
+            "aluno_rede_municipal",
             "grupo",
             "grupo_label",
             "codigo_eol",
             "cpf",
             "nome_participante",
             "data_nascimento",
+            "idade",
             "responsavel_nome",
             "responsavel_nome_social",
             "cep",
@@ -91,9 +101,23 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
             "possui_restricao_medicamento_pronto_atendimento",
             "restricao_medicamento_pronto_atendimento",
             "possui_convenio_medico",
-            "convenio_medico"
+            "convenio_medico",
+            "unidade_educacional",
+            "unidade_educacional_codigo_eol",
+            "unidade_educacional_tipo",
+            "nome_turma",
+            "ano",
+            "pode_ir_embora_sozinho",
+            "responsavel_retirada",
+            "autoriza_uso_piscina",
         )
-        read_only_fields = ("uuid", "status", "ativo")
+        read_only_fields = (
+            "uuid",
+            "status",
+            "ativo",
+            "idade",
+            "aluno_rede_municipal",
+        )
 
 
 class InscricaoListagemSerializer(serializers.ModelSerializer):
@@ -106,15 +130,15 @@ class InscricaoListagemSerializer(serializers.ModelSerializer):
         source="polo.nome_polo", read_only=True, allow_null=True
     )
     edicao = EdicaoResumoSerializer(read_only=True, allow_null=True)
-    
+
     grupo_label = serializers.CharField(
         source="get_grupo_display", read_only=True, allow_null=True
     )
-    
+
     tipo_estudante_label = serializers.CharField(
         source="get_tipo_estudante_display", read_only=True, allow_null=True
     )
-    
+
     status_label = serializers.CharField(
         source="get_status_display", read_only=True, allow_null=True
     )
@@ -149,11 +173,11 @@ class InscricaoDetalheSerializer(InscricaoCadastroSerializer):
     grupo_label = serializers.CharField(
         source="get_grupo_display", read_only=True, allow_null=True
     )
-    
+
     tipo_estudante_label = serializers.CharField(
         source="get_tipo_estudante_display", read_only=True, allow_null=True
     )
-    
+
     status_label = serializers.CharField(
         source="get_status_display", read_only=True, allow_null=True
     )

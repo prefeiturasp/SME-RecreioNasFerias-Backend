@@ -286,13 +286,15 @@ class EolAdapter(EolPort):
         self,
         codigo_eol: str,
     ) -> ParticipanteRedeEol | None:
-        """Une o primeiro aluno à ficha e à turma do último registro.
+        """Une o primeiro aluno à ficha, à turma e à unidade do último.
 
         Lista vazia devolve ``None`` e não consulta a ficha nem a turma.
         Nome, nascimento e os demais dados saem do primeiro item. O código
         usado em ``/api/turmas/{codigo}/dados`` sai do último. Código ausente
         ou zero não chama o endpoint. Turma inexistente deixa nome e ano
-        vazios.
+        vazios. O ``ueCodigo`` dessa turma segue para
+        ``/api/escolas/dados/{codigo}``. Código ausente ou zero não chama
+        a unidade. Unidade inexistente deixa nome, código e tipo vazios.
 
         Args:
             codigo_eol: Código EOL do aluno.
@@ -461,18 +463,42 @@ class EolAdapter(EolPort):
         participante: ParticipanteRedeEol,
         codigo_turma: int,
     ) -> ParticipanteRedeEol:
-        """Preenche nome e ano da turma sem alterar o restante do aluno."""
+        """Preenche a turma e, a partir dela, a unidade do aluno."""
         if not codigo_turma:
             return participante
         turma = self.obter_dados_turma(codigo_turma)
         if turma is None:
             return participante
-        return cast(
+        participante = cast(
             ParticipanteRedeEol,
             replace(
                 participante,
                 nome_turma=turma.nome_turma,
                 ano=turma.ano,
+            ),
+        )
+        return self._anexar_unidade(participante, turma.codigo_escola)
+
+    def _anexar_unidade(
+        self,
+        participante: ParticipanteRedeEol,
+        codigo_escola: str,
+    ) -> ParticipanteRedeEol:
+        """Preenche nome, código e tipo da unidade sem alterar o aluno."""
+        codigo = codigo_escola.strip()
+        if not codigo or codigo == "0":
+            return participante
+        dados = self.obter_dados_unidade(codigo)
+        if dados is None:
+            return participante
+        codigo_eol = dados.codigo_eol or codigo
+        return cast(
+            ParticipanteRedeEol,
+            replace(
+                participante,
+                unidade_educacional=dados.nome,
+                unidade_educacional_codigo_eol=codigo_eol,
+                unidade_educacional_tipo=dados.sigla_tipo_escola,
             ),
         )
 
@@ -482,6 +508,7 @@ class EolAdapter(EolPort):
             codigo=self._inteiro(payload.get("codigo")),
             nome_turma=self._texto(payload.get("nomeTurma")),
             ano=self._texto(payload.get("ano")),
+            codigo_escola=self._texto(payload.get("ueCodigo")),
         )
 
     @staticmethod

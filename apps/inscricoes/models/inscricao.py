@@ -13,7 +13,10 @@ from apps.inscricoes.constants import (
     StatusInscricao,
     TipoEstudante,
 )
-from apps.inscricoes.validators import validar_inscricao
+from apps.inscricoes.validators import (
+    calcular_idade_cheia,
+    validar_inscricao,
+)
 
 
 class Inscricao(ModeloAtualizavel):
@@ -212,6 +215,57 @@ class Inscricao(ModeloAtualizavel):
         verbose_name="Especifique o convênio médico"
     )
 
+    ## Informações por grupo
+
+    unidade_educacional = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Unidade educacional do participante",
+    )
+    unidade_educacional_codigo_eol = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="Código EOL da unidade educacional",
+    )
+    unidade_educacional_tipo = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="Tipo da unidade educacional",
+    )
+    nome_turma = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name="Turma",
+    )
+    ano = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="Ano",
+    )
+    pode_ir_embora_sozinho = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="Pode ir embora sozinho?",
+    )
+    responsavel_retirada = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Responsável por retirar na saída",
+    )
+    autoriza_uso_piscina = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="Autoriza uso da piscina?",
+    )
+
     class Meta:
         """Metadados da inscrição."""
 
@@ -230,6 +284,16 @@ class Inscricao(ModeloAtualizavel):
         from apps.inscricoes.validators import inscricao_eh_completa
 
         return inscricao_eh_completa(self)
+
+    @property
+    def idade(self) -> int | None:
+        """Idade em anos completos na data local de hoje."""
+        return calcular_idade_cheia(self.data_nascimento)
+
+    @property
+    def aluno_rede_municipal(self) -> bool:
+        """Indica se o participante é estudante da rede municipal."""
+        return self.tipo_estudante == TipoEstudante.ESTUDANTE_DA_REDE
 
     def clean(self) -> None:
         """Executa as validações compartilhadas do domínio."""
