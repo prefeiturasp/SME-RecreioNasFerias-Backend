@@ -10,6 +10,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 
 from apps.definicoes_polos.constants import TipoPolo
+from apps.edicoes.services.edicao_service import EdicaoService
 from apps.inscricoes.constants import StatusInscricao
 from apps.inscricoes.models import Inscricao
 from apps.inscricoes.validators import (
@@ -123,8 +124,15 @@ class InscricaoService:
 
     @transaction.atomic
     def criar(self, **dados: Any) -> Inscricao:
-        """Cria uma inscrição, derivando o status pelo conteúdo informado."""
+        """Cria inscrição vinculada à edição com inscrições abertas."""
         dados.pop("status", None)
+        dados.pop("edicao", None)
+        edicao = EdicaoService.obter_vigente_para_inscricoes()
+        if edicao is None:
+            raise ValidationError(
+                {"edicao": "Não há edição com inscrições abertas."}
+            )
+        dados["edicao"] = edicao
         return Inscricao.objects.create(**dados)
 
     @transaction.atomic
@@ -133,6 +141,7 @@ class InscricaoService:
         dados.pop("uuid", None)
         dados.pop("status", None)
         dados.pop("ativo", None)
+        dados.pop("edicao", None)
         inscricao.refresh_from_db()
         for campo, valor in dados.items():
             setattr(inscricao, campo, valor)

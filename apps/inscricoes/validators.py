@@ -45,6 +45,7 @@ CAMPOS_COMPLETUDE = (
     "email",
     "dre_codigo_eol",
     "dre_nome",
+    "edicao_id",
     "polo_id",
     "possui_deficiencia",
     "possui_problema_saude",
@@ -171,34 +172,70 @@ def validar_informacoes_de_saude(inscricao: object) -> None:
     possui_deficiencia = getattr(inscricao, "possui_deficiencia", True)
     detalhes_deficiencia = getattr(inscricao, "deficiencias", [])
     outra_deficiencia = getattr(inscricao, "outra_deficiencia", "")
-    if possui_deficiencia and not detalhes_deficiencia:
-        raise ValidationError({"deficiencias": "Informe a(s) deficiência(s)."})
-    if "OUTRA" in detalhes_deficiencia and not outra_deficiencia:
-        raise ValidationError({"outra_deficiencia": "É obrigatório informar a outra deficiência."})
 
-    # Se o participante tiver algum problema de saúde, deve fornecer detalhes.
     possui_problema_saude = getattr(inscricao, "possui_problema_saude", True)
     detalhes_problema_saude = getattr(inscricao, "problemas_saude", [])
     outro_problema_saude = getattr(inscricao, "outro_problema_saude", "")
-    if possui_problema_saude and not detalhes_problema_saude:
-        raise ValidationError({"problemas_saude": "Informe o(s) problema(s) de saúde."})
-    if "OUTRO" in detalhes_problema_saude and not outro_problema_saude:
-        raise ValidationError({"outro_problema_saude": "É obrigatório informar o outro problema de saúde."})
 
-    usuario_medicacao_ou_tratamento = getattr(inscricao, "usuario_medicacao_ou_tratamento_continuo", True)
-    detalhe_medicacao_ou_tratamento = getattr(inscricao, "medicacao_ou_tratamento_continuo", "")
-    if usuario_medicacao_ou_tratamento and not detalhe_medicacao_ou_tratamento:
-        raise ValidationError({"medicacao_ou_tratamento_continuo": "Detalhe da medicação ou tratamento contínuo é obrigatório."})
+    usuario_medicacao = getattr(
+        inscricao, "usuario_medicacao_ou_tratamento_continuo", True
+    )
+    detalhe_medicacao = getattr(
+        inscricao, "medicacao_ou_tratamento_continuo", ""
+    )
 
-    possui_restricao_medicamento_pronto_atendimento = getattr(inscricao, "possui_restricao_medicamento_pronto_atendimento", True)
-    detalhe_restricao_medicamento_pronto_atendimento = getattr(inscricao, "restricao_medicamento_pronto_atendimento", "")
-    if possui_restricao_medicamento_pronto_atendimento and not detalhe_restricao_medicamento_pronto_atendimento:
-        raise ValidationError({"restricao_medicamento_pronto_atendimento": "Detalhe da restrição de medicamento no pronto atendimento é obrigatório."})
+    possui_restricao = getattr(
+        inscricao, "possui_restricao_medicamento_pronto_atendimento", True
+    )
+    detalhe_restricao = getattr(
+        inscricao, "restricao_medicamento_pronto_atendimento", ""
+    )
 
-    possui_convenio_medico = getattr(inscricao, "possui_convenio_medico", True)
-    detalhe_convenio_medico = getattr(inscricao, "convenio_medico", "")
-    if possui_convenio_medico and not detalhe_convenio_medico:
-        raise ValidationError({"convenio_medico": "Detalhe do convênio médico é obrigatório."})
+    possui_convenio = getattr(inscricao, "possui_convenio_medico", True)
+    detalhe_convenio = getattr(inscricao, "convenio_medico", "")
+
+    regras = (
+        (
+            possui_deficiencia and not detalhes_deficiencia,
+            "deficiencias",
+            "Informe a(s) deficiência(s).",
+        ),
+        (
+            "OUTRA" in detalhes_deficiencia and not outra_deficiencia,
+            "outra_deficiencia",
+            "É obrigatório informar a outra deficiência.",
+        ),
+        (
+            possui_problema_saude and not detalhes_problema_saude,
+            "problemas_saude",
+            "Informe o(s) problema(s) de saúde.",
+        ),
+        (
+            "OUTRO" in detalhes_problema_saude and not outro_problema_saude,
+            "outro_problema_saude",
+            "É obrigatório informar o outro problema de saúde.",
+        ),
+        (
+            usuario_medicacao and not detalhe_medicacao,
+            "medicacao_ou_tratamento_continuo",
+            "Detalhe da medicação ou tratamento contínuo é obrigatório.",
+        ),
+        (
+            possui_restricao and not detalhe_restricao,
+            "restricao_medicamento_pronto_atendimento",
+            "Detalhe da restrição de medicamento em pronto atendimento "
+            "é obrigatório.",
+        ),
+        (
+            possui_convenio and not detalhe_convenio,
+            "convenio_medico",
+            "Detalhe do convênio médico é obrigatório.",
+        ),
+    )
+
+    for invalida, campo, mensagem in regras:
+        if invalida:
+            raise ValidationError({campo: mensagem})
 
 
 

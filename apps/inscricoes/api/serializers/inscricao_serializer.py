@@ -5,7 +5,6 @@ from rest_framework import serializers
 from apps.edicoes.api.serializers.edicao_serializer import (
     EdicaoResumoSerializer,
 )
-from apps.edicoes.models import Edicao
 from apps.inscricoes.constants import Deficiencias, ProblemasSaude
 from apps.inscricoes.models import Inscricao
 from apps.polos.api.serializers.polo_serializer import PoloResumoSerializer
@@ -32,9 +31,7 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
     )
     edicao = serializers.SlugRelatedField(
         slug_field="uuid",
-        queryset=Edicao.objects.all(),
-        allow_null=True,
-        required=False,
+        read_only=True,
     )
 
     grupo_label = serializers.CharField(
@@ -132,6 +129,7 @@ class InscricaoListagemSerializer(serializers.ModelSerializer):
     polo_nome = serializers.CharField(
         source="polo.nome_polo", read_only=True, allow_null=True
     )
+    edicao = EdicaoResumoSerializer(read_only=True, allow_null=True)
 
     grupo_label = serializers.CharField(
         source="get_grupo_display", read_only=True, allow_null=True
@@ -155,6 +153,7 @@ class InscricaoListagemSerializer(serializers.ModelSerializer):
             "tipo_estudante_label",
             "polo",
             "polo_nome",
+            "edicao",
             "codigo_eol",
             "cpf",
             "nome_participante",

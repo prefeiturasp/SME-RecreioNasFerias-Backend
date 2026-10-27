@@ -1,5 +1,6 @@
 """Testes dos endpoints HTTP de inscrições."""
 
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
@@ -75,10 +76,9 @@ def test_cria_e_recupera_inscricao_com_detalhes(
 ) -> None:
     """POST cria e GET retorna os resumos de polo e edição."""
     polo = polo_factory()
-    edicao = edicao_factory()
+    edicao = edicao_factory(inscricoes_inicio=date.today(), inscricoes_fim=date.today())
     definicao_polo_factory(polo=polo, edicao=edicao, tipo="oficial")
     payload = _payload(polo)
-    payload["edicao"] = str(edicao.uuid)
 
     criado = cliente_autenticado.post(URL, payload, format="json")
     recuperado = cliente_autenticado.get(f"{URL}{criado.data['uuid']}/")
@@ -211,13 +211,16 @@ def test_rede_sem_informacoes_de_grupo_permanece_rascunho(
 def test_cria_rascunho_atualiza_e_remove(
     cliente_autenticado,
     polo_factory,
+    edicao_factory,
 ) -> None:
     """A API permite criar rascunho, atualizar e remover."""
+    edicao = edicao_factory(inscricoes_inicio=date.today(), inscricoes_fim=date.today())
     criado = cliente_autenticado.post(
         URL,
         {
             "tipo_estudante": TipoEstudante.ESTUDANTE_EXTERNO,
             "grupo": GrupoInscricao.QUATRO_A_14_ANOS,
+            "edicao": str(edicao.uuid),
         },
         format="json",
     )
@@ -465,6 +468,7 @@ def test_participante_eol_devolve_nome(
         "responsavel_nome",
         "responsavel_nome_social",
         "cep",
+        "tipo_logradouro",
         "logradouro",
         "numero",
         "complemento",
@@ -626,6 +630,7 @@ def test_participante_cpf_devolve_nome(
         "responsavel_nome",
         "responsavel_nome_social",
         "cep",
+        "tipo_logradouro",
         "logradouro",
         "numero",
         "complemento",

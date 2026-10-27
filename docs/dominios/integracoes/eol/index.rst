@@ -266,6 +266,11 @@ O ``InscricaoService.consultar_participante_por_eol()``:
    ``Código EOL não encontrado. Verifique o número digitado e tente novamente.``
 4. devolve o ``ParticipanteRedeEol`` sem gravar inscrição
 
+As rotas ``participante-eol`` e ``participante-cpf`` serializam os dados para
+o formulário de inscrição. A resposta inclui ``tipo_logradouro``, obtido pelo
+adaptador da chave ``endereco.tipologradouro`` na ficha do aluno. A consulta
+por CPF localiza o aluno e reutiliza o mesmo fluxo de consulta por código EOL.
+
 ``EolConfigError`` responde HTTP 500. ``EolIndisponivelError`` e
 ``EolContratoError`` respondem HTTP 502. Indisponibilidade da SME não usa a
 mensagem de código não encontrado.

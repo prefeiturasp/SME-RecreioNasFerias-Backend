@@ -17,6 +17,15 @@ class EdicaoService:
     """Orquestra criação, consulta, alteração e exclusão de edições."""
 
     @staticmethod
+    def obter_vigente_para_inscricoes() -> Edicao | None:
+        """Retorna a edição cujo período de inscrições inclui hoje."""
+        hoje = timezone.localdate()
+        return Edicao.objects.filter(
+            inscricoes_inicio__lte=hoje,
+            inscricoes_fim__gte=hoje,
+        ).first()
+
+    @staticmethod
     @transaction.atomic
     def sincronizar_status() -> None:
         """Atualiza os status conforme a data atual do sistema.
