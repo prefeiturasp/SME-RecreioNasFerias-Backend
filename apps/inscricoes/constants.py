@@ -10,7 +10,9 @@ class GrupoInscricao(models.TextChoices):
     BERCARIO_II = "BERCARIO_II", "Berçário II"
     MINI_GRUPO_I = "MINI_GRUPO_I", "Mini Grupo I"
     MINI_GRUPO_II = "MINI_GRUPO_II", "Mini Grupo II"
-    QUATRO_A_14_ANOS = "QUATRO_A_14_ANOS", "4 a 14 anos"
+    QUATRO_A_5_ANOS = "QUATRO_A_5_ANOS", "4 a 5 anos"
+    SEIS_A_10_ANOS = "SEIS_A_10_ANOS", "6 a 10 anos"
+    ONZE_A_14_ANOS = "ONZE_A_14_ANOS", "11 a 14 anos"
 
 
 class TipoEstudante(models.TextChoices):
