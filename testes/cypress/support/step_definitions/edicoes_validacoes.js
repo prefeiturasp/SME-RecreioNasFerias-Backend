@@ -148,3 +148,20 @@ Then('consultar a edicao excluida deve retornar 404', () => {
 	cy.get('@validacaoEdicoesResponse').its('body').should('be.empty')
 	return requisitar('GET', estado.edicoes[0].uuid).then((res) => status(res, 404))
 })
+
+When('atualizo a edicao no limite {string}', (limite) => {
+  const base = estado.edicoes[0]
+  const alteracoes = {
+    'nome com 255 caracteres': { nome: ('Limite-' + base.uuid + '-').padEnd(255, 'X') },
+    'edicao de um dia': { data_fim: base.data_inicio },
+    'inscricoes de um dia': { inscricoes_fim: base.inscricoes_inicio },
+  }
+  estado.limite = alteracoes[limite]
+  return requisitar('PATCH', base.uuid, estado.limite).as('validacaoEdicoesResponse')
+})
+Then('os valores de limite da edicao devem estar persistidos', () => requisitar('GET', estado.edicoes[0].uuid).then((res) => {
+  status(res, 200)
+  expect(res.body).to.include(estado.limite)
+}))
+When('acesso edicao com UUID malformado por {string}', (metodo) => requisitar(metodo, 'uuid-invalido', ['PUT', 'PATCH'].includes(metodo) ? {} : undefined).as('validacaoEdicoesResponse'))
+When('acesso a lista de edicoes com metodo nao permitido {string}', (metodo) => requisitar(metodo, '', ['PUT', 'PATCH'].includes(metodo) ? {} : undefined).as('validacaoEdicoesResponse'))

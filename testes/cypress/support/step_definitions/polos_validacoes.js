@@ -165,3 +165,26 @@ Then('os dados da unidade sem codigo devem estar vazios', () => cy.get('@polosVa
 	contrato(body, 'DadosUnidade')
 	Object.entries(body).forEach(([campo, valor]) => expect(valor, campo).to.eq(''))
 }))
+
+When('consulto o recurso auxiliar {string} com parametros de paginacao', (nome) => {
+  estado.recursoAuxiliar = nome
+  return request('GET', nome + '/', { qs: { page: 1, page_size: 1 } }).as('polosValidacaoResponse')
+})
+Then('o recurso auxiliar de polos deve retornar uma lista com contrato valido', () => cy.get('@polosValidacaoResponse').then(({ body }) => {
+  expect(body).to.be.an('array')
+  const campos = estado.recursoAuxiliar === 'dres' ? ['codigo_dre', 'sigla_dre', 'nome_dre'] : ['codigo', 'descricao_sigla']
+  body.forEach((item) => {
+    expect(item).to.include.all.keys(campos)
+    campos.forEach((campo) => expect(item[campo], campo).not.to.eq(null).and.not.to.eq(undefined))
+  })
+}))
+When('consulto dados da unidade com codigo EOL configurado', () => {
+  const codigo = Cypress.env('eol_codigo_unidade')
+  expect(codigo, 'Configure EOL_CODIGO_UNIDADE com uma unidade valida na EOL').to.be.a('string').and.not.be.empty
+  return request('GET', 'dados-da-unidade/', { qs: { codigo_eol: codigo }, log: false }).as('polosValidacaoResponse')
+})
+Then('os dados da unidade devem corresponder ao codigo EOL configurado', () => cy.get('@polosValidacaoResponse', { log: false }).then(({ body }) => {
+  contrato(body, 'DadosUnidade')
+  expect(String(body.codigo_eol)).to.eq(Cypress.env('eol_codigo_unidade'))
+  expect(body.nome).to.be.a('string').and.not.be.empty
+}))

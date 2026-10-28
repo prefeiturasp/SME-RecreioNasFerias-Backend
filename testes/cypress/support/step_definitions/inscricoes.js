@@ -32,7 +32,7 @@ Given('que criei uma inscricao exclusiva em rascunho', () => autenticar().then((
 	return request('POST', '', { body: estado.payload }).then(registrar)
 }).then((res) => {
 	status(res, 201)
-	contrato(res.body, 'InscricaoInformacoesBasicas')
+	contrato(res.body, 'InscricaoCadastro')
 	expect(res.body.uuid).to.be.a('string').and.not.be.empty
 	expect(res.body).to.include(estado.payload)
 	expect(res.body.status).to.eq('RASCUNHO')
@@ -50,12 +50,15 @@ When('atualizo a inscricao exclusiva com {string}', (metodo) => {
 	estado.nomeAtualizado = `${estado.payload.nome_participante} atualizado`
 	return resposta(request(metodo, `${estado.uuid}/`, { body: metodo === 'PUT' ? { ...estado.payload, nome_participante: estado.nomeAtualizado } : { nome_participante: estado.nomeAtualizado } }))
 })
-Then('a alteracao da inscricao deve persistir preservando os demais campos', () => request('GET', `${estado.uuid}/`).then((res) => {
-	status(res, 200)
-	contrato(res.body, 'InscricaoDetalhe')
-	expect(res.body.nome_participante).to.eq(estado.nomeAtualizado)
-	for (const [campo, valor] of Object.entries(estado.original)) if (!['nome_participante', 'atualizado_em'].includes(campo)) expect(res.body[campo], campo).to.deep.eq(valor)
-}))
+Then('a alteracao da inscricao deve persistir preservando os demais campos', () => {
+	cy.get('@inscricaoResponse', { log: false }).then(({ body }) => contrato(body, 'InscricaoCadastro'))
+	return request('GET', `${estado.uuid}/`).then((res) => {
+		status(res, 200)
+		contrato(res.body, 'InscricaoDetalhe')
+		expect(res.body.nome_participante).to.eq(estado.nomeAtualizado)
+		for (const [campo, valor] of Object.entries(estado.original)) if (!['nome_participante', 'atualizado_em'].includes(campo)) expect(res.body[campo], campo).to.deep.eq(valor)
+	})
+})
 When('cancelo a inscricao exclusiva', () => resposta(request('POST', `${estado.uuid}/cancelar/`)))
 When('reativo a inscricao exclusiva', () => resposta(request('POST', `${estado.uuid}/reativar/`)))
 Then('a inscricao deve estar persistida com status {string}', (esperado) => {
@@ -89,7 +92,7 @@ Then('a lista de inscricoes deve estar vazia', () => cy.get('@inscricaoResponse'
 }))
 When('consulto o recurso de inscricoes {string}', (nome) => resposta(request('GET', rota(nome))))
 Then('o recurso de inscricoes {string} deve respeitar o contrato', (nome) => cy.get('@inscricaoResponse', { log: false }).then(({ body }) => {
-	if (nome === 'polos-elegiveis') {
+	if (['polos-elegiveis', 'polos-oficiais'].includes(nome)) {
 		expect(body.count).to.be.a('number').and.at.least(0)
 		expect(body.results).to.be.an('array')
 		body.results.forEach((polo) => contrato(polo, 'PoloElegivel'))
@@ -111,7 +114,7 @@ When('envio a violacao de inscricao {string} por POST PUT e PATCH', (regra) => {
 	const erros = {
 		'email invalido': { email: 'email-invalido' }, 'data invalida': { data_nascimento: '2020-02-30' },
 		'nome longo': { nome_participante: 'X'.repeat(256) }, 'tipo invalido': { tipo_estudante: 'INVALIDO' },
-		'grupo invalido': { grupo: 'INVALIDO' }, 'polo inexistente': { polo: inexistente }, 'edicao inexistente': { edicao: inexistente },
+		'grupo invalido': { grupo: 'INVALIDO' }, 'polo inexistente': { polo: inexistente },
 	}
 	expect(erros).to.have.property(regra)
 	return cy.wrap(['POST', 'PUT', 'PATCH'], { log: false }).each((method) => request(method, method === 'POST' ? '' : `${estado.uuid}/`, {
@@ -129,3 +132,12 @@ Then('as operacoes de inscricao devem retornar 400 e preservar os dados', () => 
 	})
 })
 Then('a resposta deve indicar inscricao nao encontrada', () => cy.get('@inscricaoResponse', { log: false }).its('body', { log: false }).should('deep.eq', { detalhe: 'Inscrição não encontrada.' }))
+
+When('consulto os polos de inscricoes {string} sem paginacao', (nome) => resposta(request('GET', rota(nome), { qs: { desabilita_paginacao: true } })))
+Then('os polos de inscricoes devem ser retornados sem paginacao', () => cy.get('@inscricaoResponse', { log: false }).then(({ body }) => {
+	expect(body).to.be.an('array')
+	body.forEach((polo) => contrato(polo, 'PoloElegivel'))
+}))
+Then('a resposta de consulta do participante deve informar um erro', () => cy.get('@inscricaoResponse', { log: false }).then(({ body }) => {
+	expect(body).to.be.an('object').and.not.be.empty
+}))

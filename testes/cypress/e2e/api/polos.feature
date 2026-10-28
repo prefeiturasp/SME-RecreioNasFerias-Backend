@@ -197,3 +197,22 @@ Funcionalidade: Gerenciamento de polos
       | variacao |
       | identico |
       | em maiusculas |
+
+  @polos_validacoes
+  Esquema do Cenario: Consultar contrato do recurso auxiliar <recurso> com parametros de paginacao
+    Dado que autentiquei para validar polos
+    Quando consulto o recurso auxiliar "<recurso>" com parametros de paginacao
+    Entao a validacao de polos deve retornar 200
+    E o recurso auxiliar de polos deve retornar uma lista com contrato valido
+
+    Exemplos:
+      | recurso |
+      | dres |
+      | tipos-escola |
+
+  @polos_validacoes @integracao_eol
+  Cenario: Consultar unidade com codigo EOL valido
+    Dado que autentiquei para validar polos
+    Quando consulto dados da unidade com codigo EOL configurado
+    Entao a validacao de polos deve retornar 200
+    E os dados da unidade devem corresponder ao codigo EOL configurado
