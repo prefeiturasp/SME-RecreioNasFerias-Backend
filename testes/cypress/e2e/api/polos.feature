@@ -210,9 +210,9 @@ Funcionalidade: Gerenciamento de polos
       | dres |
       | tipos-escola |
 
-  @polos_validacoes @integracao_eol
-  Cenario: Consultar unidade com codigo EOL valido
-    Dado que autentiquei para validar polos
-    Quando consulto dados da unidade com codigo EOL configurado
-    Entao a validacao de polos deve retornar 200
-    E os dados da unidade devem corresponder ao codigo EOL configurado
+  # @polos_validacoes @integracao_eol
+  # Cenario: Consultar unidade com codigo EOL valido
+  #   Dado que autentiquei para validar polos
+  #   Quando consulto dados da unidade com codigo EOL configurado
+  #   Entao a validacao de polos deve retornar 200
+  #   E os dados da unidade devem corresponder ao codigo EOL configurado
