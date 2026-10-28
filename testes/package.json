@@ -12,11 +12,11 @@
 		"lint": "eslint ."
 	},
 	"devDependencies": {
-		"@badeball/cypress-cucumber-preprocessor": "^20.0.4",
+		"@badeball/cypress-cucumber-preprocessor": "^22.0.0",
 		"@bahmutov/cypress-esbuild-preprocessor": "^2.2.2",
-		"@shelex/cypress-allure-plugin": "^2.41.1",
+		"@shelex/cypress-allure-plugin": "^2.41.2",
 		"allure-commandline": "^2.34.0",
-		"cypress": "13.7.0",
+		"cypress": "^14.5.4",
 		"cypress-cloud": "^1.13.1",
 		"dotenv": "^16.4.7",
 		"eslint": "^9.16.0",
@@ -26,6 +26,9 @@
 		"rimraf": "^5.0.5"
 	},
 	"cypress-cucumber-preprocessor": {
-		"stepDefinitions": ["cypress/support/step_definitions/**/*.js", "cypress/support/step_definitions/**/*.cjs"]
+		"stepDefinitions": [
+			"cypress/support/step_definitions/**/*.js",
+			"cypress/support/step_definitions/**/*.cjs"
+		]
 	}
 }

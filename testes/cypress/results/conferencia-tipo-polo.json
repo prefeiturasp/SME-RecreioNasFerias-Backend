@@ -1,26 +1,26 @@
 {
   "consulta": {
-    "edicao": "4ff784ab-4c85-41d6-89aa-8acff7b66fd0",
+    "edicao": "0c019b61-9c29-4d45-a797-4265e987de38",
     "tipo_polo": "pendente"
   },
   "vinculos": [
     {
-      "uuid": "f23dc504-d659-4205-90b3-83f1a0e77626",
+      "uuid": "c688ff5d-2df2-46e2-a399-5faf9694535b",
       "tipoEnviado": "pendente",
       "tipoCriado": "pendente",
       "tipoPreparado": "pendente",
       "tipoPersistido": "pendente",
-      "polo": "7889186c-6749-4fd5-98ad-adaeed321db3",
-      "edicao": "4ff784ab-4c85-41d6-89aa-8acff7b66fd0"
+      "polo": "037761e0-0d2d-444c-9b40-80b5a583ec7e",
+      "edicao": "0c019b61-9c29-4d45-a797-4265e987de38"
     },
     {
-      "uuid": "03da801a-59e6-4e71-8233-8e132ef937a2",
+      "uuid": "7c1803d1-8861-4825-b181-ea76a4e57969",
       "tipoEnviado": "reserva",
       "tipoCriado": "pendente",
       "tipoPreparado": "reserva",
       "tipoPersistido": "reserva",
-      "polo": "9ed7b35c-069c-4e2d-a6ef-b0a16385b7cc",
-      "edicao": "4ff784ab-4c85-41d6-89aa-8acff7b66fd0"
+      "polo": "61c405e5-2ce5-4b36-9d92-82be759ed424",
+      "edicao": "0c019b61-9c29-4d45-a797-4265e987de38"
     }
   ],
   "paginada": {
@@ -29,9 +29,9 @@
     "next": null,
     "registros": [
       {
-        "polo_uuid": "7889186c-6749-4fd5-98ad-adaeed321db3",
-        "definicao_uuid": "f23dc504-d659-4205-90b3-83f1a0e77626",
-        "edicao_uuid": "4ff784ab-4c85-41d6-89aa-8acff7b66fd0",
+        "polo_uuid": "037761e0-0d2d-444c-9b40-80b5a583ec7e",
+        "definicao_uuid": "c688ff5d-2df2-46e2-a399-5faf9694535b",
+        "edicao_uuid": "0c019b61-9c29-4d45-a797-4265e987de38",
         "tipo": "pendente"
       }
     ]
@@ -40,9 +40,9 @@
     "status": 200,
     "registros": [
       {
-        "polo_uuid": "7889186c-6749-4fd5-98ad-adaeed321db3",
-        "definicao_uuid": "f23dc504-d659-4205-90b3-83f1a0e77626",
-        "edicao_uuid": "4ff784ab-4c85-41d6-89aa-8acff7b66fd0",
+        "polo_uuid": "037761e0-0d2d-444c-9b40-80b5a583ec7e",
+        "definicao_uuid": "c688ff5d-2df2-46e2-a399-5faf9694535b",
+        "edicao_uuid": "0c019b61-9c29-4d45-a797-4265e987de38",
         "tipo": "pendente"
       }
     ]
