@@ -23,6 +23,7 @@ export default defineConfig({
     video: false,
     env: {
       TAGS: 'not @ignore',
+      eol_codigo_unidade: process.env.EOL_CODIGO_UNIDADE,
       api_base_url:
         process.env.API_BASE_URL ||
         process.env.VITE_SME_CDEP_API ||

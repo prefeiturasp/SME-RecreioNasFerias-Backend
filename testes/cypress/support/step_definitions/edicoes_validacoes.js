@@ -6,6 +6,7 @@ const inexistente = '00000000-0000-0000-0000-000000000000'
 const camposEditaveis = ['nome', 'data_inicio', 'data_fim', 'inscricoes_inicio', 'inscricoes_fim']
 const editar = (edicao) => Object.fromEntries(camposEditaveis.map((campo) => [campo, edicao[campo]]))
 const dia = (data, deslocamento) => new Date(Date.parse(`${data}T00:00:00Z`) + deslocamento * 86400000).toISOString().slice(0, 10)
+
 let estado
 
 Before({ tags: '@edicoes_validacoes' }, () => {
@@ -14,7 +15,7 @@ Before({ tags: '@edicoes_validacoes' }, () => {
 
 const requisitar = (method, uuid = '', body, token = estado.token) => cy.request({
 	method, url: `${Cypress.env('api_base_url').replace(/\/$/, '')}${raiz}${uuid ? `${uuid}/` : ''}`,
-	failOnStatusCode: false,
+	failOnStatusCode: false, log: false,
 	...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
 	...(body === undefined ? {} : { body }),
 })
@@ -62,7 +63,7 @@ When('acesso edicoes com {string} em {string} com token {string}', (metodo, rota
 })
 When('acesso uma edicao inexistente com {string}', (metodo) => requisitar(metodo, inexistente,
 	['PUT', 'PATCH'].includes(metodo) ? {} : undefined).as('validacaoEdicoesResponse'))
-Then('a validacao de edicoes deve responder com status {int}', (esperado) => cy.get('@validacaoEdicoesResponse').then((res) => status(res, esperado)))
+Then('a validacao de edicoes deve responder com status {int}', (esperado) => cy.get('@validacaoEdicoesResponse', { log: false }).then((res) => status(res, esperado)))
 
 const violacao = (regra, base, outra) => {
 	switch (regra) {
@@ -145,6 +146,23 @@ Then('os valores devem persistir e o PATCH deve preservar os demais campos', () 
 }))
 When('excluo a primeira edicao exclusiva de validacao', () => requisitar('DELETE', estado.edicoes[0].uuid).as('validacaoEdicoesResponse'))
 Then('consultar a edicao excluida deve retornar 404', () => {
-	cy.get('@validacaoEdicoesResponse').its('body').should('be.empty')
+	cy.get('@validacaoEdicoesResponse', { log: false }).its('body').should('be.empty')
 	return requisitar('GET', estado.edicoes[0].uuid).then((res) => status(res, 404))
 })
+
+When('atualizo a edicao no limite {string}', (limite) => {
+  const base = estado.edicoes[0]
+  const alteracoes = {
+    'nome com 255 caracteres': { nome: ('Limite-' + base.uuid + '-').padEnd(255, 'X') },
+    'edicao de um dia': { data_fim: base.data_inicio },
+    'inscricoes de um dia': { inscricoes_fim: base.inscricoes_inicio },
+  }
+  estado.limite = alteracoes[limite]
+  return requisitar('PATCH', base.uuid, estado.limite).as('validacaoEdicoesResponse')
+})
+Then('os valores de limite da edicao devem estar persistidos', () => requisitar('GET', estado.edicoes[0].uuid).then((res) => {
+  status(res, 200)
+  expect(res.body).to.include(estado.limite)
+}))
+When('acesso edicao com UUID malformado por {string}', (metodo) => requisitar(metodo, 'uuid-invalido', ['PUT', 'PATCH'].includes(metodo) ? {} : undefined).as('validacaoEdicoesResponse'))
+When('acesso a lista de edicoes com metodo nao permitido {string}', (metodo) => requisitar(metodo, '', ['PUT', 'PATCH'].includes(metodo) ? {} : undefined).as('validacaoEdicoesResponse'))
