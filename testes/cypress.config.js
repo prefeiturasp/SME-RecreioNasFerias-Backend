@@ -23,6 +23,11 @@ export default defineConfig({
     video: false,
     env: {
       TAGS: 'not @ignore',
+      // cypress-cloud tambem registra um listener de "after:spec", o que
+      // sobrescreveria o do allure-plugin e impediria a geracao dos
+      // resultados. Com essa flag o allure-plugin escuta o processo do
+      // Cypress diretamente, sem depender de registrar o proprio listener.
+      allureReuseAfterSpec: true,
       eol_codigo_unidade: process.env.EOL_CODIGO_UNIDADE,
       api_base_url:
         process.env.API_BASE_URL ||
@@ -66,14 +71,14 @@ export default defineConfig({
       )
 
       // =====================
-      // Allure
-      // =====================
-      allureWriter(on, config)
-
-      // =====================
       // Cypress Cloud
       // =====================
       const enhancedConfig = await cloudPlugin(on, config)
+
+      // =====================
+      // Allure
+      // =====================
+      allureWriter(on, enhancedConfig)
 
       return enhancedConfig
     },
