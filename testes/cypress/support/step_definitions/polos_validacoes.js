@@ -131,7 +131,9 @@ When('consulto duas paginas dos polos de validacao', () => cy.wrap([1, 2], { log
 	contrato(res.body.results[0], 'Polo')
 	estado.respostas.push(res.body.results[0].uuid)
 })))
-Then('as paginas devem conter os dois polos sem repeticao', () => expect(estado.respostas).to.have.members(estado.polos.map((polo) => polo.uuid)))
+Then('as paginas devem conter os dois polos sem repeticao', () => {
+	expect(estado.respostas).to.have.members(estado.polos.map((polo) => polo.uuid))
+})
 When('busco um polo sem correspondencia', () => request('GET', '', { qs: { busca: `${estado.marca}-inexistente`, desabilita_paginacao: true } }).as('polosValidacaoResponse'))
 Then('a busca de polos deve retornar lista vazia', () => cy.get('@polosValidacaoResponse').its('body').should('deep.eq', []))
 
