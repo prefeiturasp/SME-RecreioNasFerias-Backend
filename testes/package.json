@@ -5,19 +5,25 @@
 	"scripts": {
 		"e2e": "cypress run",
 		"e2e:open": "cypress open",
+		"e2e:allure": "rimraf allure-results allure-report && cypress run --env allure=true",
+		"allure:generate": "allure generate allure-results --clean --output allure-report",
+		"allure:open": "allure open allure-report",
+		"allure:report": "npm run e2e:allure && npm run allure:generate && npm run allure:open",
 		"lint": "eslint ."
 	},
 	"devDependencies": {
 		"@badeball/cypress-cucumber-preprocessor": "^20.0.4",
 		"@bahmutov/cypress-esbuild-preprocessor": "^2.2.2",
 		"@shelex/cypress-allure-plugin": "^2.41.1",
+		"allure-commandline": "^2.34.0",
 		"cypress": "13.7.0",
 		"cypress-cloud": "^1.13.1",
 		"dotenv": "^16.4.7",
 		"eslint": "^9.16.0",
 		"eslint-plugin-cypress": "^4.1.0",
 		"mocha-allure-reporter": "^1.4.0",
-		"prettier": "^3.4.1"
+		"prettier": "^3.4.1",
+		"rimraf": "^5.0.5"
 	},
 	"cypress-cucumber-preprocessor": {
 		"stepDefinitions": ["cypress/support/step_definitions/**/*.js", "cypress/support/step_definitions/**/*.cjs"]
