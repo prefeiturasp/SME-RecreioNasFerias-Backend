@@ -5,8 +5,11 @@ from datetime import date
 import factory
 
 from apps.core.models import CargoPermitido, Usuario
+from apps.definicoes_polos.models import DefinicaoPolo
 from apps.edicoes.models import Edicao
 from apps.polos.models import Polo
+from apps.inscricoes.constants import GrupoInscricao, TipoEstudante
+from apps.inscricoes.models import Inscricao
 
 
 class CargoPermitidoFactory(factory.django.DjangoModelFactory):
@@ -76,3 +79,48 @@ class PoloFactory(factory.django.DjangoModelFactory):
     nome_gestor = "Gestor de Teste"
     email = factory.Sequence(lambda n: f"gestor{n}@teste.example")
     telefone = "1130000000"
+
+
+class DefinicaoPoloFactory(factory.django.DjangoModelFactory):
+    """Cria participações válidas entre polos e edições."""
+
+    class Meta:
+        """Configuração da factory de definições de polos."""
+
+        model = DefinicaoPolo
+
+    polo = factory.SubFactory(PoloFactory)
+    edicao = factory.SubFactory(EdicaoFactory)
+    projecao_inscritos = 250
+
+
+class InscricaoFactory(factory.django.DjangoModelFactory):
+    """Cria inscrições básicas, inicialmente sem polo elegível."""
+
+    class Meta:
+        """Configuração da factory de inscrições."""
+
+        model = Inscricao
+
+    edicao = None
+    polo = None
+    tipo_estudante = TipoEstudante.ESTUDANTE_EXTERNO
+    grupo = GrupoInscricao.ONZE_A_14_ANOS
+    codigo_eol = ""
+    cpf = factory.Sequence(lambda n: f"111111111{n:02d}")
+    nome_participante = factory.Sequence(lambda n: f"Participante {n}")
+    data_nascimento = date(2015, 5, 19)
+    responsavel_nome = "Responsável de Teste"
+    responsavel_nome_social = ""
+    cep = "01001000"
+    tipo_logradouro = "Rua"
+    logradouro = "Logradouro de Teste"
+    numero = "100"
+    complemento = ""
+    bairro = "Bairro de Teste"
+    cidade = "São Paulo"
+    telefone_contato_1 = "11911111111"
+    telefone_contato_2 = ""
+    email = factory.Sequence(lambda n: f"responsavel{n}@teste.example")
+    dre_codigo_eol = ""
+    dre_nome = ""

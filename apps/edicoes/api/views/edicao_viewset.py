@@ -5,10 +5,10 @@ from drf_spectacular.utils import (
     extend_schema_view,
 )
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
 
 from apps.edicoes.api.serializers import EdicaoSerializer
 from apps.edicoes.models.edicao import Edicao
+from apps.edicoes.permissions import PermissaoEdicao
 from apps.edicoes.services.edicao_service import EdicaoService
 
 
@@ -49,7 +49,7 @@ class EdicaoViewSet(viewsets.ModelViewSet):
 
     queryset = Edicao.objects.all()
     serializer_class = EdicaoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [PermissaoEdicao]
     lookup_field = "uuid"
     service_class = EdicaoService
 

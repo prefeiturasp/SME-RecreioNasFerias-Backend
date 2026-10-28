@@ -5,8 +5,21 @@ from rest_framework import serializers
 from apps.edicoes.models import Edicao
 
 
+class EdicaoResumoSerializer(serializers.ModelSerializer):
+    """Representa os dados essenciais da edição."""
+
+    class Meta:
+        """Configuração do serializer resumido de edição."""
+
+        model = Edicao
+        fields = ("uuid", "nome")
+        read_only_fields = fields
+
+
 class EdicaoSerializer(serializers.ModelSerializer):
     """Representa o contrato de entrada e saída de uma edição."""
+
+    status_label = serializers.CharField(source="get_status_display", read_only=True)
 
     class Meta:
         """Configuração do serializer de edição."""
@@ -24,6 +37,7 @@ class EdicaoSerializer(serializers.ModelSerializer):
             "quantidade_passeios",
             "quantidade_apresentacoes",
             "status",
+            "status_label",
             "ativo",
             "criado_em",
             "atualizado_em",

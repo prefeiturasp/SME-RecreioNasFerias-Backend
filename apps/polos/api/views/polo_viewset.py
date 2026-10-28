@@ -9,20 +9,23 @@ from drf_spectacular.utils import (
 )
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.utils.paginacao_customizada import PaginacaoCustomizada
 from apps.integracoes.eol.exceptions import (
     EolConfigError,
     EolContratoError,
     EolIndisponivelError,
 )
 from apps.polos.api.serializers import (
+    DadosUnidadeSerializer,
     DreSerializer,
     PoloSerializer,
+    PopularUnidadesDiretasSerializer,
     TipoEscolaSerializer,
 )
 from apps.polos.models import Polo
+from apps.polos.permissions import PermissaoPolo
 from apps.polos.services.polo_service import PoloService
 
 
@@ -51,6 +54,24 @@ from apps.polos.services.polo_service import PoloService
                     "Busca o termo no nome do Polo ou no nome da OSC."
                 ),
             ),
+            OpenApiParameter(
+                name="gestao",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Filtra pela gestão do polo.",
+            ),
+            OpenApiParameter(
+                name="page_size",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Quantidade de registros por página.",
+            ),
+            OpenApiParameter(
+                name="desabilita_paginacao",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Se true, retorna todos os registros sem paginação.",
+            ),
         ],
     ),
     create=extend_schema(summary="Cria polo", tags=["Polos"]),
@@ -66,9 +87,10 @@ class PoloViewSet(viewsets.ModelViewSet):
 
     queryset = Polo.objects.all()
     serializer_class = PoloSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [PermissaoPolo]
     lookup_field = "uuid"
     service_class = PoloService
+    pagination_class = PaginacaoCustomizada
 
     def get_queryset(self):
         """Retorna os polos pelo serviço de domínio."""
@@ -78,19 +100,61 @@ class PoloViewSet(viewsets.ModelViewSet):
             dre_codigo_eol=self.request.query_params.get("dre_codigo_eol"),
             tipo_ue=self.request.query_params.get("tipo_ue"),
             busca=self.request.query_params.get("busca"),
+            gestao=self.request.query_params.get("gestao"),
         )
+        
+    @extend_schema(
+        summary="Obtém dados da unidade por código EOL",
+        description="Retorna os dados de uma unidade específica pela integração EOL.",
+        tags=["Polos"],
+        parameters=[
+            OpenApiParameter(
+                name="codigo_eol",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Código EOL da unidade.",
+                required=True,
+            ),
+        ],
+        responses={
+            200: DadosUnidadeSerializer,
+            500: OpenApiResponse(description="Erro de configuração da EOL."),
+            502: OpenApiResponse(description="Falha na integração com a EOL."),
+        },
+    )
+        
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="dados-da-unidade",
+        url_name="dados-da-unidade",
+    )    
+    def obter_dados_da_unidade_pelo_codigo_eol(self, request) -> Response:
+        """Retorna os dados de uma unidade específica pela integração EOL."""
+        try:
+            dados_unidade = self.service_class().obter_dados_unidade(
+                codigo_eol=request.query_params.get("codigo_eol")
+            )
+        except EolConfigError as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        except (EolIndisponivelError, EolContratoError) as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response(DadosUnidadeSerializer(dados_unidade).data)
+
 
     @extend_schema(
         summary="Lista tipos de escola",
-        description=(
-            "Lista os tipos de escola disponíveis na EOL."
-        ),
+        description=("Lista os tipos de escola disponíveis na EOL."),
         tags=["Polos"],
         responses={
             200: TipoEscolaSerializer(many=True),
-            502: OpenApiResponse(
-                description="Falha na integração com a EOL."
-            ),
+            502: OpenApiResponse(description="Falha na integração com a EOL."),
         },
     )
     @action(
@@ -123,9 +187,7 @@ class PoloViewSet(viewsets.ModelViewSet):
         tags=["Polos"],
         responses={
             200: DreSerializer(many=True),
-            502: OpenApiResponse(
-                description="Falha na integração com a EOL."
-            ),
+            502: OpenApiResponse(description="Falha na integração com a EOL."),
         },
     )
     @action(detail=False, methods=["get"], url_path="dres", url_name="dres")
@@ -144,6 +206,49 @@ class PoloViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
         return Response(DreSerializer(dres, many=True).data)
+
+    @extend_schema(
+        summary="Popula polos diretos",
+        description=(
+            "Consulta as unidades elegíveis na EOL e cria polos de gestão "
+            "direta ainda inexistentes. A carga executa no máximo uma vez "
+            "por dia."
+        ),
+        tags=["Polos"],
+        request=None,
+        responses={
+            200: PopularUnidadesDiretasSerializer,
+            502: OpenApiResponse(description="Falha na integração com a EOL."),
+        },
+    )
+    @action(detail=False, methods=["post"], url_path="popular")
+    def popular(self, request) -> Response:
+        """Popula polos diretos a partir das unidades da EOL."""
+        try:
+            resultado = self.service_class().popular_unidades_diretas()
+        except EolConfigError as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        except (EolIndisponivelError, EolContratoError) as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response(
+            PopularUnidadesDiretasSerializer(
+                {
+                    "total_consultados": resultado.total_consultados,
+                    "total_novos": resultado.total_novos,
+                    "total_ja_existentes": resultado.total_ja_existentes,
+                    "unidades_novas": resultado.polos_criados,
+                    "executada": resultado.executada,
+                    "motivo_ignorada": resultado.motivo_ignorada,
+                    "ultima_execucao_em": resultado.ultima_execucao_em,
+                }
+            ).data
+        )
 
     def perform_create(self, serializer: PoloSerializer) -> None:
         """Cria o polo por meio do serviço de domínio."""

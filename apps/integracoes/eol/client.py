@@ -8,6 +8,10 @@ alimentar a sincronização de polos de gestão direta:
 - ``GET /api/escolas/todas-unidades``
 - ``GET /api/escolas/dados/{eol}``
 - ``GET /api/escolas/{eol}/funcionarios/cargos/{codigo}``
+- ``GET /api/alunos/alunos?codigosAluno={codigo}``
+- ``GET /api/alunos/responsaveis/{cpf}``
+- ``GET /api/alunos/{codigo}/informacoes``
+- ``GET /api/turmas/{codigo}/dados``
 """
 
 from __future__ import annotations
@@ -79,7 +83,21 @@ class EolClient:
             raise EolContratoError(
                 "Resposta de tipos de escola em formato inesperado."
             )
-        return [item for item in dados if isinstance(item, dict)]
+
+        tipos: list[dict[str, Any]] = []
+        siglas_vistas: set[object] = set()
+        for item in dados:
+            if not isinstance(item, dict):
+                continue
+
+            sigla = item.get("descricaoSigla")
+            if sigla is not None:
+                if sigla in siglas_vistas:
+                    continue
+                siglas_vistas.add(sigla)
+            tipos.append(item)
+
+        return tipos
 
     def listar_dres(self) -> list[dict[str, Any]]:
         """Consulta o catálogo bruto de Diretorias Regionais de Educação.
@@ -100,9 +118,7 @@ class EolClient:
 
         dados = self._parse_json(response)
         if not isinstance(dados, list):
-            raise EolContratoError(
-                "Resposta de DREs em formato inesperado."
-            )
+            raise EolContratoError("Resposta de DREs em formato inesperado.")
         return [item for item in dados if isinstance(item, dict)]
 
     def listar_todas_unidades(self) -> list[dict[str, Any]]:
@@ -208,6 +224,145 @@ class EolClient:
             )
         return [item for item in dados if isinstance(item, dict)]
 
+    def listar_alunos(self, codigo_eol: str) -> list[dict[str, Any]]:
+        """Consulta o aluno bruto pelo código EOL.
+
+        Args:
+            codigo_eol: Código EOL do aluno.
+
+        Returns:
+            Lista bruta retornada pela integração. Lista vazia significa
+            que o código não foi encontrado.
+
+        Raises:
+            EolConfigError: Quando a configuração obrigatória estiver ausente.
+            EolIndisponivelError: Quando houver erro de rede ou HTTP 4xx/5xx.
+            EolContratoError: Quando a resposta não seguir o contrato esperado.
+        """
+        self._validar_configuracao()
+
+        codigo = str(codigo_eol).strip()
+        url = (
+            f"{settings.AUTH_API_BASE_URL}/api/alunos/alunos"
+            f"?codigosAluno={codigo}"
+        )
+
+        response = self._requisicao("GET", url)
+        self._garantir_sucesso_http(response, f"listar aluno {codigo}")
+
+        dados = self._parse_json(response)
+        if not isinstance(dados, list):
+            raise EolContratoError(f"Aluno {codigo} em formato inesperado.")
+        return [item for item in dados if isinstance(item, dict)]
+
+    def listar_alunos_por_cpf_responsavel(
+        self,
+        cpf: str,
+    ) -> list[dict[str, Any]]:
+        """Consulta alunos brutos pelo CPF do responsável.
+
+        Args:
+            cpf: CPF do responsável. A máscara é descartada; só os dígitos
+                entram na URL.
+
+        Returns:
+            Lista bruta retornada pela integração. Lista vazia significa
+            que o CPF não foi encontrado. HTTP 404 também vira lista vazia.
+
+        Raises:
+            EolConfigError: Quando a configuração obrigatória estiver ausente.
+            EolIndisponivelError: Quando houver erro de rede ou HTTP 4xx/5xx,
+                exceto o 404.
+            EolContratoError: Quando a resposta não seguir o contrato esperado.
+        """
+        self._validar_configuracao()
+
+        digitos = "".join(
+            caractere for caractere in str(cpf) if caractere.isdigit()
+        )
+        url = (
+            f"{settings.AUTH_API_BASE_URL}"
+            f"/api/alunos/responsaveis/{digitos}"
+        )
+        response = self._requisicao("GET", url)
+        if response.status_code == 404:
+            return []
+        self._garantir_sucesso_http(
+            response,
+            "listar alunos do responsável",
+        )
+
+        dados = self._parse_json(response)
+        if not isinstance(dados, list):
+            raise EolContratoError(
+                "Resposta de alunos do responsável em formato inesperado."
+            )
+        return [item for item in dados if isinstance(item, dict)]
+
+    def obter_informacoes_aluno(
+        self,
+        codigo_aluno: str,
+    ) -> dict[str, Any] | None:
+        """Consulta a ficha bruta do aluno pelo código.
+
+        Args:
+            codigo_aluno: Código EOL do aluno.
+
+        Returns:
+            Payload bruto ou ``None`` quando a ficha não existe (HTTP 404).
+
+        Raises:
+            EolConfigError: Quando a configuração obrigatória estiver ausente.
+            EolIndisponivelError: Quando houver erro de rede ou HTTP 4xx/5xx.
+            EolContratoError: Quando a resposta não seguir o contrato esperado.
+        """
+        self._validar_configuracao()
+        codigo = str(codigo_aluno).strip()
+        url = f"{settings.AUTH_API_BASE_URL}/api/alunos/{codigo}/informacoes"
+        response = self._requisicao("GET", url)
+        if response.status_code == 404:
+            return None
+        self._garantir_sucesso_http(
+            response, f"obter informações do aluno {codigo}"
+        )
+        dados = self._parse_json(response)
+        if not isinstance(dados, dict):
+            raise EolContratoError(
+                f"Informações do aluno {codigo} em formato inesperado."
+            )
+        return dados
+
+    def obter_dados_turma(
+        self,
+        codigo_turma: int | str,
+    ) -> dict[str, Any] | None:
+        """Consulta os dados brutos de uma turma pelo código.
+
+        Args:
+            codigo_turma: Código da turma vindo da lista de alunos.
+
+        Returns:
+            Payload bruto ou ``None`` quando a turma não existe (HTTP 404).
+
+        Raises:
+            EolConfigError: Quando a configuração obrigatória estiver ausente.
+            EolIndisponivelError: Quando houver erro de rede ou HTTP 4xx/5xx.
+            EolContratoError: Quando a resposta não seguir o contrato esperado.
+        """
+        self._validar_configuracao()
+        codigo = str(codigo_turma).strip()
+        url = f"{settings.AUTH_API_BASE_URL}/api/turmas/{codigo}/dados"
+        response = self._requisicao("GET", url)
+        if response.status_code == 404:
+            return None
+        self._garantir_sucesso_http(response, f"obter dados da turma {codigo}")
+        dados = self._parse_json(response)
+        if not isinstance(dados, dict):
+            raise EolContratoError(
+                f"Dados da turma {codigo} em formato inesperado."
+            )
+        return dados
+
     def _requisicao(self, metodo: str, url: str) -> ResponseLike:
         """Executa a requisição HTTP tratando falhas de rede."""
         try:
@@ -271,24 +426,49 @@ class EolClient:
         try:
             dados = response.json()
         except ValueError:
-            texto = response.text.strip()
-            return texto or f"Falha ao {contexto}."
+            return EolClient._texto_ou_padrao(response.text, contexto)
+
+        if isinstance(dados, str):
+            mensagem = EolClient._texto_valido(dados)
+            if mensagem:
+                return mensagem
 
         if isinstance(dados, dict):
-            for chave in (
-                "mensagem",
-                "message",
-                "detail",
-                "erro",
-                "error",
-                "title",
-            ):
-                valor = dados.get(chave)
-                if isinstance(valor, str) and valor.strip():
-                    return valor.strip()
-
-            for valor in dados.values():
-                if isinstance(valor, str) and valor.strip():
-                    return valor.strip()
+            mensagem = EolClient._buscar_mensagem(dados)
+            if mensagem:
+                return mensagem
 
         return f"Falha ao {contexto}."
+
+    @staticmethod
+    def _buscar_mensagem(dados: dict[str, Any]) -> str | None:
+        """Procura a primeira mensagem útil dentro do dicionário de erro."""
+        for chave in (
+            "mensagem",
+            "message",
+            "detail",
+            "erro",
+            "error",
+            "title",
+        ):
+            mensagem = EolClient._texto_valido(dados.get(chave))
+            if mensagem:
+                return mensagem
+
+        for valor in dados.values():
+            mensagem = EolClient._texto_valido(valor)
+            if mensagem:
+                return mensagem
+        return None
+
+    @staticmethod
+    def _texto_valido(valor: object) -> str | None:
+        """Retorna o texto do valor quando houver conteúdo útil."""
+        if isinstance(valor, str) and valor.strip():
+            return valor.strip()
+        return None
+
+    @staticmethod
+    def _texto_ou_padrao(texto: str, contexto: str) -> str:
+        """Retorna o texto informado ou a mensagem padrão quando vazio."""
+        return texto.strip() or f"Falha ao {contexto}."
