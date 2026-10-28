@@ -7,7 +7,7 @@ let estado
 Before({ tags: '@polos_validacoes' }, () => { estado = { criados: [], polos: [], payloads: [], respostas: [] } })
 const request = (method, path = '', options = {}, token = estado.token) => cy.request({
 	method, url: `${Cypress.env('api_base_url').replace(/\/$/, '')}/api/v1/polos/${path}`,
-	failOnStatusCode: false, ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}), ...options,
+	failOnStatusCode: false, log: false, ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}), ...options,
 })
 const status = (res, esperado) => expect(res.status, JSON.stringify(res.body)).to.eq(esperado)
 const contrato = (body, nome) => expect(body).to.include.all.keys(campos[nome])
@@ -80,7 +80,7 @@ When('valido acesso a polos com {string} em {string} e token {string}', (metodo,
 	return request(metodo, rota(nome), ['POST', 'PUT', 'PATCH'].includes(metodo) ? { body: {} } : {}, token === 'ausente' ? null : 'token-invalido').as('polosValidacaoResponse')
 })
 When('valido polo inexistente com {string}', (metodo) => request(metodo, `${inexistente}/`, ['PUT', 'PATCH'].includes(metodo) ? { body: {} } : {}).as('polosValidacaoResponse'))
-Then('a validacao de polos deve retornar {int}', (esperado) => cy.get('@polosValidacaoResponse').then((res) => status(res, esperado)))
+Then('a validacao de polos deve retornar {int}', (esperado) => cy.get('@polosValidacaoResponse', { log: false }).then((res) => status(res, esperado)))
 
 When('valido a regra de polos {string} por POST PUT e PATCH', (regra) => {
 	const erros = {
@@ -118,7 +118,7 @@ When('filtro os polos de validacao por {string}', (filtro) => {
 	}
 	return request('GET', '', { qs: { ...filtros[filtro], desabilita_paginacao: true } }).as('polosValidacaoResponse')
 })
-Then('o filtro deve retornar apenas o primeiro polo', () => cy.get('@polosValidacaoResponse').then((res) => {
+Then('o filtro deve retornar apenas o primeiro polo', () => cy.get('@polosValidacaoResponse', { log: false }).then((res) => {
 	status(res, 200)
 	expect(res.body).to.be.an('array').and.have.length(1)
 	contrato(res.body[0], 'Polo')
@@ -133,7 +133,7 @@ When('consulto duas paginas dos polos de validacao', () => cy.wrap([1, 2], { log
 })))
 Then('as paginas devem conter os dois polos sem repeticao', () => expect(estado.respostas).to.have.members(estado.polos.map((polo) => polo.uuid)))
 When('busco um polo sem correspondencia', () => request('GET', '', { qs: { busca: `${estado.marca}-inexistente`, desabilita_paginacao: true } }).as('polosValidacaoResponse'))
-Then('a busca de polos deve retornar lista vazia', () => cy.get('@polosValidacaoResponse').its('body').should('deep.eq', []))
+Then('a busca de polos deve retornar lista vazia', () => cy.get('@polosValidacaoResponse', { log: false }).its('body').should('deep.eq', []))
 
 When('verifico a persistencia da criacao e das atualizacoes do polo', () => request('GET', `${estado.polos[0].uuid}/`).then((res) => {
 	status(res, 200)
@@ -157,11 +157,11 @@ Then('o PATCH do polo deve preservar os campos omitidos', () => request('GET', `
 }))
 When('excluo o polo exclusivo de validacao', () => request('DELETE', `${estado.polos[0].uuid}/`).as('polosValidacaoResponse'))
 Then('o polo excluido deve retornar 404', () => {
-	cy.get('@polosValidacaoResponse').its('body').should('be.empty')
+	cy.get('@polosValidacaoResponse', { log: false }).its('body').should('be.empty')
 	return request('GET', `${estado.polos[0].uuid}/`).then((res) => status(res, 404))
 })
 When('consulto dados da unidade sem codigo EOL', () => request('GET', 'dados-da-unidade/').as('polosValidacaoResponse'))
-Then('os dados da unidade sem codigo devem estar vazios', () => cy.get('@polosValidacaoResponse').its('body').then((body) => {
+Then('os dados da unidade sem codigo devem estar vazios', () => cy.get('@polosValidacaoResponse', { log: false }).its('body').then((body) => {
 	contrato(body, 'DadosUnidade')
 	Object.entries(body).forEach(([campo, valor]) => expect(valor, campo).to.eq(''))
 }))
@@ -170,7 +170,7 @@ When('consulto o recurso auxiliar {string} com parametros de paginacao', (nome) 
   estado.recursoAuxiliar = nome
   return request('GET', nome + '/', { qs: { page: 1, page_size: 1 } }).as('polosValidacaoResponse')
 })
-Then('o recurso auxiliar de polos deve retornar uma lista com contrato valido', () => cy.get('@polosValidacaoResponse').then(({ body }) => {
+Then('o recurso auxiliar de polos deve retornar uma lista com contrato valido', () => cy.get('@polosValidacaoResponse', { log: false }).then(({ body }) => {
   expect(body).to.be.an('array')
   const campos = estado.recursoAuxiliar === 'dres' ? ['codigo_dre', 'sigla_dre', 'nome_dre'] : ['codigo', 'descricao_sigla']
   body.forEach((item) => {
@@ -188,3 +188,4 @@ Then('os dados da unidade devem corresponder ao codigo EOL configurado', () => c
   expect(String(body.codigo_eol)).to.eq(Cypress.env('eol_codigo_unidade'))
   expect(body.nome).to.be.a('string').and.not.be.empty
 }))
+
