@@ -154,7 +154,7 @@ def test_valida_grupos_de_rede_e_aceita_grupo_maior(
         tipo_estudante=TipoEstudante.ESTUDANTE_DA_REDE,
     )
     maior = inscricao_completa_factory(
-        grupo=GrupoInscricao.QUATRO_A_14_ANOS,
+        grupo=GrupoInscricao.ONZE_A_14_ANOS,
         tipo_estudante=TipoEstudante.ESTUDANTE_EXTERNO,
     )
 

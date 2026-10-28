@@ -1,8 +1,9 @@
 const { Given, When, Then, Before, After } = require('@badeball/cypress-cucumber-preprocessor')
-const { autenticarNaApi } = require('./autenticacao.cjs')
+const { autenticarNaApi, validarToken } = require('./autenticacao.cjs')
 const campos = require('../../fixtures/definicoes_polos_campos.json')
 
 // Contrato: /api/v1/schema/ de QA, consultado em 07/10/2026.
+
 const uuidInexistente = '00000000-0000-0000-0000-000000000000'
 const raiz = '/api/v1/definicoes-polos/'
 let contexto
@@ -14,7 +15,7 @@ Before({ tags: '@definicoes_polos' }, () => {
 const requisitar = (method, path, options = {}, autenticado = true) => cy.request({
 	method,
 	url: `${Cypress.env('api_base_url').replace(/\/$/, '')}${path}`,
-	failOnStatusCode: false,
+	failOnStatusCode: false, log: false,
 	...(autenticado ? { headers: { Authorization: `Bearer ${contexto.token}` } } : {}),
 	...options,
 })
@@ -29,7 +30,7 @@ const validarCampos = (objeto, contrato) => {
 }
 
 const autenticar = () => autenticarNaApi().then(({ body }) => {
-	expect(body.token).to.be.a('string').and.not.be.empty
+	validarToken(body.token)
 	contexto.token = body.token
 })
 
@@ -157,23 +158,23 @@ When('envio uma projecao negativa com {string}', (metodo) => responder(requisita
 	body: metodo === 'PUT' ? { ...payload(), projecao_inscritos: -1 } : { projecao_inscritos: -1 },
 })))
 
-Then('a resposta de definicoes de polos deve ter status {int}', (status) => cy.get('@definicoesResponse').then((res) => validarStatus(res, status)))
-Then('a listagem de definicoes deve respeitar o contrato paginado', () => cy.get('@definicoesResponse').its('body').then((body) => {
+Then('a resposta de definicoes de polos deve ter status {int}', (status) => cy.get('@definicoesResponse', { log: false }).then((res) => validarStatus(res, status)))
+Then('a listagem de definicoes deve respeitar o contrato paginado', () => cy.get('@definicoesResponse', { log: false }).its('body').then((body) => {
 	expect(body).to.include.all.keys('count', 'results')
 	expect(body.count).to.be.a('number').and.at.least(0)
 	expect(body.results).to.be.an('array').and.have.length.at.most(2)
 	body.results.forEach((item) => validarCampos(item, 'PoloComDefinicao'))
 }))
-Then('a listagem deve conter apenas a definicao do teste', () => cy.get('@definicoesResponse').its('body').then((body) => {
+Then('a listagem deve conter apenas a definicao do teste', () => cy.get('@definicoesResponse', { log: false }).its('body').then((body) => {
 	expect(body).to.be.an('array').and.have.length(1)
 	validarCampos(body[0], 'PoloComDefinicao')
 	expect(body[0]).to.include({ polo_uuid: contexto.polos[0].uuid, edicao_uuid: contexto.edicoes[0].uuid, definicao_uuid: contexto.definicoes[0].uuid })
 }))
-Then('a definicao criada deve corresponder aos dados enviados', () => cy.get('@definicoesResponse').its('body').then((body) => {
+Then('a definicao criada deve corresponder aos dados enviados', () => cy.get('@definicoesResponse', { log: false }).its('body').then((body) => {
 	validarCampos(body, 'DefinicaoPolo')
 	expect(body).to.include(payload())
 }))
-Then('o detalhe deve identificar o polo e a edicao do teste', () => cy.get('@definicoesResponse').its('body').then((body) => {
+Then('o detalhe deve identificar o polo e a edicao do teste', () => cy.get('@definicoesResponse', { log: false }).its('body').then((body) => {
 	validarCampos(body, 'DefinicaoPoloDetalhamento')
 	expect(body.uuid).to.eq(contexto.definicoes[0].uuid)
 	expect(body.polo.uuid).to.eq(contexto.polos[0].uuid)
@@ -181,20 +182,20 @@ Then('o detalhe deve identificar o polo e a edicao do teste', () => cy.get('@def
 	expect(body.edicao.uuid).to.eq(contexto.edicoes[0].uuid)
 }))
 Then('as alteracoes da definicao devem estar persistidas', () => {
-	cy.get('@definicoesResponse').its('body').should('include', contexto.alteracoes)
+	cy.get('@definicoesResponse', { log: false }).its('body').should('include', contexto.alteracoes)
 	return requisitar('GET', detalhe()).then((res) => {
 		validarStatus(res, 200)
 		expect(res.body).to.include(contexto.alteracoes)
 	})
 })
 Then('a definicao excluida nao deve ser encontrada', () => {
-	cy.get('@definicoesResponse').its('body').should('be.empty')
+	cy.get('@definicoesResponse', { log: false }).its('body').should('be.empty')
 	return requisitar('GET', detalhe()).then((res) => {
 		validarStatus(res, 400)
 		expect(res.body).to.deep.eq({ detalhe: 'Definição de Polo não encontrada.' })
 	})
 })
-Then('o historico deve conter a participacao criada', () => cy.get('@definicoesResponse').its('body').then((body) => {
+Then('o historico deve conter a participacao criada', () => cy.get('@definicoesResponse', { log: false }).its('body').then((body) => {
 	expect(body.results).to.be.an('array').and.have.length(1)
 	validarCampos(body.results[0], 'DefinicaoPoloHistorico')
 	expect(body.results[0].uuid).to.eq(contexto.definicoes[0].uuid)
@@ -210,7 +211,7 @@ const verificarVinculos = (edicao, tipo) => cy.wrap(contexto.definicoes, { log: 
 	})
 })
 Then('os dois vinculos em massa devem estar persistidos', () => {
-	cy.get('@definicoesResponse').its('body').then((body) => {
+	cy.get('@definicoesResponse', { log: false }).its('body').then((body) => {
 		expect(body.criadas).to.be.an('array').and.have.length(2)
 		expect(body.ignorados).to.deep.eq([])
 		expect(body.criadas.map((item) => item.polo)).to.have.members(contexto.polos.map((polo) => polo.uuid))
@@ -220,23 +221,23 @@ Then('os dois vinculos em massa devem estar persistidos', () => {
 })
 Then('as duas definicoes devem pertencer a edicao de destino', () => verificarVinculos(contexto.edicoes[1].uuid))
 Then('os dois polos devem ter o tipo atualizado na edicao', () => {
-	cy.get('@definicoesResponse').its('body').then((body) => {
+	cy.get('@definicoesResponse', { log: false }).its('body').then((body) => {
 		expect(body.alterados).to.be.an('array').and.have.length(2)
 		expect(body.ignorados).to.deep.eq([])
 		expect(body.alterados.map((item) => item.polo_uuid)).to.have.members(contexto.polos.map((polo) => polo.uuid))
 	})
 	return verificarVinculos(contexto.edicoes[0].uuid, 'reserva')
 })
-Then('a resposta de definicoes deve informar erros de validacao', () => cy.get('@definicoesResponse').its('body').should('not.be.empty'))
+Then('a resposta de definicoes deve informar erros de validacao', () => cy.get('@definicoesResponse', { log: false }).its('body').should('not.be.empty'))
 Then('a projecao original da definicao deve ser preservada', () => {
-	cy.get('@definicoesResponse').its('body.detalhe').should('be.a', 'string').and('not.be.empty')
+	cy.get('@definicoesResponse', { log: false }).its('body.detalhe').should('be.a', 'string').and('not.be.empty')
 	return requisitar('GET', detalhe()).then((res) => {
 		validarStatus(res, 200)
 		expect(res.body.projecao_inscritos).to.eq(20)
 	})
 })
 
-Then('a resposta deve indicar definicao de polo nao encontrada', () => cy.get('@definicoesResponse').its('body').should('deep.eq', { detalhe: 'Definição de Polo não encontrada.' }))
+Then('a resposta deve indicar definicao de polo nao encontrada', () => cy.get('@definicoesResponse', { log: false }).its('body').should('deep.eq', { detalhe: 'Definição de Polo não encontrada.' }))
 
 When('acesso definicoes com {string} em {string} com token invalido', (metodo, nome) => {
   cy.clearCookies()
@@ -281,7 +282,7 @@ When('filtro as definicoes exclusivas por {string}', (filtro) => {
   }).as('definicoesResponse')
 })
 When('consulto o historico exclusivo com limite de um registro', () => responder(requisitar('GET', raiz + 'historico/', { qs: { polo: contexto.polos[0].uuid, page: 1, page_size: 1 } })))
-Then('o historico paginado deve indicar um unico registro', () => cy.get('@definicoesResponse').then(({ body }) => {
+Then('o historico paginado deve indicar um unico registro', () => cy.get('@definicoesResponse', { log: false }).then(({ body }) => {
   expect(body.count).to.eq(1)
   expect(body.next).to.eq(null)
   expect(body.previous).to.eq(null)

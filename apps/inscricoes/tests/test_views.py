@@ -43,7 +43,7 @@ def _payload(polo, *, tipo=TipoEstudante.ESTUDANTE_EXTERNO) -> dict[str, str]:
     return {
         "polo": str(polo.uuid),
         "tipo_estudante": tipo,
-        "grupo": GrupoInscricao.QUATRO_A_14_ANOS,
+        "grupo": GrupoInscricao.ONZE_A_14_ANOS,
         "cpf": "12312312312",
         "nome_participante": "Participante da API",
         "data_nascimento": "2015-05-19",
@@ -223,7 +223,7 @@ def test_cria_rascunho_atualiza_e_remove(
         URL,
         {
             "tipo_estudante": TipoEstudante.ESTUDANTE_EXTERNO,
-            "grupo": GrupoInscricao.QUATRO_A_14_ANOS,
+            "grupo": GrupoInscricao.ONZE_A_14_ANOS,
             "edicao": str(edicao.uuid),
         },
         format="json",
