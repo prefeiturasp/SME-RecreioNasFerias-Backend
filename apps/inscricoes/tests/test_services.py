@@ -55,7 +55,7 @@ def test_service_lista_obtem_e_filtra_inscricoes(
             codigo_eol=" 1234567 ",
             cpf="111111",
             nome_participante="alice",
-            grupo=GrupoInscricao.QUATRO_A_14_ANOS,
+            grupo=GrupoInscricao.ONZE_A_14_ANOS,
             status=StatusInscricao.COMPLETA,
         )
     ) == [esperado]
@@ -66,7 +66,7 @@ def test_service_cria_inscricao_com_status_rascunho(inscricao_factory, edicao_fa
     """A criação delega ao modelo e permite rascunhos."""
     inscricao = InscricaoService().criar(
         tipo_estudante=TipoEstudante.ESTUDANTE_EXTERNO,
-        grupo=GrupoInscricao.QUATRO_A_14_ANOS,
+        grupo=GrupoInscricao.ONZE_A_14_ANOS,
         edicao=edicao_factory(inscricoes_inicio=date.today(), inscricoes_fim=date.today()),
     )
 

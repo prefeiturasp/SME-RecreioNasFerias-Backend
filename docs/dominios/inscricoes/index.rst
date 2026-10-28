@@ -44,7 +44,10 @@ Os choices de grupo são:
 - ``BERCARIO_II`` — Berçário II
 - ``MINI_GRUPO_I`` — Mini Grupo I
 - ``MINI_GRUPO_II`` — Mini Grupo II
-- ``QUATRO_A_14_ANOS`` — 4 a 14 anos
+- ``QUATRO_A_5_ANOS`` — 4 a 5 anos
+- ``SEIS_A_10_ANOS`` — 6 a 10 anos
+- ``ONZE_A_14_ANOS`` — 11 a 14 anos
+
 
 Os tipos de estudante são ``ESTUDANTE_DA_REDE`` e
 ``ESTUDANTE_EXTERNO``. Os status são ``RASCUNHO``, ``COMPLETA`` e
@@ -78,8 +81,8 @@ o vínculo existente; inscrições legadas sem edição não recebem vínculo
 automático durante a atualização.
 
 Berçário I/II e Mini Grupo I/II só podem ser utilizados por estudantes da
-rede. O grupo ``QUATRO_A_14_ANOS`` pode ser utilizado por estudantes da rede
-ou externos.
+rede. Os grupos ``QUATRO_A_5_ANOS``, ``SEIS_A_10_ANOS`` e ``ONZE_A_14_ANOS`` 
+podem ser utilizados por estudantes da rede ou externos.
 
 A unicidade lógica é validada dentro do polo:
 

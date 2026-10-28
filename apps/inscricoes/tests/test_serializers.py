@@ -46,7 +46,7 @@ def test_serializer_basico_marca_status_e_metadados_como_somente_leitura(
         inscricao,
         data={
             "tipo_estudante": TipoEstudante.ESTUDANTE_EXTERNO,
-            "grupo": GrupoInscricao.QUATRO_A_14_ANOS,
+            "grupo": GrupoInscricao.ONZE_A_14_ANOS,
             "status": StatusInscricao.COMPLETA,
             "ativo": False,
         },
