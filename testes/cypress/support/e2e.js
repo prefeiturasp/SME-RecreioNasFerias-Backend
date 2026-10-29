@@ -1,3 +1,4 @@
+require('@shelex/cypress-allure-plugin')
 import './commands_api'
 import './commands_ui'
 

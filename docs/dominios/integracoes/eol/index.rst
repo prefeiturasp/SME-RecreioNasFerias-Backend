@@ -9,8 +9,9 @@ Visão resumida
 --------------
 
 - endpoints externos: ``GET /api/DREs``, ``GET /api/escolas/tiposEscolas``,
-  ``GET /api/escolas/*``, ``GET /api/alunos/alunos`` e
-  ``GET /api/alunos/{codigoAluno}/informacoes``
+  ``GET /api/escolas/*``, ``GET /api/alunos/alunos``,
+  ``GET /api/alunos/{codigoAluno}/informacoes`` e
+  ``GET /api/turmas/{codigo}/dados``
 - app de integração: ``apps/integracoes/eol/``
 - contrato público: ``EolPort``
 - consumo atual: ``PoloService.popular_unidades_diretas()`` e
@@ -19,7 +20,7 @@ Visão resumida
 Contrato externo consumido
 --------------------------
 
-A integração consome sete endpoints, todos com o header ``x-api-eol-key``:
+A integração consome oito endpoints, todos com o header ``x-api-eol-key``:
 
 - ``GET /api/DREs`` — catálogo de Diretorias Regionais de Educação
 - ``GET /api/escolas/tiposEscolas`` — catálogo de tipos de escola
@@ -28,6 +29,7 @@ A integração consome sete endpoints, todos com o header ``x-api-eol-key``:
 - ``GET /api/escolas/{eol}/funcionarios/cargos/{codigo}`` — funcionários no cargo
 - ``GET /api/alunos/alunos?codigosAluno=`` — aluno pelo código EOL
 - ``GET /api/alunos/{codigoAluno}/informacoes`` — ficha do aluno
+- ``GET /api/turmas/{codigo}/dados`` — nome e ano da turma
 
 Campos do catálogo bruto usados hoje:
 
@@ -83,6 +85,19 @@ Campos da ficha usados hoje:
 A amostra da SME não traz e-mail, segundo telefone nem nome social do
 responsável. Esses três campos saem vazios no contrato interno.
 
+Da turma, o sistema usa:
+
+- ``codigo``
+- ``nomeTurma``
+- ``ano``
+- ``ueCodigo``, enviado em seguida a ``/api/escolas/dados/{codigo}``
+
+Dos dados da unidade do aluno, o sistema usa:
+
+- ``nome``, gravado só com o nome da unidade
+- ``codigo``, gravado à parte em ``unidade_educacional_codigo_eol``
+- ``siglaTipoEscola``
+
 Normalização interna
 --------------------
 
@@ -97,6 +112,7 @@ converte em contratos internos tipados em ``apps/integracoes/eol/port.py``:
 - ``AlunoEol`` — aluno da lista ``/api/alunos/alunos``
 - ``InformacoesAlunoEol`` — ficha com endereço em campos soltos
 - ``ParticipanteRedeEol`` — aluno unido à ficha, pronto para o domínio
+- ``TurmaEol`` — turma com nome, ano e código da escola normalizados
 
 Decisões principais de mapeamento:
 
@@ -111,8 +127,23 @@ Decisões principais de mapeamento:
 - ``nomeMae`` -> ``nome_mae``
 - ``dataNascimento`` fica só com a data ``AAAA-MM-DD``
 - o CEP do aluno usa a mesma normalização ``00000-000``
-- a consulta usa o primeiro item da lista de alunos
+- a consulta usa o primeiro item da lista de alunos para nome, nascimento
+  e os demais dados
+- o ``codigoTurma`` enviado a ``/api/turmas/{codigo}/dados`` sai do último
+  item da mesma lista
+- código de turma ausente ou zero não chama esse endpoint
+- ``nomeTurma`` -> ``nome_turma`` e ``ano`` -> ``ano``, sempre texto
+- ``ueCodigo`` da turma segue para ``obter_dados_unidade``
+- código de escola ausente ou zero não chama esse endpoint
+- ``nome`` da unidade fica só com o nome, sem o código EOL
+- ``codigo`` da unidade -> ``unidade_educacional_codigo_eol``
+- ``siglaTipoEscola`` -> ``unidade_educacional_tipo``
+- a consulta do participante devolve ``unidade_educacional`` como
+  ``tipo - nome``
+- HTTP 404 na turma mantém o participante e deixa nome e ano vazios
+- HTTP 404 na unidade mantém o participante e deixa nome, código e tipo vazios
 - lista vazia em ``/api/alunos/alunos`` devolve ``None`` e não chama a ficha
+  nem a turma
 - HTTP 404 na ficha mantém o aluno e deixa o endereço vazio
 
 Filtro de tipos de unidade
@@ -172,6 +203,7 @@ O ``EolPort`` expõe as operações que o domínio consome:
 - ``listar_unidades_diretas_recreio(limite=None)``
 - ``listar_alunos(codigo_eol)``
 - ``obter_informacoes_aluno(codigo_eol)``
+- ``obter_dados_turma(codigo_turma)``
 - ``consultar_participante(codigo_eol)``
 
 Exceções
@@ -237,6 +269,11 @@ O ``InscricaoService.consultar_participante_por_eol()``:
 3. traduz lista vazia em
    ``Código EOL não encontrado. Verifique o número digitado e tente novamente.``
 4. devolve o ``ParticipanteRedeEol`` sem gravar inscrição
+
+As rotas ``participante-eol`` e ``participante-cpf`` serializam os dados para
+o formulário de inscrição. A resposta inclui ``tipo_logradouro``, obtido pelo
+adaptador da chave ``endereco.tipologradouro`` na ficha do aluno. A consulta
+por CPF localiza o aluno e reutiliza o mesmo fluxo de consulta por código EOL.
 
 ``EolConfigError`` responde HTTP 500. ``EolIndisponivelError`` e
 ``EolContratoError`` respondem HTTP 502. Indisponibilidade da SME não usa a

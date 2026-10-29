@@ -1,12 +1,22 @@
 """Testes das validações do domínio de inscrições."""
 
+from datetime import date
+from types import SimpleNamespace
+
 import pytest
 from django.core.exceptions import ValidationError
+from freezegun import freeze_time
 
 from apps.inscricoes import validators
-from apps.inscricoes.constants import GrupoInscricao, TipoEstudante
+from apps.inscricoes.constants import (
+    GrupoInscricao,
+    StatusInscricao,
+    TipoEstudante,
+)
 from apps.inscricoes.validators import (
+    calcular_idade_cheia,
     inscricao_eh_completa,
+    validar_informacoes_de_saude,
     validar_inscricao,
     validar_polo_e_dre,
     validar_tipo_e_grupo,
@@ -48,6 +58,86 @@ def test_completude_exige_codigo_eol_da_rede(
     assert inscricao_eh_completa(inscricao) is False
 
 
+def test_completude_da_rede_exige_saida_retirada_e_piscina(
+    inscricao_completa_factory,
+) -> None:
+    """Sem as três respostas, a inscrição da rede fica rascunho."""
+    inscricao = inscricao_completa_factory(
+        tipo_estudante=TipoEstudante.ESTUDANTE_DA_REDE,
+        codigo_eol="6034178",
+    )
+
+    assert inscricao_eh_completa(inscricao) is False
+    assert inscricao.status == StatusInscricao.RASCUNHO
+
+    inscricao.pode_ir_embora_sozinho = False
+    inscricao.autoriza_uso_piscina = True
+    inscricao.responsavel_retirada = "   "
+    inscricao.save()
+
+    assert inscricao.status == StatusInscricao.RASCUNHO
+
+
+def test_completude_da_rede_aceita_resposta_negativa(
+    inscricao_completa_factory,
+) -> None:
+    """Não em saída e piscina conta como respondido."""
+    inscricao = inscricao_completa_factory(
+        tipo_estudante=TipoEstudante.ESTUDANTE_DA_REDE,
+        codigo_eol="6034178",
+        pode_ir_embora_sozinho=False,
+        autoriza_uso_piscina=False,
+        responsavel_retirada="Maria",
+        unidade_educacional="EMEI Teste - 094633",
+        unidade_educacional_codigo_eol="094633",
+        unidade_educacional_tipo="EMEI",
+    )
+
+    assert inscricao_eh_completa(inscricao) is True
+    assert inscricao.status == StatusInscricao.COMPLETA
+
+
+def test_completude_da_rede_exige_unidade_educacional(
+    inscricao_completa_factory,
+) -> None:
+    """Sem nome, código ou tipo da unidade, a rede fica rascunho."""
+    inscricao = inscricao_completa_factory(
+        tipo_estudante=TipoEstudante.ESTUDANTE_DA_REDE,
+        codigo_eol="6034178",
+        pode_ir_embora_sozinho=False,
+        autoriza_uso_piscina=False,
+        responsavel_retirada="Maria",
+        unidade_educacional="   ",
+        unidade_educacional_codigo_eol="094633",
+        unidade_educacional_tipo="EMEI",
+    )
+
+    assert inscricao_eh_completa(inscricao) is False
+    assert inscricao.status == StatusInscricao.RASCUNHO
+
+    inscricao.unidade_educacional = "EMEI Teste - 094633"
+    inscricao.unidade_educacional_codigo_eol = ""
+    inscricao.save()
+
+    assert inscricao.status == StatusInscricao.RASCUNHO
+
+    inscricao.unidade_educacional_codigo_eol = "094633"
+    inscricao.unidade_educacional_tipo = "EMEI"
+    inscricao.save()
+
+    assert inscricao.status == StatusInscricao.COMPLETA
+
+
+def test_completude_externa_nao_exige_grupo(
+    inscricao_completa_factory,
+) -> None:
+    """Estudante externo completa sem saída, retirada e piscina."""
+    inscricao = inscricao_completa_factory()
+
+    assert inscricao_eh_completa(inscricao) is True
+    assert inscricao.status == StatusInscricao.COMPLETA
+
+
 def test_completude_exige_cpf_de_externo(inscricao_completa_factory) -> None:
     """Estudante externo precisa de CPF para completar."""
     inscricao = inscricao_completa_factory(cpf="")
@@ -64,7 +154,7 @@ def test_valida_grupos_de_rede_e_aceita_grupo_maior(
         tipo_estudante=TipoEstudante.ESTUDANTE_DA_REDE,
     )
     maior = inscricao_completa_factory(
-        grupo=GrupoInscricao.QUATRO_A_14_ANOS,
+        grupo=GrupoInscricao.ONZE_A_14_ANOS,
         tipo_estudante=TipoEstudante.ESTUDANTE_EXTERNO,
     )
 
@@ -168,6 +258,88 @@ def test_unicidade_ignora_identificadores_vazios_e_o_proprio_registro(
     assert validar_unicidade(inscricao) is None
 
 
+@pytest.mark.parametrize(
+    ("dados", "campo"),
+    [
+        ({"possui_deficiencia": True, "deficiencias": []}, "deficiencias"),
+        (
+            {"deficiencias": ["OUTRA"], "outra_deficiencia": ""},
+            "outra_deficiencia",
+        ),
+        (
+            {"possui_problema_saude": True, "problemas_saude": []},
+            "problemas_saude",
+        ),
+        (
+            {"problemas_saude": ["OUTRO"], "outro_problema_saude": ""},
+            "outro_problema_saude",
+        ),
+        (
+            {
+                "usuario_medicacao_ou_tratamento_continuo": True,
+                "medicacao_ou_tratamento_continuo": "",
+            },
+            "medicacao_ou_tratamento_continuo",
+        ),
+        (
+            {
+                "possui_restricao_medicamento_pronto_atendimento": True,
+                "restricao_medicamento_pronto_atendimento": "",
+            },
+            "restricao_medicamento_pronto_atendimento",
+        ),
+        (
+            {"possui_convenio_medico": True, "convenio_medico": ""},
+            "convenio_medico",
+        ),
+    ],
+)
+def test_validar_informacoes_de_saude_rejeita_detalhes_ausentes(
+    dados, campo
+) -> None:
+    """Cada informação de saúde marcada exige seu detalhe correspondente."""
+    dados_validos = {
+        "possui_deficiencia": False,
+        "deficiencias": [],
+        "outra_deficiencia": "",
+        "possui_problema_saude": False,
+        "problemas_saude": [],
+        "outro_problema_saude": "",
+        "usuario_medicacao_ou_tratamento_continuo": False,
+        "medicacao_ou_tratamento_continuo": "",
+        "possui_restricao_medicamento_pronto_atendimento": False,
+        "restricao_medicamento_pronto_atendimento": "",
+        "possui_convenio_medico": False,
+        "convenio_medico": "",
+    }
+    inscricao = SimpleNamespace(**{**dados_validos, **dados})
+
+    with pytest.raises(ValidationError) as contexto:
+        validar_informacoes_de_saude(inscricao)
+
+    assert list(contexto.value.message_dict) == [campo]
+
+
+def test_validar_informacoes_de_saude_aceita_detalhes_preenchidos() -> None:
+    """Dados de saúde completos percorrem todas as regras sem erro."""
+    inscricao = SimpleNamespace(
+        possui_deficiencia=True,
+        deficiencias=["OUTRA"],
+        outra_deficiencia="Descrição da deficiência",
+        possui_problema_saude=True,
+        problemas_saude=["OUTRO"],
+        outro_problema_saude="Descrição do problema de saúde",
+        usuario_medicacao_ou_tratamento_continuo=True,
+        medicacao_ou_tratamento_continuo="Medicação informada",
+        possui_restricao_medicamento_pronto_atendimento=True,
+        restricao_medicamento_pronto_atendimento="Restrição informada",
+        possui_convenio_medico=True,
+        convenio_medico="Convênio informado",
+    )
+
+    assert validar_informacoes_de_saude(inscricao) is None
+
+
 def test_validar_inscricao_agrega_erros(
     monkeypatch, inscricao_factory
 ) -> None:
@@ -188,3 +360,39 @@ def test_validar_inscricao_agrega_erros(
 
     assert "Erro de tipo." in _mensagens(contexto.value)
     assert "Erro genérico." in _mensagens(contexto.value)
+
+
+def test_validar_inscricao_sem_erros(inscricao_factory) -> None:
+    """A inscrição válida percorre todos os validadores até o final."""
+    inscricao = inscricao_factory.build()
+
+    assert validar_inscricao(inscricao) is None
+
+
+def test_idade_cheia_antes_do_aniversario() -> None:
+    """Seis anos, onze meses e trinta dias contam como seis."""
+    with freeze_time("2026-05-18 12:00:00"):
+        assert calcular_idade_cheia(date(2019, 5, 19)) == 6
+
+
+def test_idade_cheia_no_dia_do_aniversario() -> None:
+    """A idade aumenta no dia do aniversário."""
+    with freeze_time("2026-05-19 12:00:00"):
+        assert calcular_idade_cheia(date(2019, 5, 19)) == 7
+
+
+def test_idade_cheia_trata_29_de_fevereiro() -> None:
+    """Em ano não bissexto, o aniversário de 29/02 vale 1º de março."""
+    nascimento = date(2020, 2, 29)
+
+    with freeze_time("2021-02-28 12:00:00"):
+        assert calcular_idade_cheia(nascimento) == 0
+    with freeze_time("2021-03-01 12:00:00"):
+        assert calcular_idade_cheia(nascimento) == 1
+    with freeze_time("2024-02-29 12:00:00"):
+        assert calcular_idade_cheia(nascimento) == 4
+
+
+def test_idade_cheia_sem_data_de_nascimento() -> None:
+    """Sem data de nascimento, a idade não é calculada."""
+    assert calcular_idade_cheia(None) is None

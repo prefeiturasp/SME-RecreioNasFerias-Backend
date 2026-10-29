@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 from apps.core.models.modelo_base import ModeloAtualizavel
 from apps.inscricoes.constants import (
+    Deficiencias,
     GrupoInscricao,
+    ProblemasSaude,
     StatusInscricao,
     TipoEstudante,
 )
-from apps.inscricoes.validators import validar_inscricao
+from apps.inscricoes.validators import (
+    calcular_idade_cheia,
+    validar_inscricao,
+)
 
 
 class Inscricao(ModeloAtualizavel):
@@ -125,6 +131,141 @@ class Inscricao(ModeloAtualizavel):
         verbose_name="Status",
     )
 
+    ## Informações de saúde
+
+    possui_deficiencia = models.BooleanField(
+        default=False,
+        verbose_name="Possui deficiência?"
+    )
+
+    # Tipos de deficiências, caso possui_deficiencia seja True
+    deficiencias = ArrayField(
+        base_field=models.CharField(
+            max_length=50,
+            choices=Deficiencias.choices,
+        ),
+        blank=True,
+        default=list,
+        verbose_name="Possui deficiência(s)?",
+    )
+
+    # Campo de texto livre que só será preenchido se "Outra" for selecionada
+    outra_deficiencia = models.CharField(
+        max_length=300,
+        blank=True,
+        verbose_name="Especifique a outra deficiência"
+    )
+
+    possui_problema_saude = models.BooleanField(
+        default=False,
+        verbose_name="Possui problema de saúde?"
+    )
+
+    # Tipo de problema de saúde, caso possui_problema_saude seja True
+    problemas_saude = ArrayField(
+        base_field=models.CharField(
+            max_length=50,
+            choices=ProblemasSaude.choices,
+        ),
+        blank=True,
+        default=list,
+        verbose_name="Possui problema(s) de saúde?",
+    )
+
+    # Campo de texto livre que só será preenchido se "Outro" for selecionada
+    outro_problema_saude = models.CharField(
+        max_length=300,
+        blank=True,
+        verbose_name="Especifique o outro problema de saúde"
+    )
+
+    usuario_medicacao_ou_tratamento_continuo = models.BooleanField(
+        default=False,
+        verbose_name="Usuário de medicação ou tratamento contínuo?"
+    )
+
+    # Campo de texto livre que só será preenchido se "Usuário de medicação ou tratamento contínuo" for marcado
+    medicacao_ou_tratamento_continuo = models.CharField(
+        max_length=300,
+        blank=True,
+        verbose_name="Medicação ou tratamento contínuo"
+    )
+
+    possui_restricao_medicamento_pronto_atendimento = models.BooleanField(
+        default=False,
+        verbose_name="Possui restrição de medicamento em pronto atendimento?"
+    )
+
+    # Campo de texto livre que só será preenchido se "Possui restrição de medicamento em pronto atendimento" for marcado
+    restricao_medicamento_pronto_atendimento = models.CharField(
+        max_length=300,
+        blank=True,
+        verbose_name="Especifique a restrição de medicamento em pronto atendimento"
+    )
+
+    possui_convenio_medico = models.BooleanField(
+        default=False,
+        verbose_name="Possui convênio médico?"
+    )
+
+    # Campo de texto livre que só será preenchido se "Possui convênio médico" for marcado
+    convenio_medico = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Especifique o convênio médico"
+    )
+
+    ## Informações por grupo
+
+    unidade_educacional = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Unidade educacional do participante",
+    )
+    unidade_educacional_codigo_eol = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="Código EOL da unidade educacional",
+    )
+    unidade_educacional_tipo = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="Tipo da unidade educacional",
+    )
+    nome_turma = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name="Turma",
+    )
+    ano = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="Ano",
+    )
+    pode_ir_embora_sozinho = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="Pode ir embora sozinho?",
+    )
+    responsavel_retirada = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Responsável por retirar na saída",
+    )
+    autoriza_uso_piscina = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="Autoriza uso da piscina?",
+    )
+
     class Meta:
         """Metadados da inscrição."""
 
@@ -143,6 +284,16 @@ class Inscricao(ModeloAtualizavel):
         from apps.inscricoes.validators import inscricao_eh_completa
 
         return inscricao_eh_completa(self)
+
+    @property
+    def idade(self) -> int | None:
+        """Idade em anos completos na data local de hoje."""
+        return calcular_idade_cheia(self.data_nascimento)
+
+    @property
+    def aluno_rede_municipal(self) -> bool:
+        """Indica se o participante é estudante da rede municipal."""
+        return self.tipo_estudante == TipoEstudante.ESTUDANTE_DA_REDE
 
     def clean(self) -> None:
         """Executa as validações compartilhadas do domínio."""

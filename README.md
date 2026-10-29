@@ -22,6 +22,7 @@ de polos de gestão direta.
 - endpoint público de saúde em `/api/v1/health/`;
 - schema OpenAPI em `/api/v1/schema/` e Swagger UI em `/api/v1/docs/`;
 - autenticação via CoreSSO em `/api/v1/auth/login/`;
+- catálogo de perfis e permissões em `/api/v1/perfis/`;
 - renovação, verificação, logout e perfil do usuário em `/api/v1/auth/`;
 - apps `core`, `edicoes` e `polos`, com CRUD de polos e população de
   unidades diretas em `/api/v1/polos/popular/`;

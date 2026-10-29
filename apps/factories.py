@@ -105,7 +105,7 @@ class InscricaoFactory(factory.django.DjangoModelFactory):
     edicao = None
     polo = None
     tipo_estudante = TipoEstudante.ESTUDANTE_EXTERNO
-    grupo = GrupoInscricao.QUATRO_A_14_ANOS
+    grupo = GrupoInscricao.ONZE_A_14_ANOS
     codigo_eol = ""
     cpf = factory.Sequence(lambda n: f"111111111{n:02d}")
     nome_participante = factory.Sequence(lambda n: f"Participante {n}")

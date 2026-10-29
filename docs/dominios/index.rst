@@ -11,4 +11,5 @@ pedem contexto além da visão operacional geral.
    definicoes_polos/index
    edicoes/index
    inscricoes/index
+   permissionamento/index
    integracoes/index

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from apps.definicoes_polos.constants import TipoPolo
 from apps.definicoes_polos.models import DefinicaoPolo
@@ -42,7 +45,22 @@ CAMPOS_COMPLETUDE = (
     "email",
     "dre_codigo_eol",
     "dre_nome",
+    "edicao_id",
     "polo_id",
+    "possui_deficiencia",
+    "possui_problema_saude",
+    "usuario_medicacao_ou_tratamento_continuo",
+    "possui_restricao_medicamento_pronto_atendimento",
+    "possui_convenio_medico"
+)
+
+CAMPOS_GRUPO_REDE = (
+    "unidade_educacional",
+    "unidade_educacional_codigo_eol",
+    "unidade_educacional_tipo",
+    "pode_ir_embora_sozinho",
+    "autoriza_uso_piscina",
+    "responsavel_retirada",
 )
 
 
@@ -54,7 +72,7 @@ def _preenchido(valor: object) -> bool:
 
 
 def inscricao_eh_completa(inscricao: object) -> bool:
-    """Aplica a regra de completude da primeira fase."""
+    """Aplica a régua da fase e, na rede, unidade, saída e piscina."""
     if any(
         not _preenchido(getattr(inscricao, campo, None))
         for campo in CAMPOS_COMPLETUDE
@@ -64,7 +82,37 @@ def inscricao_eh_completa(inscricao: object) -> bool:
     campo_condicional = (
         "codigo_eol" if tipo == TipoEstudante.ESTUDANTE_DA_REDE else "cpf"
     )
-    return _preenchido(getattr(inscricao, campo_condicional, None))
+    if not _preenchido(getattr(inscricao, campo_condicional, None)):
+        return False
+    if tipo != TipoEstudante.ESTUDANTE_DA_REDE:
+        return True
+    return all(
+        _preenchido(getattr(inscricao, campo, None))
+        for campo in CAMPOS_GRUPO_REDE
+    )
+
+
+def calcular_idade_cheia(data_nascimento: date | None) -> int | None:
+    """Devolve a idade em anos completos na data local de hoje.
+
+    Sem data de nascimento, devolve ``None``. Em 29 de fevereiro, num
+    ano que não é bissexto, o aniversário vale 1º de março.
+    """
+    if data_nascimento is None:
+        return None
+    hoje = timezone.localdate()
+    idade = hoje.year - data_nascimento.year
+    if hoje < _aniversario(data_nascimento, hoje.year):
+        idade -= 1
+    return idade
+
+
+def _aniversario(nascimento: date, ano: int) -> date:
+    """Monta o aniversário no ano pedido, tratando 29 de fevereiro."""
+    try:
+        return date(ano, nascimento.month, nascimento.day)
+    except ValueError:
+        return date(ano, 3, 1)
 
 
 def validar_tipo_e_grupo(inscricao: object) -> None:
@@ -119,6 +167,79 @@ def validar_unicidade(inscricao: object) -> None:
         raise ValidationError(erros)
 
 
+def validar_informacoes_de_saude(inscricao: object) -> None:
+    """Valida as informações de saúde do participante."""
+    possui_deficiencia = getattr(inscricao, "possui_deficiencia", True)
+    detalhes_deficiencia = getattr(inscricao, "deficiencias", [])
+    outra_deficiencia = getattr(inscricao, "outra_deficiencia", "")
+
+    possui_problema_saude = getattr(inscricao, "possui_problema_saude", True)
+    detalhes_problema_saude = getattr(inscricao, "problemas_saude", [])
+    outro_problema_saude = getattr(inscricao, "outro_problema_saude", "")
+
+    usuario_medicacao = getattr(
+        inscricao, "usuario_medicacao_ou_tratamento_continuo", True
+    )
+    detalhe_medicacao = getattr(
+        inscricao, "medicacao_ou_tratamento_continuo", ""
+    )
+
+    possui_restricao = getattr(
+        inscricao, "possui_restricao_medicamento_pronto_atendimento", True
+    )
+    detalhe_restricao = getattr(
+        inscricao, "restricao_medicamento_pronto_atendimento", ""
+    )
+
+    possui_convenio = getattr(inscricao, "possui_convenio_medico", True)
+    detalhe_convenio = getattr(inscricao, "convenio_medico", "")
+
+    regras = (
+        (
+            possui_deficiencia and not detalhes_deficiencia,
+            "deficiencias",
+            "Informe a(s) deficiência(s).",
+        ),
+        (
+            "OUTRA" in detalhes_deficiencia and not outra_deficiencia,
+            "outra_deficiencia",
+            "É obrigatório informar a outra deficiência.",
+        ),
+        (
+            possui_problema_saude and not detalhes_problema_saude,
+            "problemas_saude",
+            "Informe o(s) problema(s) de saúde.",
+        ),
+        (
+            "OUTRO" in detalhes_problema_saude and not outro_problema_saude,
+            "outro_problema_saude",
+            "É obrigatório informar o outro problema de saúde.",
+        ),
+        (
+            usuario_medicacao and not detalhe_medicacao,
+            "medicacao_ou_tratamento_continuo",
+            "Detalhe da medicação ou tratamento contínuo é obrigatório.",
+        ),
+        (
+            possui_restricao and not detalhe_restricao,
+            "restricao_medicamento_pronto_atendimento",
+            "Detalhe da restrição de medicamento em pronto atendimento "
+            "é obrigatório.",
+        ),
+        (
+            possui_convenio and not detalhe_convenio,
+            "convenio_medico",
+            "Detalhe do convênio médico é obrigatório.",
+        ),
+    )
+
+    for invalida, campo, mensagem in regras:
+        if invalida:
+            raise ValidationError({campo: mensagem})
+
+
+
+
 def validar_inscricao(inscricao: object) -> None:
     """Executa todas as validações de domínio da inscrição."""
     erros: dict[str, list[str]] = {}
@@ -126,6 +247,7 @@ def validar_inscricao(inscricao: object) -> None:
         validar_tipo_e_grupo,
         validar_polo_e_dre,
         validar_unicidade,
+        validar_informacoes_de_saude,
     ):
         try:
             validador(inscricao)

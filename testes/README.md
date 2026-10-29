@@ -29,3 +29,26 @@ npm run e2e:open
 ```
 
 O alvo do frontend pode ser alterado com `CYPRESS_BASE_URL` ou `BASE_URL`. Para o login, `API_BASE_URL` deve apontar para o backend que expoe `/api/v1/auth/login/`. As credenciais de API devem ser configuradas localmente em `tests/.env`, usando `API_USUARIO` e `API_SENHA`.
+
+## Relatorio Allure
+
+Para rodar os testes coletando os resultados do Allure:
+
+```bash
+npm run e2e:allure
+```
+
+Para gerar e abrir o relatorio HTML a partir dos resultados (`allure-results/`):
+
+```bash
+npm run allure:generate
+npm run allure:open
+```
+
+Ou para fazer tudo de uma vez (executar, gerar e abrir):
+
+```bash
+npm run allure:report
+```
+
+No Jenkins, o pipeline (`Jenkinsfile_qa`) ja executa os testes com `allure=true`, gera o relatorio com o Allure e publica os resultados via plugin do Allure Jenkins.

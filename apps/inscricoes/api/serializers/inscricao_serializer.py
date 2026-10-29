@@ -5,14 +5,23 @@ from rest_framework import serializers
 from apps.edicoes.api.serializers.edicao_serializer import (
     EdicaoResumoSerializer,
 )
-from apps.edicoes.models import Edicao
+from apps.inscricoes.constants import Deficiencias, ProblemasSaude
 from apps.inscricoes.models import Inscricao
 from apps.polos.api.serializers.polo_serializer import PoloResumoSerializer
 from apps.polos.models import Polo
 
 
-class InscricaoInformacoesBasicasSerializer(serializers.ModelSerializer):
-    """Contrato de entrada e saída da primeira etapa do formulário."""
+class InscricaoCadastroSerializer(serializers.ModelSerializer):
+    """Contrato de entrada e saída do formulário de inscrições."""
+
+    deficiencias = serializers.ListField(
+        child=serializers.ChoiceField(choices=Deficiencias.choices),
+        required=False,
+    )
+    problemas_saude = serializers.ListField(
+        child=serializers.ChoiceField(choices=ProblemasSaude.choices),
+        required=False,
+    )
 
     polo = serializers.SlugRelatedField(
         slug_field="uuid",
@@ -22,25 +31,31 @@ class InscricaoInformacoesBasicasSerializer(serializers.ModelSerializer):
     )
     edicao = serializers.SlugRelatedField(
         slug_field="uuid",
-        queryset=Edicao.objects.all(),
-        allow_null=True,
-        required=False,
+        read_only=True,
     )
 
     grupo_label = serializers.CharField(
         source="get_grupo_display", read_only=True, allow_null=True
     )
-    
+
     tipo_estudante_label = serializers.CharField(
         source="get_tipo_estudante_display", read_only=True, allow_null=True
     )
-    
+
     status_label = serializers.CharField(
         source="get_status_display", read_only=True, allow_null=True
     )
-    
+    idade = serializers.IntegerField(read_only=True, allow_null=True)
+    aluno_rede_municipal = serializers.BooleanField(read_only=True)
+    pode_ir_embora_sozinho = serializers.BooleanField(
+        allow_null=True, required=False
+    )
+    autoriza_uso_piscina = serializers.BooleanField(
+        allow_null=True, required=False
+    )
+
     class Meta:
-        """Configuração do contrato da primeira etapa."""
+        """Configuração do contrato do formulário de inscrições."""
 
         model = Inscricao
         fields = (
@@ -49,12 +64,14 @@ class InscricaoInformacoesBasicasSerializer(serializers.ModelSerializer):
             "polo",
             "tipo_estudante",
             "tipo_estudante_label",
+            "aluno_rede_municipal",
             "grupo",
             "grupo_label",
             "codigo_eol",
             "cpf",
             "nome_participante",
             "data_nascimento",
+            "idade",
             "responsavel_nome",
             "responsavel_nome_social",
             "cep",
@@ -72,8 +89,35 @@ class InscricaoInformacoesBasicasSerializer(serializers.ModelSerializer):
             "status",
             "status_label",
             "ativo",
+            # informações de saúde
+            "possui_deficiencia",
+            "deficiencias",
+            "outra_deficiencia",
+            "possui_problema_saude",
+            "problemas_saude",
+            "outro_problema_saude",
+            "usuario_medicacao_ou_tratamento_continuo",
+            "medicacao_ou_tratamento_continuo",
+            "possui_restricao_medicamento_pronto_atendimento",
+            "restricao_medicamento_pronto_atendimento",
+            "possui_convenio_medico",
+            "convenio_medico",
+            "unidade_educacional",
+            "unidade_educacional_codigo_eol",
+            "unidade_educacional_tipo",
+            "nome_turma",
+            "ano",
+            "pode_ir_embora_sozinho",
+            "responsavel_retirada",
+            "autoriza_uso_piscina",
         )
-        read_only_fields = ("uuid", "status", "ativo")
+        read_only_fields = (
+            "uuid",
+            "status",
+            "ativo",
+            "idade",
+            "aluno_rede_municipal",
+        )
 
 
 class InscricaoListagemSerializer(serializers.ModelSerializer):
@@ -85,15 +129,16 @@ class InscricaoListagemSerializer(serializers.ModelSerializer):
     polo_nome = serializers.CharField(
         source="polo.nome_polo", read_only=True, allow_null=True
     )
-    
+    edicao = EdicaoResumoSerializer(read_only=True, allow_null=True)
+
     grupo_label = serializers.CharField(
         source="get_grupo_display", read_only=True, allow_null=True
     )
-    
+
     tipo_estudante_label = serializers.CharField(
         source="get_tipo_estudante_display", read_only=True, allow_null=True
     )
-    
+
     status_label = serializers.CharField(
         source="get_status_display", read_only=True, allow_null=True
     )
@@ -108,6 +153,7 @@ class InscricaoListagemSerializer(serializers.ModelSerializer):
             "tipo_estudante_label",
             "polo",
             "polo_nome",
+            "edicao",
             "codigo_eol",
             "cpf",
             "nome_participante",
@@ -119,7 +165,7 @@ class InscricaoListagemSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class InscricaoDetalheSerializer(InscricaoInformacoesBasicasSerializer):
+class InscricaoDetalheSerializer(InscricaoCadastroSerializer):
     """Contrato de detalhamento da inscrição."""
 
     polo = PoloResumoSerializer(read_only=True, allow_null=True)
@@ -127,19 +173,19 @@ class InscricaoDetalheSerializer(InscricaoInformacoesBasicasSerializer):
     grupo_label = serializers.CharField(
         source="get_grupo_display", read_only=True, allow_null=True
     )
-    
+
     tipo_estudante_label = serializers.CharField(
         source="get_tipo_estudante_display", read_only=True, allow_null=True
     )
-    
+
     status_label = serializers.CharField(
         source="get_status_display", read_only=True, allow_null=True
     )
 
-    class Meta(InscricaoInformacoesBasicasSerializer.Meta):
+    class Meta(InscricaoCadastroSerializer.Meta):
         """Configuração do contrato somente leitura de detalhe."""
 
-        read_only_fields = InscricaoInformacoesBasicasSerializer.Meta.fields
+        read_only_fields = InscricaoCadastroSerializer.Meta.fields
 
 
 class PoloElegivelSerializer(serializers.ModelSerializer):

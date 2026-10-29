@@ -72,6 +72,9 @@ AUTH_API_CONNECT_TIMEOUT_SECONDS = env.int(
     default=5,
 )
 AUTH_CODIGO_SISTEMA = env.int("AUTH_CODIGO_SISTEMA", default=1009)
+PRIMEIRO_ADMIN_COCEU_RF = env.str(
+    "PRIMEIRO_ADMIN_COCEU_RF", default="8080640"
+).strip()
 
 
 # -----------------------------------------------------------------------------

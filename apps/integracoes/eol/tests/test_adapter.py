@@ -35,6 +35,7 @@ class FakeClient:
         alunos: list[dict[str, Any]] | None = None,
         alunos_por_cpf: list[dict[str, Any]] | None = None,
         informacoes: dict[str, Any] | None = None,
+        turmas: dict[int, dict[str, Any]] | None = None,
     ) -> None:
         """Inicializa o fake com os payloads que serão devolvidos."""
         self.unidades = unidades or []
@@ -47,10 +48,12 @@ class FakeClient:
         self.alunos = alunos or []
         self.alunos_por_cpf = alunos_por_cpf or []
         self.informacoes = informacoes
+        self.turmas = turmas or {}
         self.calls_obter_dados: list[str] = []
         self.calls_obter_diretor: list[tuple[str, int]] = []
         self.calls_alunos_por_cpf: list[str] = []
         self.calls_informacoes: list[str] = []
+        self.calls_turma: list[int] = []
 
     def listar_todas_unidades(self) -> list[dict[str, Any]]:
         """Devolve o catalogo bruto configurado."""
@@ -104,6 +107,14 @@ class FakeClient:
         """Devolve a ficha bruta ou ``None`` quando ausente."""
         self.calls_informacoes.append(codigo_aluno)
         return self.informacoes
+
+    def obter_dados_turma(
+        self,
+        codigo_turma: int,
+    ) -> dict[str, Any] | None:
+        """Devolve a turma bruta ou ``None`` quando ausente."""
+        self.calls_turma.append(codigo_turma)
+        return self.turmas.get(codigo_turma)
 
 
 def _unidade_bruta(codigo: str, sigla: str) -> dict[str, Any]:
@@ -778,6 +789,7 @@ def test_consultar_participante_devolve_none_sem_chamar_ficha() -> None:
 
     assert participante is None
     assert client.calls_informacoes == []
+    assert client.calls_turma == []
 
 
 def test_consultar_participante_une_aluno_e_ficha() -> None:
@@ -901,3 +913,210 @@ def test_consultar_participante_por_cpf_devolve_none_sem_codigo() -> None:
 
     assert participante is None
     assert client.calls_informacoes == []
+
+
+def test_consultar_participante_busca_turma_do_ultimo_registro() -> None:
+    """Nome segue o primeiro registro e a turma segue o último código."""
+    primeiro = _aluno_bruto()
+    primeiro["codigoTurma"] = 10
+    ultimo = _aluno_bruto()
+    ultimo["codigoTurma"] = 3026805
+    ultimo["nomeAluno"] = "Outro Nome"
+    client = FakeClient(
+        alunos=[primeiro, ultimo],
+        informacoes=_informacoes_brutas(),
+        turmas={
+            3026805: {
+                "codigo": 3026805,
+                "nomeTurma": " 7C ",
+                "ano": 7,
+            }
+        },
+    )
+
+    participante = EolAdapter(client=client).consultar_participante("1234567")
+
+    assert participante is not None
+    assert participante.nome_aluno == "Aluna de Teste"
+    assert participante.codigo_turma == 10
+    assert participante.turma_nome == "1A"
+    assert participante.nome_turma == "7C"
+    assert participante.ano == "7"
+    assert participante.unidade_educacional == ""
+    assert client.calls_turma == [3026805]
+    assert client.calls_obter_dados == []
+
+
+def test_consultar_participante_nao_busca_turma_sem_codigo() -> None:
+    """Código ausente ou zero no último registro não chama a turma."""
+    ultimo = _aluno_bruto()
+    ultimo["codigoTurma"] = 0
+    client = FakeClient(
+        alunos=[_aluno_bruto(), ultimo],
+        informacoes=_informacoes_brutas(),
+    )
+
+    participante = EolAdapter(client=client).consultar_participante("1234567")
+
+    assert participante is not None
+    assert participante.nome_turma == ""
+    assert participante.ano == ""
+    assert participante.unidade_educacional == ""
+    assert client.calls_turma == []
+    assert client.calls_obter_dados == []
+
+
+def test_consultar_participante_mantem_aluno_sem_turma() -> None:
+    """Turma inexistente preserva o aluno e deixa nome e ano vazios."""
+    client = FakeClient(
+        alunos=[_aluno_bruto()],
+        informacoes=_informacoes_brutas(),
+    )
+
+    participante = EolAdapter(client=client).consultar_participante("1234567")
+
+    assert participante == _participante_esperado()
+    assert client.calls_turma == [99]
+    assert client.calls_obter_dados == []
+
+
+def test_consultar_participante_busca_unidade_da_turma() -> None:
+    """A unidade segue o ueCodigo da turma do último registro."""
+    client = FakeClient(
+        alunos=[_aluno_bruto()],
+        informacoes=_informacoes_brutas(),
+        turmas={
+            99: {
+                "codigo": 99,
+                "nomeTurma": "7C",
+                "ano": "7",
+                "ueCodigo": " 094633 ",
+            }
+        },
+        dados={
+            "094633": {
+                "nome": " EMEF Professora Teste ",
+                "codigo": "094633",
+                "siglaTipoEscola": " EMEF ",
+            }
+        },
+    )
+
+    participante = EolAdapter(client=client).consultar_participante("1234567")
+
+    assert participante is not None
+    assert participante.nome_turma == "7C"
+    assert participante.unidade_educacional == "EMEF Professora Teste"
+    assert participante.unidade_educacional_codigo_eol == "094633"
+    assert participante.unidade_educacional_tipo == "EMEF"
+    assert client.calls_turma == [99]
+    assert client.calls_obter_dados == ["094633"]
+
+
+def test_consultar_participante_nao_busca_unidade_sem_codigo() -> None:
+    """Código de escola ausente ou zero não chama a unidade."""
+    client = FakeClient(
+        alunos=[_aluno_bruto()],
+        informacoes=_informacoes_brutas(),
+        turmas={
+            99: {
+                "codigo": 99,
+                "nomeTurma": "7C",
+                "ano": "7",
+                "ueCodigo": 0,
+            }
+        },
+    )
+
+    participante = EolAdapter(client=client).consultar_participante("1234567")
+
+    assert participante is not None
+    assert participante.nome_turma == "7C"
+    assert participante.unidade_educacional == ""
+    assert participante.unidade_educacional_codigo_eol == ""
+    assert participante.unidade_educacional_tipo == ""
+    assert client.calls_obter_dados == []
+
+
+def test_consultar_participante_mantem_aluno_sem_unidade() -> None:
+    """Unidade inexistente preserva o aluno e deixa os campos vazios."""
+    client = FakeClient(
+        alunos=[_aluno_bruto()],
+        informacoes=_informacoes_brutas(),
+        turmas={
+            99: {
+                "codigo": 99,
+                "nomeTurma": "7C",
+                "ano": "7",
+                "ueCodigo": "094633",
+            }
+        },
+    )
+
+    participante = EolAdapter(client=client).consultar_participante("1234567")
+
+    assert participante is not None
+    assert participante.nome_turma == "7C"
+    assert participante.unidade_educacional == ""
+    assert participante.unidade_educacional_codigo_eol == ""
+    assert participante.unidade_educacional_tipo == ""
+    assert client.calls_obter_dados == ["094633"]
+
+
+def test_consultar_participante_por_cpf_herda_unidade() -> None:
+    """A consulta por CPF reusa a unidade da turma do último registro."""
+    client = FakeClient(
+        alunos_por_cpf=[_aluno_bruto()],
+        alunos=[_aluno_bruto()],
+        informacoes=_informacoes_brutas(),
+        turmas={
+            99: {
+                "codigo": 99,
+                "nomeTurma": "7C",
+                "ano": "7",
+                "ueCodigo": "094633",
+            }
+        },
+        dados={
+            "094633": {
+                "nome": "EMEF Professora Teste",
+                "codigo": "094633",
+                "siglaTipoEscola": "EMEF",
+            }
+        },
+    )
+
+    participante = EolAdapter(client=client).consultar_participante_por_cpf(
+        "123.456.789-09"
+    )
+
+    assert participante is not None
+    assert participante.unidade_educacional == "EMEF Professora Teste"
+    assert participante.unidade_educacional_codigo_eol == "094633"
+    assert participante.unidade_educacional_tipo == "EMEF"
+    assert client.calls_obter_dados == ["094633"]
+
+
+def test_consultar_participante_por_cpf_herda_turma_do_ultimo() -> None:
+    """A consulta por CPF reusa a turma do último registro do aluno."""
+    primeiro = _aluno_bruto()
+    primeiro["codigoTurma"] = 10
+    ultimo = _aluno_bruto()
+    ultimo["codigoTurma"] = 3026805
+    client = FakeClient(
+        alunos_por_cpf=[_aluno_bruto(), {"codigoAluno": 1}],
+        alunos=[primeiro, ultimo],
+        informacoes=_informacoes_brutas(),
+        turmas={3026805: {"codigo": 3026805, "nomeTurma": "7C", "ano": "7"}},
+    )
+
+    participante = EolAdapter(client=client).consultar_participante_por_cpf(
+        "123.456.789-09"
+    )
+
+    assert participante is not None
+    assert participante.codigo_aluno == 1234567
+    assert participante.nome_turma == "7C"
+    assert participante.ano == "7"
+    assert client.calls_informacoes == ["1234567"]
+    assert client.calls_turma == [3026805]

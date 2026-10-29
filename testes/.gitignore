@@ -3,3 +3,5 @@ node_modules/
 screenshots/
 videos/
 allure-results/
+allure-report/
+allure-results-*.zip

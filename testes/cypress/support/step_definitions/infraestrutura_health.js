@@ -7,7 +7,7 @@ const consultarHealthcheck = (method = 'GET', headers = {}) => {
 	return cy.request({
 		method,
 		url: `${apiBaseUrl}/api/v1/health/`,
-		failOnStatusCode: false,
+		failOnStatusCode: false, log: false,
 		followRedirect: false,
 		headers: { Accept: 'application/json', ...headers },
 	}).as('healthResponse')
@@ -18,11 +18,11 @@ When('eu consulto o healthcheck com token invalido', () => consultarHealthcheck(
 When('eu consulto o healthcheck usando {string}', (metodo) => consultarHealthcheck(metodo))
 
 Then('a API deve responder ao healthcheck com status 200', () => {
-	cy.get('@healthResponse').its('status').should('eq', 200)
+	cy.get('@healthResponse', { log: false }).its('status').should('eq', 200)
 })
 
 Then('a qualidade da aplicacao deve ser ok', () => {
-	cy.get('@healthResponse').its('body.status').should('eq', 'ok')
+	cy.get('@healthResponse', { log: false }).its('body.status').should('eq', 'ok')
 })
 
 const validarJson = (response) => {
@@ -31,18 +31,18 @@ const validarJson = (response) => {
 }
 
 Then('o healthcheck deve retornar o contrato JSON esperado', () => {
-	cy.get('@healthResponse').then((response) => {
+	cy.get('@healthResponse', { log: false }).then((response) => {
 		validarJson(response)
 		expect(response.body).to.deep.eq({ status: 'ok' })
 	})
 })
 
 Then('o healthcheck nao deve retornar corpo', () => {
-	cy.get('@healthResponse').its('body').should('be.empty')
+	cy.get('@healthResponse', { log: false }).its('body').should('be.empty')
 })
 
 Then('o healthcheck deve permitir apenas GET HEAD e OPTIONS', () => {
-	cy.get('@healthResponse').then((response) => {
+	cy.get('@healthResponse', { log: false }).then((response) => {
 		expect(response.headers.allow, 'Cabecalho Allow').to.be.a('string')
 		const metodos = response.headers.allow.split(',').map((metodo) => metodo.trim().toUpperCase())
 		expect(metodos).to.have.members(['GET', 'HEAD', 'OPTIONS'])
@@ -50,14 +50,15 @@ Then('o healthcheck deve permitir apenas GET HEAD e OPTIONS', () => {
 })
 
 Then('o healthcheck deve rejeitar o metodo com status 405', () => {
-	cy.get('@healthResponse').then((response) => {
+	cy.get('@healthResponse', { log: false }).then((response) => {
 		expect(response.status, JSON.stringify(response.body)).to.eq(405)
 	})
 })
 
 Then('o healthcheck deve informar o erro em JSON', () => {
-	cy.get('@healthResponse').then((response) => {
+	cy.get('@healthResponse', { log: false }).then((response) => {
 		validarJson(response)
 		expect(response.body).to.deep.eq({ detalhe: 'Metodo nao permitido.' })
 	})
 })
+

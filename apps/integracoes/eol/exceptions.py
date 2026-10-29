@@ -29,7 +29,7 @@ class EolConfigError(EolError):
 class EolIndisponivelError(EolError):
     """Indica indisponibilidade do serviço SME Integração/EOL."""
 
-    default_message = "SME Integração/EOL indisponível."
+    default_message = "Serviço SME Integração/EOL indisponível."
 
 
 class EolContratoError(EolError):

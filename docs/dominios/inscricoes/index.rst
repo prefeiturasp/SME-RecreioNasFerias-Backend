@@ -4,7 +4,7 @@ Inscrições
 Este domínio é responsável pelo cadastro e pela gestão das inscrições de
 participantes no programa Recreio nas Férias. A inscrição reúne as
 informações básicas do participante, o grupo, o tipo de estudante, o polo e,
-opcionalmente, a edição vinculada.
+na criação, a edição vigente vinculada automaticamente.
 
 Visão resumida
 --------------
@@ -12,9 +12,11 @@ Visão resumida
 - endpoint base: ``/api/v1/inscricoes/``
 - entidade principal: ``Inscricao``
 - serviço: ``InscricaoService``
-- acesso: todas as rotas exigem autenticação
+- acesso: permissões RBAC por ação; Usuário UE pode criar, visualizar e editar
+  inscrições de participantes
 - identificação pública: UUID
-- vínculo com edição: opcional nesta fase
+- novas inscrições: vínculo automático com a edição que está com inscrições
+  abertas; registros legados podem permanecer sem edição
 
 Modelo e choices
 ----------------
@@ -42,7 +44,10 @@ Os choices de grupo são:
 - ``BERCARIO_II`` — Berçário II
 - ``MINI_GRUPO_I`` — Mini Grupo I
 - ``MINI_GRUPO_II`` — Mini Grupo II
-- ``QUATRO_A_14_ANOS`` — 4 a 14 anos
+- ``QUATRO_A_5_ANOS`` — 4 a 5 anos
+- ``SEIS_A_10_ANOS`` — 6 a 10 anos
+- ``ONZE_A_14_ANOS`` — 11 a 14 anos
+
 
 Os tipos de estudante são ``ESTUDANTE_DA_REDE`` e
 ``ESTUDANTE_EXTERNO``. Os status são ``RASCUNHO``, ``COMPLETA`` e
@@ -59,15 +64,25 @@ preenchidos:
 - nome do responsável;
 - CEP, tipo de logradouro, logradouro, número, bairro e cidade;
 - telefone de contato/emergência 1 e e-mail;
-- DRE e polo.
+- DRE, polo e edição vinculada.
 
 O Código EOL é obrigatório para estudante da rede. O CPF é obrigatório para
-estudante externo. A ausência de qualquer dado obrigatório mantém ou reverte
+estudante externo. Para a rede, a inscrição também só fica completa com
+unidade educacional, código EOL da unidade, tipo da unidade, saída,
+responsável pela retirada e autorização da piscina. Estudante externo não
+exige esses campos. A ausência de qualquer dado obrigatório mantém ou reverte
 a inscrição para ``RASCUNHO``.
 
+Na criação, a edição é vinculada automaticamente à edição cujo período de
+inscrições inclui a data atual, considerando os limites inicial e final. Se
+não houver edição com inscrições abertas, a criação retorna erro de validação.
+O cliente não escolhe nem altera a edição pelo payload. Atualizações preservam
+o vínculo existente; inscrições legadas sem edição não recebem vínculo
+automático durante a atualização.
+
 Berçário I/II e Mini Grupo I/II só podem ser utilizados por estudantes da
-rede. O grupo ``QUATRO_A_14_ANOS`` pode ser utilizado por estudantes da rede
-ou externos.
+rede. Os grupos ``QUATRO_A_5_ANOS``, ``SEIS_A_10_ANOS`` e ``ONZE_A_14_ANOS`` 
+podem ser utilizados por estudantes da rede ou externos.
 
 A unicidade lógica é validada dentro do polo:
 
@@ -88,12 +103,12 @@ Serializers
 -----------
 
 ``InscricaoInformacoesBasicasSerializer``
-    Contrato de criação e atualização das informações básicas. Recebe os
-    UUIDs de polo e edição.
+    Contrato de criação e atualização das informações básicas. Recebe o UUID
+    do polo; a edição é atribuída automaticamente na criação.
 
 ``InscricaoListagemSerializer``
-    Retorna os campos usados na listagem, incluindo ``polo_nome`` e os
-    labels amigáveis dos choices.
+    Retorna os campos usados na listagem, incluindo ``polo_nome``, edição
+    resumida (``uuid`` e ``nome``) e os labels amigáveis dos choices.
 
 ``InscricaoDetalheSerializer``
     Serializer somente leitura para o detalhe. O campo ``polo`` utiliza
@@ -103,6 +118,10 @@ Serializers
 
 ``PoloElegivelSerializer``
     Retorna os dados de polos que podem ser selecionados no cadastro.
+
+``ParticipanteRedeSerializer``
+    Define a resposta das consultas de participante da EOL para preencher o
+    formulário, incluindo ``tipo_logradouro``.
 
 Todos os serializers de inscrição que exibem choices também retornam:
 ``tipo_estudante_label``, ``grupo_label`` e ``status_label``. Esses valores
@@ -120,15 +139,18 @@ Contrato HTTP
     ``nome_participante``, ``grupo`` e ``status``.
 
 ``POST /api/v1/inscricoes/``
-    Cria uma inscrição. O status não é controlado pelo cliente; o modelo o
-    deriva do conteúdo informado.
+    Cria uma inscrição e associa a edição com inscrições abertas na data
+    atual. A criação falha com erro de validação se não houver edição vigente.
+    O status não é controlado pelo cliente; o modelo o deriva do conteúdo
+    informado, incluindo a presença da edição vinculada.
 
 ``GET /api/v1/inscricoes/<uuid>/``
     Retorna o detalhe da inscrição, com nomes resumidos de polo e edição.
 
 ``PUT`` e ``PATCH``
     Atualizam a inscrição por meio do ``InscricaoService``. Campos protegidos
-    como UUID, status e ativo não são aceitos como controle pelo cliente.
+    como UUID, status, ativo e edição não são aceitos como controle pelo
+    cliente; o vínculo da edição é preservado.
 
 ``DELETE /api/v1/inscricoes/<uuid>/``
     Remove fisicamente a inscrição.
@@ -155,8 +177,10 @@ HTTP. ``refresh_from_db()`` é utilizado antes de atualizar, cancelar ou
 reativar uma inscrição para trabalhar com o estado persistido mais recente.
 
 O domínio usa ``select_related`` para carregar polo e edição nas consultas de
-listagem e detalhe. A seleção de edição continua opcional até que a regra de
-vinculação seja definida.
+listagem e detalhe. A coluna da edição permanece anulável para preservar os
+registros legados, mas novas inscrições exigem uma edição com inscrições
+abertas e o vínculo é atribuído pelo service. Atualizações não atribuem edição
+a registros legados sem vínculo.
 
 Testes
 ------

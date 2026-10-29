@@ -131,3 +131,41 @@ Funcionalidade: Edicoes
     Quando excluo a primeira edicao exclusiva de validacao
     Entao a validacao de edicoes deve responder com status 204
     E consultar a edicao excluida deve retornar 404
+
+  @edicoes_validacoes
+  Esquema do Cenario: Aceitar limite de edicao <limite>
+    Dado que existem duas edicoes exclusivas para validar regras
+    Quando atualizo a edicao no limite "<limite>"
+    Entao a validacao de edicoes deve responder com status 200
+    E os valores de limite da edicao devem estar persistidos
+
+    Exemplos:
+      | limite |
+      | nome com 255 caracteres |
+      | edicao de um dia |
+      | inscricoes de um dia |
+
+  @edicoes_validacoes
+  Esquema do Cenario: Recusar <metodo> com UUID malformado
+    Dado que autentiquei para validar as regras de edicoes
+    Quando acesso edicao com UUID malformado por "<metodo>"
+    Entao a validacao de edicoes deve responder com status 404
+
+    Exemplos:
+      | metodo |
+      | GET |
+      | PUT |
+      | PATCH |
+      | DELETE |
+
+  @edicoes_validacoes
+  Esquema do Cenario: Recusar metodo <metodo> na lista de edicoes
+    Dado que autentiquei para validar as regras de edicoes
+    Quando acesso a lista de edicoes com metodo nao permitido "<metodo>"
+    Entao a validacao de edicoes deve responder com status 405
+
+    Exemplos:
+      | metodo |
+      | PUT |
+      | PATCH |
+      | DELETE |

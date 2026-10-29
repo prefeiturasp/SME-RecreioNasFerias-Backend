@@ -9,7 +9,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,6 +133,16 @@ class InformacoesAlunoEol:
 
 
 @dataclass(frozen=True, slots=True)
+class TurmaEol:
+    """Turma normalizada a partir da consulta por código."""
+
+    codigo: int
+    nome_turma: str
+    ano: str
+    codigo_escola: str
+
+
+@dataclass(frozen=True, slots=True)
 class ParticipanteRedeEol:
     """Aluno da rede já unido à ficha, pronto para o restante do sistema."""
 
@@ -177,6 +186,11 @@ class ParticipanteRedeEol:
     responsavel_nome_social: str = ""
     telefone_contato_2: str = ""
     email: str = ""
+    nome_turma: str = ""
+    ano: str = ""
+    unidade_educacional: str = ""
+    unidade_educacional_codigo_eol: str = ""
+    unidade_educacional_tipo: str = ""
 
 
 class EolPort(ABC):
@@ -245,6 +259,10 @@ class EolPort(ABC):
         codigo_eol: str,
     ) -> InformacoesAlunoEol | None:
         """Obtém a ficha normalizada do aluno, ou ``None`` quando ausente."""
+
+    @abstractmethod
+    def obter_dados_turma(self, codigo_turma: int) -> TurmaEol | None:
+        """Obtém a turma normalizada, ou ``None`` quando ausente."""
 
     @abstractmethod
     def consultar_participante(

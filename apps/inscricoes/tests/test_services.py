@@ -55,18 +55,19 @@ def test_service_lista_obtem_e_filtra_inscricoes(
             codigo_eol=" 1234567 ",
             cpf="111111",
             nome_participante="alice",
-            grupo=GrupoInscricao.QUATRO_A_14_ANOS,
+            grupo=GrupoInscricao.ONZE_A_14_ANOS,
             status=StatusInscricao.COMPLETA,
         )
     ) == [esperado]
     assert service.obter(esperado.uuid) == esperado
 
 
-def test_service_cria_inscricao_com_status_rascunho(inscricao_factory) -> None:
+def test_service_cria_inscricao_com_status_rascunho(inscricao_factory, edicao_factory) -> None:
     """A criação delega ao modelo e permite rascunhos."""
     inscricao = InscricaoService().criar(
         tipo_estudante=TipoEstudante.ESTUDANTE_EXTERNO,
-        grupo=GrupoInscricao.QUATRO_A_14_ANOS,
+        grupo=GrupoInscricao.ONZE_A_14_ANOS,
+        edicao=edicao_factory(inscricoes_inicio=date.today(), inscricoes_fim=date.today()),
     )
 
     assert inscricao.pk is not None
@@ -399,3 +400,18 @@ def test_service_recusa_cpf_nao_encontrado() -> None:
 
     assert contexto.value.message_dict["cpf"] == [MENSAGEM_CPF_NAO_ENCONTRADO]
     assert porta.chamadas == ["000"]
+
+
+def test_service_inscricao_retorna_erro_nao_ha_edicao_com_inscricoes_abertas() -> None:
+    """A criação delega ao modelo e permite rascunhos."""
+    
+    porta = _PortaParticipante(None)
+
+    inscricao = InscricaoService(eol=cast(EolPort, porta))
+
+    with pytest.raises(ValidationError) as contexto:
+        inscricao.criar()
+        
+    assert contexto.value.message_dict["edicao"] == ["Não há edição com inscrições abertas."]
+
+
