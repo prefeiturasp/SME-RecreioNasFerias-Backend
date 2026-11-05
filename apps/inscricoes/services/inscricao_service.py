@@ -10,6 +10,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 
 from apps.definicoes_polos.constants import TipoPolo
+from apps.edicoes.constants import StatusEdicao
 from apps.edicoes.services.edicao_service import EdicaoService
 from apps.inscricoes.constants import StatusInscricao
 from apps.inscricoes.models import Inscricao
@@ -115,6 +116,24 @@ class InscricaoService:
                 ).strip()
             )
         return consulta
+
+    def existe_inscricao_por_cpf_participante(self, cpf: str | None) -> bool:
+        """Verifica inscrição do CPF do participante na edição vigente.
+
+        Considera a edição ativa cuja data atual está entre o início das
+        inscrições e o fim da edição.
+        """
+        digitos = "".join(c for c in (cpf or "") if c.isdigit())
+        if len(digitos) != 11:
+            raise ValidationError({"cpf": "Informe um CPF válido."})
+        formatado = f"{digitos[:3]}.{digitos[3:6]}.{digitos[6:9]}-{digitos[9:]}"
+        hoje = timezone.localdate()
+        return Inscricao.objects.filter(
+            cpf_participante__in=(digitos, formatado),
+            edicao__status=StatusEdicao.ATIVA,
+            edicao__inscricoes_inicio__lte=hoje,
+            edicao__data_fim__gte=hoje,
+        ).exists()
 
     def obter(self, uuid: object) -> Inscricao:
         """Obtém uma inscrição pelo UUID público."""
