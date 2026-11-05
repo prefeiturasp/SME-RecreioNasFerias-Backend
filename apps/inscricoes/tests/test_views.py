@@ -44,7 +44,7 @@ def _payload(polo, *, tipo=TipoEstudante.ESTUDANTE_EXTERNO) -> dict[str, str]:
         "polo": str(polo.uuid),
         "tipo_estudante": tipo,
         "grupo": GrupoInscricao.ONZE_A_14_ANOS,
-        "cpf": "12312312312",
+        "cpf_participante": "12312312312",
         "nome_participante": "Participante da API",
         "data_nascimento": "2015-05-19",
         "responsavel_nome": "Responsável da API",
@@ -752,3 +752,53 @@ def test_participante_cpf_retorna_erro_de_integracao(
 
     assert response.status_code == status.HTTP_502_BAD_GATEWAY
     assert response.data == {"detalhe": str(erro)}
+
+
+def test_verificar_cpf_participante_exige_autenticacao(api_client) -> None:
+    """A verificação por CPF exige autenticação."""
+    response = api_client.get(f"{URL}verificar-cpf-participante/")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_verificar_cpf_participante_na_edicao_vigente(
+    cliente_autenticado,
+    edicao_factory,
+    inscricao_factory,
+) -> None:
+    """Detecta inscrição do CPF apenas na edição ativa dentro do período."""
+    with freeze_time("2026-07-10 12:00:00"):
+        edicao = edicao_factory(
+            data_inicio=date(2026, 7, 15),
+            data_fim=date(2026, 7, 31),
+            inscricoes_inicio=date(2026, 7, 1),
+            inscricoes_fim=date(2026, 7, 14),
+        )
+        inscricao_factory(edicao=edicao, cpf_participante="123.456.789-09")
+
+        encontrado = cliente_autenticado.get(
+            f"{URL}verificar-cpf-participante/", {"cpf_participante": "12345678909"}
+        )
+        ausente = cliente_autenticado.get(
+            f"{URL}verificar-cpf-participante/", {"cpf_participante": "98765432100"}
+        )
+
+    with freeze_time("2026-08-05 12:00:00"):
+        encerrada = cliente_autenticado.get(
+            f"{URL}verificar-cpf-participante/", {"cpf_participante": "12345678909"}
+        )
+
+    assert encontrado.status_code == status.HTTP_200_OK
+    assert encontrado.data == {"possui_inscricao": True}
+    assert ausente.data == {"possui_inscricao": False}
+    assert encerrada.data == {"possui_inscricao": False}
+
+
+def test_verificar_cpf_participante_rejeita_cpf_invalido(
+    cliente_autenticado,
+) -> None:
+    """CPF ausente ou malformado devolve erro de validação."""
+    response = cliente_autenticado.get(f"{URL}verificar-cpf-participante/")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert str(response.data["detalhe"]) == "Informe um CPF válido."

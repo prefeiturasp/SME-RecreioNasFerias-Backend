@@ -131,16 +131,22 @@ def test_completude_da_rede_exige_unidade_educacional(
 def test_completude_externa_nao_exige_grupo(
     inscricao_completa_factory,
 ) -> None:
-    """Estudante externo completa sem saída, retirada e piscina."""
-    inscricao = inscricao_completa_factory()
+    """Estudante externo completa com CPF próprio e sem regras da rede."""
+    inscricao = inscricao_completa_factory(
+        cpf_participante="123.456.789-09",
+    )
 
     assert inscricao_eh_completa(inscricao) is True
     assert inscricao.status == StatusInscricao.COMPLETA
 
 
-def test_completude_exige_cpf_de_externo(inscricao_completa_factory) -> None:
-    """Estudante externo precisa de CPF para completar."""
-    inscricao = inscricao_completa_factory(cpf="")
+def test_completude_exige_cpf_participante_de_externo(
+    inscricao_completa_factory,
+) -> None:
+    """Estudante externo precisa do CPF do participante para completar."""
+    inscricao = inscricao_completa_factory(
+        cpf_participante="",
+    )
 
     assert inscricao_eh_completa(inscricao) is False
 

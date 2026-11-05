@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from calendar import monthrange
 from datetime import date
 
 from django.core.exceptions import ValidationError
@@ -79,10 +80,13 @@ def inscricao_eh_completa(inscricao: object) -> bool:
     ):
         return False
     tipo = getattr(inscricao, "tipo_estudante", "")
-    campo_condicional = (
-        "codigo_eol" if tipo == TipoEstudante.ESTUDANTE_DA_REDE else "cpf"
-    )
-    if not _preenchido(getattr(inscricao, campo_condicional, None)):
+    if tipo == TipoEstudante.ESTUDANTE_DA_REDE:
+        campo_identificador = "codigo_eol"
+    elif tipo == TipoEstudante.ESTUDANTE_EXTERNO:
+        campo_identificador = "cpf_participante"
+    else:
+        return False
+    if not _preenchido(getattr(inscricao, campo_identificador, None)):
         return False
     if tipo != TipoEstudante.ESTUDANTE_DA_REDE:
         return True
@@ -105,6 +109,45 @@ def calcular_idade_cheia(data_nascimento: date | None) -> int | None:
     if hoje < _aniversario(data_nascimento, hoje.year):
         idade -= 1
     return idade
+
+
+def calcular_idade_em_anos_meses_dias(
+    data_nascimento: date | None,
+) -> tuple[int, int, int] | None:
+    """Devolve anos, meses e dias completos até a data atual."""
+    if data_nascimento is None:
+        return None
+
+    hoje = timezone.localdate()
+    if data_nascimento > hoje:
+        return None
+
+    anos = hoje.year - data_nascimento.year
+    if hoje < _aniversario(data_nascimento, hoje.year):
+        anos -= 1
+
+    aniversario = _aniversario(data_nascimento, data_nascimento.year + anos)
+    meses = 0
+    for quantidade_meses in range(1, 12):
+        ano, mes_indice = divmod(
+            aniversario.year * 12 + aniversario.month - 1 + quantidade_meses,
+            12,
+        )
+        mes = mes_indice + 1
+        dia = min(aniversario.day, monthrange(ano, mes)[1])
+        if date(ano, mes, dia) > hoje:
+            break
+        meses = quantidade_meses
+
+    ano, mes_indice = divmod(
+        aniversario.year * 12 + aniversario.month - 1 + meses,
+        12,
+    )
+    mes = mes_indice + 1
+    dia = min(aniversario.day, monthrange(ano, mes)[1])
+    inicio_mes = date(ano, mes, dia)
+
+    return anos, meses, (hoje - inicio_mes).days
 
 
 def _aniversario(nascimento: date, ano: int) -> date:
