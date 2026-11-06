@@ -11,6 +11,7 @@ from apps.inscricoes.constants import (
     GrupoInscricao,
     ProblemasSaude,
     StatusInscricao,
+    TipoEscola,
     TipoEstudante,
 )
 from apps.inscricoes.validators import (
@@ -225,6 +226,14 @@ class Inscricao(ModeloAtualizavel):
 
     ## Informações por grupo
 
+    tipo_escola = models.CharField(
+        max_length=20,
+        choices=TipoEscola.choices,
+        blank=True,
+        null=True,
+        default=None,
+        verbose_name="Tipo de escola",
+    )
     unidade_educacional = models.CharField(
         max_length=255,
         blank=True,
