@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import Http404
 from drf_spectacular.utils import (
     OpenApiParameter,
@@ -322,6 +323,38 @@ class InscricaoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
         return Response(ParticipanteRedeSerializer(participante).data)
+
+    @extend_schema(
+        summary="Verifica inscrição pelo CPF do participante na edição vigente",
+        parameters=[
+            OpenApiParameter(
+                name="cpf_participante",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=True,
+            )
+        ],
+        responses=inline_serializer(
+            "VerificarCpfParticipanteResponse",
+            fields={"possui_inscricao": serializers.BooleanField()},
+        ),
+        tags=["Inscrições"],
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="verificar-cpf-participante",
+        url_name="verificar-cpf-participante",
+    )
+    def verificar_cpf_participante(self, request: Request) -> Response:
+        """Informa se o CPF já possui inscrição na edição vigente."""
+        try:
+            existe = self.service_class().existe_inscricao_por_cpf_participante(
+                request.query_params.get("cpf_participante")
+            )
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict) from exc
+        return Response({"possui_inscricao": existe})
 
     @extend_schema(
         summary="Valores de choices do domínio de inscrições",

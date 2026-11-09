@@ -7,6 +7,7 @@ from apps.edicoes.api.serializers.edicao_serializer import (
 )
 from apps.inscricoes.constants import Deficiencias, ProblemasSaude
 from apps.inscricoes.models import Inscricao
+from apps.inscricoes.validators import calcular_idade_em_anos_meses_dias
 from apps.polos.api.serializers.polo_serializer import PoloResumoSerializer
 from apps.polos.models import Polo
 
@@ -41,6 +42,9 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
     tipo_estudante_label = serializers.CharField(
         source="get_tipo_estudante_display", read_only=True, allow_null=True
     )
+    tipo_escola_label = serializers.CharField(
+        source="get_tipo_escola_display", read_only=True, allow_null=True
+    )
 
     status_label = serializers.CharField(
         source="get_status_display", read_only=True, allow_null=True
@@ -69,6 +73,7 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
             "grupo_label",
             "codigo_eol",
             "cpf",
+            "cpf_participante",
             "nome_participante",
             "data_nascimento",
             "idade",
@@ -102,6 +107,8 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
             "restricao_medicamento_pronto_atendimento",
             "possui_convenio_medico",
             "convenio_medico",
+            "tipo_escola",
+            "tipo_escola_label",
             "unidade_educacional",
             "unidade_educacional_codigo_eol",
             "unidade_educacional_tipo",
@@ -168,6 +175,7 @@ class InscricaoListagemSerializer(serializers.ModelSerializer):
 class InscricaoDetalheSerializer(InscricaoCadastroSerializer):
     """Contrato de detalhamento da inscrição."""
 
+    idade_detalhada = serializers.SerializerMethodField()
     polo = PoloResumoSerializer(read_only=True, allow_null=True)
     edicao = EdicaoResumoSerializer(read_only=True, allow_null=True)
     grupo_label = serializers.CharField(
@@ -182,10 +190,24 @@ class InscricaoDetalheSerializer(InscricaoCadastroSerializer):
         source="get_status_display", read_only=True, allow_null=True
     )
 
+    def get_idade_detalhada(self, inscricao: Inscricao) -> str | None:
+        """Devolve a idade com anos, meses e dias em formato legível."""
+        idade = calcular_idade_em_anos_meses_dias(inscricao.data_nascimento)
+        if idade is None:
+            return None
+
+        anos, meses, dias = idade
+        return (
+            f"{anos} {'ano' if anos == 1 else 'anos'}, "
+            f"{meses} {'mês' if meses == 1 else 'meses'} e "
+            f"{dias} {'dia' if dias == 1 else 'dias'}"
+        )
+
     class Meta(InscricaoCadastroSerializer.Meta):
         """Configuração do contrato somente leitura de detalhe."""
 
-        read_only_fields = InscricaoCadastroSerializer.Meta.fields
+        fields = (*InscricaoCadastroSerializer.Meta.fields, "idade_detalhada")
+        read_only_fields = fields
 
 
 class PoloElegivelSerializer(serializers.ModelSerializer):

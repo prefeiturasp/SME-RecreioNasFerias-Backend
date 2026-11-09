@@ -13,6 +13,7 @@ from apps.factories import (
     PoloFactory,
     UsuarioFactory,
 )
+from apps.inscricoes.constants import TipoEscola, TipoEstudante
 
 
 @pytest.fixture
@@ -32,6 +33,7 @@ def perfis_rbac():
 @pytest.fixture
 def criar_usuario_rbac():
     """Cria usuário de teste com grupos e permissões individuais opcionais."""
+
     def criar(*, perfis=(), permissoes=()):
         usuario = UsuarioFactory.create()
         for perfil in perfis:
@@ -51,6 +53,7 @@ def criar_usuario_rbac():
         return usuario
 
     return criar
+
 
 @pytest.fixture
 def inscricao_factory():
@@ -92,9 +95,20 @@ def inscricao_completa_factory(
             "dre_nome": polo.dre_nome,
         }
         dados.update(kwargs)
+        if dados.get("tipo_estudante", TipoEstudante.ESTUDANTE_EXTERNO) == (
+            TipoEstudante.ESTUDANTE_EXTERNO
+        ):
+            dados.setdefault("tipo_escola", TipoEscola.ESTADUAL)
+            dados.setdefault("unidade_educacional", "Escola Externa")
+            dados.setdefault("nome_turma", "7A")
+            dados.setdefault("ano", "7")
+            dados.setdefault("pode_ir_embora_sozinho", False)
+            dados.setdefault("responsavel_retirada", "Responsável de Teste")
+            dados.setdefault("autoriza_uso_piscina", False)
         return inscricao_factory(**dados)
 
     return criar
+
 
 @pytest.fixture
 def edicao_factory():
@@ -129,9 +143,7 @@ def api_client() -> APIClient:
 @pytest.fixture
 def cliente_autenticado(api_client: APIClient, usuario) -> APIClient:
     """Autentica o cliente como Administrador COCEU, sem executar CoreSSO."""
-    perfil_admin, _ = Group.objects.get_or_create(
-        name="ADMINISTRADOR_COCEU"
-    )
+    perfil_admin, _ = Group.objects.get_or_create(name="ADMINISTRADOR_COCEU")
     usuario.groups.add(perfil_admin)
     api_client.force_authenticate(user=usuario)
     return api_client
