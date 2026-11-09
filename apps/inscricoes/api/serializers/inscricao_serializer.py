@@ -5,7 +5,7 @@ from rest_framework import serializers
 from apps.edicoes.api.serializers.edicao_serializer import (
     EdicaoResumoSerializer,
 )
-from apps.inscricoes.constants import Deficiencias, ProblemasSaude
+from apps.inscricoes.constants import Deficiencias, ProblemasSaude, TipoEscola
 from apps.inscricoes.models import Inscricao
 from apps.inscricoes.validators import calcular_idade_em_anos_meses_dias
 from apps.polos.api.serializers.polo_serializer import PoloResumoSerializer
@@ -41,6 +41,14 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
 
     tipo_estudante_label = serializers.CharField(
         source="get_tipo_estudante_display", read_only=True, allow_null=True
+    )
+    tipo_escola = serializers.ChoiceField(
+        choices=TipoEscola.choices,
+        allow_null=True,
+        required=False,
+    )
+    tipo_escola_label = serializers.CharField(
+        source="get_tipo_escola_display", read_only=True, allow_null=True
     )
 
     status_label = serializers.CharField(
@@ -104,6 +112,8 @@ class InscricaoCadastroSerializer(serializers.ModelSerializer):
             "restricao_medicamento_pronto_atendimento",
             "possui_convenio_medico",
             "convenio_medico",
+            "tipo_escola",
+            "tipo_escola_label",
             "unidade_educacional",
             "unidade_educacional_codigo_eol",
             "unidade_educacional_tipo",
