@@ -230,8 +230,7 @@ class Inscricao(ModeloAtualizavel):
         max_length=20,
         choices=TipoEscola.choices,
         blank=True,
-        null=True,
-        default=None,
+        default="",
         verbose_name="Tipo de escola",
     )
     unidade_educacional = models.CharField(
