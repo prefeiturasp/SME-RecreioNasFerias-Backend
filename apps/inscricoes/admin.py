@@ -81,6 +81,7 @@ class InscricaoAdmin(admin.ModelAdmin):
         "polo",
         "codigo_eol",
         "cpf",
+        "cpf_participante",
         "status",
         "ativo",
     )
@@ -89,6 +90,7 @@ class InscricaoAdmin(admin.ModelAdmin):
         "nome_participante",
         "codigo_eol",
         "cpf",
+        "cpf_participante",
         "polo__nome_polo",
     )
     raw_id_fields = ("polo", "edicao")
