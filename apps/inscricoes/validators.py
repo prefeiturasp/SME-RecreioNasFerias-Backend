@@ -52,13 +52,23 @@ CAMPOS_COMPLETUDE = (
     "possui_problema_saude",
     "usuario_medicacao_ou_tratamento_continuo",
     "possui_restricao_medicamento_pronto_atendimento",
-    "possui_convenio_medico"
+    "possui_convenio_medico",
 )
 
 CAMPOS_GRUPO_REDE = (
     "unidade_educacional",
     "unidade_educacional_codigo_eol",
     "unidade_educacional_tipo",
+    "pode_ir_embora_sozinho",
+    "autoriza_uso_piscina",
+    "responsavel_retirada",
+)
+
+CAMPOS_GRUPO_EXTERNO = (
+    "tipo_escola",
+    "unidade_educacional",
+    "nome_turma",
+    "ano",
     "pode_ir_embora_sozinho",
     "autoriza_uso_piscina",
     "responsavel_retirada",
@@ -73,7 +83,7 @@ def _preenchido(valor: object) -> bool:
 
 
 def inscricao_eh_completa(inscricao: object) -> bool:
-    """Aplica a régua da fase e, na rede, unidade, saída e piscina."""
+    """Aplica a régua da fase e os campos de grupo de cada origem."""
     if any(
         not _preenchido(getattr(inscricao, campo, None))
         for campo in CAMPOS_COMPLETUDE
@@ -82,17 +92,16 @@ def inscricao_eh_completa(inscricao: object) -> bool:
     tipo = getattr(inscricao, "tipo_estudante", "")
     if tipo == TipoEstudante.ESTUDANTE_DA_REDE:
         campo_identificador = "codigo_eol"
+        campos_grupo = CAMPOS_GRUPO_REDE
     elif tipo == TipoEstudante.ESTUDANTE_EXTERNO:
         campo_identificador = "cpf_participante"
+        campos_grupo = CAMPOS_GRUPO_EXTERNO
     else:
         return False
     if not _preenchido(getattr(inscricao, campo_identificador, None)):
         return False
-    if tipo != TipoEstudante.ESTUDANTE_DA_REDE:
-        return True
     return all(
-        _preenchido(getattr(inscricao, campo, None))
-        for campo in CAMPOS_GRUPO_REDE
+        _preenchido(getattr(inscricao, campo, None)) for campo in campos_grupo
     )
 
 
@@ -279,8 +288,6 @@ def validar_informacoes_de_saude(inscricao: object) -> None:
     for invalida, campo, mensagem in regras:
         if invalida:
             raise ValidationError({campo: mensagem})
-
-
 
 
 def validar_inscricao(inscricao: object) -> None:

@@ -28,6 +28,7 @@ class InscricaoAdminForm(forms.ModelForm):
             "grupo",
             "codigo_eol",
             "cpf",
+            "cpf_participante",
             "nome_participante",
             "data_nascimento",
             "responsavel_nome",

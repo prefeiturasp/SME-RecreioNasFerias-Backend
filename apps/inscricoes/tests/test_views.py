@@ -18,6 +18,7 @@ from apps.inscricoes.api.views.inscricao_viewset import InscricaoViewSet
 from apps.inscricoes.constants import (
     GrupoInscricao,
     StatusInscricao,
+    TipoEscola,
     TipoEstudante,
 )
 from apps.inscricoes.models import Inscricao
@@ -38,7 +39,9 @@ pytestmark = pytest.mark.django_db
 URL = "/api/v1/inscricoes/"
 
 
-def _payload(polo, *, tipo=TipoEstudante.ESTUDANTE_EXTERNO) -> dict[str, str]:
+def _payload(
+    polo, *, tipo=TipoEstudante.ESTUDANTE_EXTERNO
+) -> dict[str, object]:
     """Monta um payload completo de inscrição externa."""
     return {
         "polo": str(polo.uuid),
@@ -58,6 +61,13 @@ def _payload(polo, *, tipo=TipoEstudante.ESTUDANTE_EXTERNO) -> dict[str, str]:
         "email": "responsavel@api.example",
         "dre_codigo_eol": polo.dre_codigo_eol,
         "dre_nome": polo.dre_nome,
+        "tipo_escola": TipoEscola.ESTADUAL,
+        "unidade_educacional": "Escola Externa",
+        "nome_turma": "7A",
+        "ano": "7",
+        "pode_ir_embora_sozinho": False,
+        "responsavel_retirada": "Responsável da API",
+        "autoriza_uso_piscina": False,
     }
 
 
@@ -76,7 +86,9 @@ def test_cria_e_recupera_inscricao_com_detalhes(
 ) -> None:
     """POST cria e GET retorna os resumos de polo e edição."""
     polo = polo_factory()
-    edicao = edicao_factory(inscricoes_inicio=date.today(), inscricoes_fim=date.today())
+    edicao = edicao_factory(
+        inscricoes_inicio=date.today(), inscricoes_fim=date.today()
+    )
     definicao_polo_factory(polo=polo, edicao=edicao, tipo="oficial")
     payload = _payload(polo)
 
@@ -218,7 +230,9 @@ def test_cria_rascunho_atualiza_e_remove(
     edicao_factory,
 ) -> None:
     """A API permite criar rascunho, atualizar e remover."""
-    edicao = edicao_factory(inscricoes_inicio=date.today(), inscricoes_fim=date.today())
+    edicao = edicao_factory(
+        inscricoes_inicio=date.today(), inscricoes_fim=date.today()
+    )
     criado = cliente_autenticado.post(
         URL,
         {
@@ -777,15 +791,18 @@ def test_verificar_cpf_participante_na_edicao_vigente(
         inscricao_factory(edicao=edicao, cpf_participante="123.456.789-09")
 
         encontrado = cliente_autenticado.get(
-            f"{URL}verificar-cpf-participante/", {"cpf_participante": "12345678909"}
+            f"{URL}verificar-cpf-participante/",
+            {"cpf_participante": "12345678909"},
         )
         ausente = cliente_autenticado.get(
-            f"{URL}verificar-cpf-participante/", {"cpf_participante": "98765432100"}
+            f"{URL}verificar-cpf-participante/",
+            {"cpf_participante": "98765432100"},
         )
 
     with freeze_time("2026-08-05 12:00:00"):
         encerrada = cliente_autenticado.get(
-            f"{URL}verificar-cpf-participante/", {"cpf_participante": "12345678909"}
+            f"{URL}verificar-cpf-participante/",
+            {"cpf_participante": "12345678909"},
         )
 
     assert encontrado.status_code == status.HTTP_200_OK
