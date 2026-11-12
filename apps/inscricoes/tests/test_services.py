@@ -7,11 +7,13 @@ import pytest
 from django.core.exceptions import ValidationError
 from freezegun import freeze_time
 
+from apps.edicoes.constants import StatusEdicao
 from apps.inscricoes.constants import (
     GrupoInscricao,
     StatusInscricao,
     TipoEstudante,
 )
+from apps.inscricoes.exceptions import InscricaoExistenteError
 from apps.inscricoes.models import Inscricao
 from apps.inscricoes.services.inscricao_service import InscricaoService
 from apps.inscricoes.validators import (
@@ -363,6 +365,32 @@ def test_service_recusa_eol_nao_encontrado() -> None:
     assert porta.chamadas == ["000"]
 
 
+def test_service_recusa_codigo_eol_com_inscricao_na_edicao_vigente(
+    edicao_factory,
+    inscricao_factory,
+) -> None:
+    """Código já inscrito impede consulta externa à EOL."""
+    with freeze_time("2026-07-10 12:00:00"):
+        edicao = edicao_factory(
+            data_inicio=date(2026, 7, 15),
+            data_fim=date(2026, 7, 31),
+            inscricoes_inicio=date(2026, 7, 1),
+            inscricoes_fim=date(2026, 7, 14),
+            status=StatusEdicao.ATIVA,
+        )
+        inscricao_factory(edicao=edicao, codigo_eol="6034178")
+        porta = _PortaParticipante(object())
+        service = InscricaoService(eol=cast(EolPort, porta))
+
+        with pytest.raises(InscricaoExistenteError) as contexto:
+            service.consultar_participante_por_eol(" 6034178 ")
+
+    assert str(contexto.value) == (
+        "Já existe uma inscrição para este participante na edição vigente."
+    )
+    assert porta.chamadas == []
+
+
 def test_service_consulta_participante_por_cpf_encontrado() -> None:
     """Porta com participante devolve o mesmo objeto."""
     marca = object()
@@ -413,5 +441,3 @@ def test_service_inscricao_retorna_erro_nao_ha_edicao_com_inscricoes_abertas() -
         inscricao.criar()
         
     assert contexto.value.message_dict["edicao"] == ["Não há edição com inscrições abertas."]
-
-

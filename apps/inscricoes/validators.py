@@ -25,6 +25,9 @@ MENSAGEM_CODIGO_EOL_OBRIGATORIO = "Informe o código EOL."
 MENSAGEM_EOL_NAO_ENCONTRADO = (
     "Código EOL não encontrado. Verifique o número digitado e tente novamente."
 )
+MENSAGEM_INSCRICAO_EOL_EXISTENTE = (
+    "Já existe uma inscrição para este participante na edição vigente."
+)
 MENSAGEM_CPF_OBRIGATORIO = "Informe o CPF do responsável."
 MENSAGEM_CPF_NAO_ENCONTRADO = (
     "CPF não encontrado. Verifique o número digitado e tente novamente."
