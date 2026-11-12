@@ -21,11 +21,13 @@ from apps.inscricoes.constants import (
     TipoEscola,
     TipoEstudante,
 )
+from apps.inscricoes.exceptions import InscricaoExistenteError
 from apps.inscricoes.models import Inscricao
 from apps.inscricoes.services.inscricao_service import InscricaoService
 from apps.inscricoes.validators import (
     MENSAGEM_CPF_NAO_ENCONTRADO,
     MENSAGEM_EOL_NAO_ENCONTRADO,
+    MENSAGEM_INSCRICAO_EOL_EXISTENTE,
 )
 from apps.integracoes.eol.exceptions import (
     EolConfigError,
@@ -551,6 +553,34 @@ def test_participante_eol_nao_encontrado_nao_grava(
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.data == {"detalhe": MENSAGEM_EOL_NAO_ENCONTRADO}
     assert Inscricao.objects.count() == 0
+
+
+def test_participante_eol_retorna_erro_quando_ja_inscrito(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """Inscrição na edição vigente retorna mensagem de erro HTTP 400."""
+
+    def _consultar(
+        _self: InscricaoService,
+        codigo_eol: str | None,
+    ) -> ParticipanteRedeEol:
+        assert codigo_eol == "6034178"
+        raise InscricaoExistenteError(MENSAGEM_INSCRICAO_EOL_EXISTENTE)
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_eol",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(
+        f"{URL}participante-eol/",
+        {"codigo_eol": "6034178"},
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data == {"detalhe": MENSAGEM_INSCRICAO_EOL_EXISTENTE}
 
 
 def test_participante_eol_retorna_erro_de_configuracao(

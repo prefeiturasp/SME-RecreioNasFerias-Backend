@@ -18,6 +18,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.core.utils.paginacao_customizada import PaginacaoCustomizada
+from apps.inscricoes.exceptions import InscricaoExistenteError
 from apps.inscricoes.api.serializers import (
     InscricaoDetalheSerializer,
     InscricaoCadastroSerializer,
@@ -254,6 +255,12 @@ class InscricaoViewSet(viewsets.ModelViewSet):
         ],
         responses={
             200: ParticipanteRedeSerializer,
+            400: OpenApiResponse(
+                description=(
+                    "Código EOL inválido ou inscrição já existente "
+                    "na edição vigente."
+                )
+            ),
             500: OpenApiResponse(description="Erro de configuração da EOL."),
             502: OpenApiResponse(description="Falha na integração com a EOL."),
         },
@@ -270,6 +277,11 @@ class InscricaoViewSet(viewsets.ModelViewSet):
         try:
             participante = self.service_class().consultar_participante_por_eol(
                 request.query_params.get("codigo_eol")
+            )
+        except InscricaoExistenteError as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
             )
         except EolConfigError as exc:
             return Response(
