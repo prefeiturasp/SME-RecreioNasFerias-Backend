@@ -391,6 +391,60 @@ def test_service_recusa_codigo_eol_com_inscricao_na_edicao_vigente(
     assert porta.chamadas == []
 
 
+def test_service_consulta_eol_da_propria_inscricao(
+    edicao_factory,
+    inscricao_factory,
+) -> None:
+    """A edição ignora a própria inscrição e consulta a EOL."""
+    marca = object()
+    with freeze_time("2026-07-10 12:00:00"):
+        edicao = edicao_factory(
+            data_inicio=date(2026, 7, 15),
+            data_fim=date(2026, 7, 31),
+            inscricoes_inicio=date(2026, 7, 1),
+            inscricoes_fim=date(2026, 7, 14),
+            status=StatusEdicao.ATIVA,
+        )
+        inscricao = inscricao_factory(edicao=edicao, codigo_eol="6034178")
+        porta = _PortaParticipante(marca)
+        service = InscricaoService(eol=cast(EolPort, porta))
+
+        obtido = service.consultar_participante_por_eol(
+            "6034178",
+            str(inscricao.uuid),
+        )
+
+    assert obtido is marca
+    assert porta.chamadas == ["6034178"]
+
+
+def test_service_recusa_eol_de_outra_inscricao_na_edicao(
+    edicao_factory,
+    inscricao_factory,
+) -> None:
+    """Outra inscrição com o mesmo código continua impedindo a consulta."""
+    with freeze_time("2026-07-10 12:00:00"):
+        edicao = edicao_factory(
+            data_inicio=date(2026, 7, 15),
+            data_fim=date(2026, 7, 31),
+            inscricoes_inicio=date(2026, 7, 1),
+            inscricoes_fim=date(2026, 7, 14),
+            status=StatusEdicao.ATIVA,
+        )
+        inscricao_factory(edicao=edicao, codigo_eol="6034178")
+        atual = inscricao_factory(edicao=edicao, codigo_eol="1111111")
+        porta = _PortaParticipante(object())
+        service = InscricaoService(eol=cast(EolPort, porta))
+
+        with pytest.raises(InscricaoExistenteError):
+            service.consultar_participante_por_eol(
+                "6034178",
+                str(atual.uuid),
+            )
+
+    assert porta.chamadas == []
+
+
 def test_service_consulta_participante_por_cpf_encontrado() -> None:
     """Porta com participante devolve o mesmo objeto."""
     marca = object()

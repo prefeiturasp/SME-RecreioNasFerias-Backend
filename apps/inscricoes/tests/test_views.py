@@ -463,6 +463,7 @@ def test_participante_eol_devolve_nome(
     def _consultar(
         _self: InscricaoService,
         codigo_eol: str | None,
+        inscricao_uuid: str | None = None,
     ) -> ParticipanteRedeEol:
         assert codigo_eol == "6034178"
         return participante
@@ -536,6 +537,7 @@ def test_participante_eol_nao_encontrado_nao_grava(
     def _consultar(
         _self: InscricaoService,
         codigo_eol: str | None,
+        inscricao_uuid: str | None = None,
     ) -> ParticipanteRedeEol:
         raise ValidationError({"codigo_eol": MENSAGEM_EOL_NAO_ENCONTRADO})
 
@@ -564,6 +566,7 @@ def test_participante_eol_retorna_erro_quando_ja_inscrito(
     def _consultar(
         _self: InscricaoService,
         codigo_eol: str | None,
+        inscricao_uuid: str | None = None,
     ) -> ParticipanteRedeEol:
         assert codigo_eol == "6034178"
         raise InscricaoExistenteError(MENSAGEM_INSCRICAO_EOL_EXISTENTE)
@@ -583,6 +586,38 @@ def test_participante_eol_retorna_erro_quando_ja_inscrito(
     assert response.data == {"detalhe": MENSAGEM_INSCRICAO_EOL_EXISTENTE}
 
 
+def test_participante_eol_repassa_inscricao_em_edicao(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """A consulta da edição encaminha o uuid que fica fora da duplicidade."""
+    participante = _participante()
+    inscricao_uuid = "11111111-1111-1111-1111-111111111111"
+
+    def _consultar(
+        _self: InscricaoService,
+        codigo_eol: str | None,
+        inscricao: str | None = None,
+    ) -> ParticipanteRedeEol:
+        assert codigo_eol == "6034178"
+        assert inscricao == inscricao_uuid
+        return participante
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_eol",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(
+        f"{URL}participante-eol/",
+        {"codigo_eol": "6034178", "inscricao": inscricao_uuid},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["codigo_eol"] == "6034178"
+
+
 def test_participante_eol_retorna_erro_de_configuracao(
     cliente_autenticado,
     monkeypatch,
@@ -592,6 +627,7 @@ def test_participante_eol_retorna_erro_de_configuracao(
     def _consultar(
         _self: InscricaoService,
         codigo_eol: str | None,
+        inscricao_uuid: str | None = None,
     ) -> ParticipanteRedeEol:
         raise EolConfigError("config")
 
@@ -621,6 +657,7 @@ def test_participante_eol_retorna_erro_de_integracao(
     def _consultar(
         _self: InscricaoService,
         codigo_eol: str | None,
+        inscricao_uuid: str | None = None,
     ) -> ParticipanteRedeEol:
         raise erro
 
