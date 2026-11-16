@@ -251,7 +251,17 @@ class InscricaoViewSet(viewsets.ModelViewSet):
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.QUERY,
                 required=True,
-            )
+            ),
+            OpenApiParameter(
+                name="inscricao",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description=(
+                    "Inscrição em edição. Não entra na verificação "
+                    "de duplicidade."
+                ),
+            ),
         ],
         responses={
             200: ParticipanteRedeSerializer,
@@ -276,7 +286,8 @@ class InscricaoViewSet(viewsets.ModelViewSet):
         """Devolve o participante enriquecido a partir do código EOL."""
         try:
             participante = self.service_class().consultar_participante_por_eol(
-                request.query_params.get("codigo_eol")
+                request.query_params.get("codigo_eol"),
+                request.query_params.get("inscricao"),
             )
         except InscricaoExistenteError as exc:
             return Response(
