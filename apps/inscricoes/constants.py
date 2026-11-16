@@ -22,6 +22,13 @@ class TipoEstudante(models.TextChoices):
     ESTUDANTE_EXTERNO = "ESTUDANTE_EXTERNO", "Estudante externo"
 
 
+class TipoEscola(models.TextChoices):
+    """Tipo de escola do participante de fora da rede."""
+
+    ESTADUAL = "ESTADUAL", "Estadual"
+    PARTICULAR = "PARTICULAR", "Particular"
+
+
 class StatusInscricao(models.TextChoices):
     """Estados do ciclo de vida da inscrição."""
 

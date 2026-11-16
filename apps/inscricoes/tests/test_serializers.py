@@ -125,6 +125,36 @@ def test_serializer_devolve_idade_nula_sem_nascimento(
     assert InscricaoCadastroSerializer(inscricao).data["idade"] is None
 
 
+def test_serializer_detalhe_expoe_idade_por_extenso(inscricao_factory) -> None:
+    """O detalhe devolve anos, meses e dias com flexão adequada."""
+    inscricao = inscricao_factory(data_nascimento=date(2025, 9, 17))
+    inscricao_idade_plural = inscricao_factory(
+        data_nascimento=date(2025, 5, 19)
+    )
+
+    with freeze_time("2026-10-18 12:00:00"):
+        detalhe = InscricaoDetalheSerializer(inscricao).data
+        detalhe_idade_plural = InscricaoDetalheSerializer(
+            inscricao_idade_plural
+        ).data
+        cadastro = InscricaoCadastroSerializer(inscricao).data
+
+    assert detalhe["idade_detalhada"] == "1 ano, 1 mês e 1 dia"
+    assert detalhe_idade_plural["idade_detalhada"] == (
+        "1 ano, 4 meses e 29 dias"
+    )
+    assert "idade_detalhada" not in cadastro
+
+
+def test_serializer_detalhe_devolve_idade_nula_sem_nascimento(
+    inscricao_factory,
+) -> None:
+    """Sem data de nascimento, a idade por extenso é nula."""
+    inscricao = inscricao_factory(data_nascimento=None)
+
+    assert InscricaoDetalheSerializer(inscricao).data["idade_detalhada"] is None
+
+
 def test_serializer_participante_expoe_idade() -> None:
     """A consulta da rede devolve a idade e a omite sem data."""
     participante = _participante_rede()

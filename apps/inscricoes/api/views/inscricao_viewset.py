@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import Http404
 from drf_spectacular.utils import (
     OpenApiParameter,
@@ -17,6 +18,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.core.utils.paginacao_customizada import PaginacaoCustomizada
+from apps.inscricoes.exceptions import InscricaoExistenteError
 from apps.inscricoes.api.serializers import (
     InscricaoDetalheSerializer,
     InscricaoCadastroSerializer,
@@ -249,10 +251,26 @@ class InscricaoViewSet(viewsets.ModelViewSet):
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.QUERY,
                 required=True,
-            )
+            ),
+            OpenApiParameter(
+                name="inscricao",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description=(
+                    "Inscrição em edição. Não entra na verificação "
+                    "de duplicidade."
+                ),
+            ),
         ],
         responses={
             200: ParticipanteRedeSerializer,
+            400: OpenApiResponse(
+                description=(
+                    "Código EOL inválido ou inscrição já existente "
+                    "na edição vigente."
+                )
+            ),
             500: OpenApiResponse(description="Erro de configuração da EOL."),
             502: OpenApiResponse(description="Falha na integração com a EOL."),
         },
@@ -268,7 +286,13 @@ class InscricaoViewSet(viewsets.ModelViewSet):
         """Devolve o participante enriquecido a partir do código EOL."""
         try:
             participante = self.service_class().consultar_participante_por_eol(
-                request.query_params.get("codigo_eol")
+                request.query_params.get("codigo_eol"),
+                request.query_params.get("inscricao"),
+            )
+        except InscricaoExistenteError as exc:
+            return Response(
+                {"detalhe": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
             )
         except EolConfigError as exc:
             return Response(
@@ -322,6 +346,38 @@ class InscricaoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
         return Response(ParticipanteRedeSerializer(participante).data)
+
+    @extend_schema(
+        summary="Verifica inscrição pelo CPF do participante na edição vigente",
+        parameters=[
+            OpenApiParameter(
+                name="cpf_participante",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=True,
+            )
+        ],
+        responses=inline_serializer(
+            "VerificarCpfParticipanteResponse",
+            fields={"possui_inscricao": serializers.BooleanField()},
+        ),
+        tags=["Inscrições"],
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="verificar-cpf-participante",
+        url_name="verificar-cpf-participante",
+    )
+    def verificar_cpf_participante(self, request: Request) -> Response:
+        """Informa se o CPF já possui inscrição na edição vigente."""
+        try:
+            existe = self.service_class().existe_inscricao_por_cpf_participante(
+                request.query_params.get("cpf_participante")
+            )
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict) from exc
+        return Response({"possui_inscricao": existe})
 
     @extend_schema(
         summary="Valores de choices do domínio de inscrições",

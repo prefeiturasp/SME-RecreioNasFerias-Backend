@@ -11,6 +11,7 @@ from apps.inscricoes.constants import (
     GrupoInscricao,
     ProblemasSaude,
     StatusInscricao,
+    TipoEscola,
     TipoEstudante,
 )
 from apps.inscricoes.validators import (
@@ -55,9 +56,17 @@ class Inscricao(ModeloAtualizavel):
     codigo_eol = models.CharField(
         max_length=50, blank=True, default="", verbose_name="Código EOL"
     )
+
+    # CPF do responsável (Para quando o cadastro for de estudante da rede)
     cpf = models.CharField(
-        max_length=14, blank=True, default="", verbose_name="CPF"
+        max_length=14, blank=True, default="", verbose_name="CPF do responsável"
     )
+
+    # CPF do participante (Para quando o cadastro for de estudante externo)
+    cpf_participante = models.CharField(
+        max_length=14, blank=True, default="", verbose_name="CPF do participante"
+    )
+
     nome_participante = models.CharField(
         max_length=255,
         blank=True,
@@ -217,6 +226,13 @@ class Inscricao(ModeloAtualizavel):
 
     ## Informações por grupo
 
+    tipo_escola = models.CharField(
+        max_length=20,
+        choices=TipoEscola.choices,
+        blank=True,
+        default="",
+        verbose_name="Tipo de escola",
+    )
     unidade_educacional = models.CharField(
         max_length=255,
         blank=True,

@@ -10,14 +10,17 @@ from django.db.models import QuerySet
 from django.utils import timezone
 
 from apps.definicoes_polos.constants import TipoPolo
+from apps.edicoes.constants import StatusEdicao
 from apps.edicoes.services.edicao_service import EdicaoService
 from apps.inscricoes.constants import StatusInscricao
+from apps.inscricoes.exceptions import InscricaoExistenteError
 from apps.inscricoes.models import Inscricao
 from apps.inscricoes.validators import (
     MENSAGEM_CODIGO_EOL_OBRIGATORIO,
     MENSAGEM_CPF_NAO_ENCONTRADO,
     MENSAGEM_CPF_OBRIGATORIO,
     MENSAGEM_EOL_NAO_ENCONTRADO,
+    MENSAGEM_INSCRICAO_EOL_EXISTENTE,
 )
 from apps.integracoes.eol.adapter import EolAdapter
 from apps.integracoes.eol.port import EolPort, ParticipanteRedeEol
@@ -42,11 +45,13 @@ class InscricaoService:
     def consultar_participante_por_eol(
         self,
         codigo_eol: str | None,
+        inscricao_uuid: str | None = None,
     ) -> ParticipanteRedeEol:
         """Consulta o participante da rede pelo código EOL.
 
         Args:
             codigo_eol: Código informado na busca. Vazio não chama a SME.
+            inscricao_uuid: Inscrição em edição. Não conta como duplicata.
 
         Returns:
             Participante enriquecido.
@@ -54,12 +59,16 @@ class InscricaoService:
         Raises:
             ValidationError: Quando o código está vazio ou a SME devolve
                 lista vazia.
+            InscricaoExistenteError: Quando outra inscrição da edição
+                vigente já usa o código.
         """
         codigo = (codigo_eol or "").strip()
         if not codigo:
             raise ValidationError(
                 {"codigo_eol": MENSAGEM_CODIGO_EOL_OBRIGATORIO}
             )
+        if self.existe_inscricao_por_codigo_eol(codigo, inscricao_uuid):
+            raise InscricaoExistenteError(MENSAGEM_INSCRICAO_EOL_EXISTENTE)
         participante = self.eol.consultar_participante(codigo)
         if participante is None:
             raise ValidationError({"codigo_eol": MENSAGEM_EOL_NAO_ENCONTRADO})
@@ -115,6 +124,50 @@ class InscricaoService:
                 ).strip()
             )
         return consulta
+
+    def existe_inscricao_por_cpf_participante(self, cpf: str | None) -> bool:
+        """Verifica inscrição do CPF do participante na edição vigente.
+
+        Considera a edição ativa cuja data atual está entre o início das
+        inscrições e o fim da edição.
+        """
+        digitos = "".join(c for c in (cpf or "") if c.isdigit())
+        if len(digitos) != 11:
+            raise ValidationError({"cpf": "Informe um CPF válido."})
+        formatado = f"{digitos[:3]}.{digitos[3:6]}.{digitos[6:9]}-{digitos[9:]}"
+        hoje = timezone.localdate()
+        return Inscricao.objects.filter(
+            cpf_participante__in=(digitos, formatado),
+            edicao__status=StatusEdicao.ATIVA,
+            edicao__inscricoes_inicio__lte=hoje,
+            edicao__data_fim__gte=hoje,
+        ).exists()
+
+    def existe_inscricao_por_codigo_eol(
+        self,
+        codigo_eol: str | None,
+        inscricao_uuid: str | None = None,
+    ) -> bool:
+        """Verifica o código EOL na edição vigente.
+
+        Considera a edição ativa cuja data atual está entre o início das
+        inscrições e o fim da edição. A inscrição em edição fica de fora.
+        """
+        valor = (codigo_eol or "").strip()
+        if not valor:
+            raise ValidationError(
+                {"codigo_eol": "Informe um código EOL válido."}
+            )
+        hoje = timezone.localdate()
+        consulta = Inscricao.objects.filter(
+            codigo_eol=valor,
+            edicao__status=StatusEdicao.ATIVA,
+            edicao__inscricoes_inicio__lte=hoje,
+            edicao__data_fim__gte=hoje,
+        )
+        if inscricao_uuid:
+            consulta = consulta.exclude(uuid=inscricao_uuid)
+        return consulta.exists()
 
     def obter(self, uuid: object) -> Inscricao:
         """Obtém uma inscrição pelo UUID público."""

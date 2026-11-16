@@ -108,6 +108,7 @@ class InscricaoFactory(factory.django.DjangoModelFactory):
     grupo = GrupoInscricao.ONZE_A_14_ANOS
     codigo_eol = ""
     cpf = factory.Sequence(lambda n: f"111111111{n:02d}")
+    cpf_participante = factory.Sequence(lambda n: f"222222222{n:02d}")
     nome_participante = factory.Sequence(lambda n: f"Participante {n}")
     data_nascimento = date(2015, 5, 19)
     responsavel_nome = "Responsável de Teste"

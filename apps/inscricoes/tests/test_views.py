@@ -18,13 +18,16 @@ from apps.inscricoes.api.views.inscricao_viewset import InscricaoViewSet
 from apps.inscricoes.constants import (
     GrupoInscricao,
     StatusInscricao,
+    TipoEscola,
     TipoEstudante,
 )
+from apps.inscricoes.exceptions import InscricaoExistenteError
 from apps.inscricoes.models import Inscricao
 from apps.inscricoes.services.inscricao_service import InscricaoService
 from apps.inscricoes.validators import (
     MENSAGEM_CPF_NAO_ENCONTRADO,
     MENSAGEM_EOL_NAO_ENCONTRADO,
+    MENSAGEM_INSCRICAO_EOL_EXISTENTE,
 )
 from apps.integracoes.eol.exceptions import (
     EolConfigError,
@@ -38,13 +41,15 @@ pytestmark = pytest.mark.django_db
 URL = "/api/v1/inscricoes/"
 
 
-def _payload(polo, *, tipo=TipoEstudante.ESTUDANTE_EXTERNO) -> dict[str, str]:
+def _payload(
+    polo, *, tipo=TipoEstudante.ESTUDANTE_EXTERNO
+) -> dict[str, object]:
     """Monta um payload completo de inscrição externa."""
     return {
         "polo": str(polo.uuid),
         "tipo_estudante": tipo,
         "grupo": GrupoInscricao.ONZE_A_14_ANOS,
-        "cpf": "12312312312",
+        "cpf_participante": "12312312312",
         "nome_participante": "Participante da API",
         "data_nascimento": "2015-05-19",
         "responsavel_nome": "Responsável da API",
@@ -58,6 +63,13 @@ def _payload(polo, *, tipo=TipoEstudante.ESTUDANTE_EXTERNO) -> dict[str, str]:
         "email": "responsavel@api.example",
         "dre_codigo_eol": polo.dre_codigo_eol,
         "dre_nome": polo.dre_nome,
+        "tipo_escola": TipoEscola.ESTADUAL,
+        "unidade_educacional": "Escola Externa",
+        "nome_turma": "7A",
+        "ano": "7",
+        "pode_ir_embora_sozinho": False,
+        "responsavel_retirada": "Responsável da API",
+        "autoriza_uso_piscina": False,
     }
 
 
@@ -76,7 +88,9 @@ def test_cria_e_recupera_inscricao_com_detalhes(
 ) -> None:
     """POST cria e GET retorna os resumos de polo e edição."""
     polo = polo_factory()
-    edicao = edicao_factory(inscricoes_inicio=date.today(), inscricoes_fim=date.today())
+    edicao = edicao_factory(
+        inscricoes_inicio=date.today(), inscricoes_fim=date.today()
+    )
     definicao_polo_factory(polo=polo, edicao=edicao, tipo="oficial")
     payload = _payload(polo)
 
@@ -218,7 +232,9 @@ def test_cria_rascunho_atualiza_e_remove(
     edicao_factory,
 ) -> None:
     """A API permite criar rascunho, atualizar e remover."""
-    edicao = edicao_factory(inscricoes_inicio=date.today(), inscricoes_fim=date.today())
+    edicao = edicao_factory(
+        inscricoes_inicio=date.today(), inscricoes_fim=date.today()
+    )
     criado = cliente_autenticado.post(
         URL,
         {
@@ -447,6 +463,7 @@ def test_participante_eol_devolve_nome(
     def _consultar(
         _self: InscricaoService,
         codigo_eol: str | None,
+        inscricao_uuid: str | None = None,
     ) -> ParticipanteRedeEol:
         assert codigo_eol == "6034178"
         return participante
@@ -520,6 +537,7 @@ def test_participante_eol_nao_encontrado_nao_grava(
     def _consultar(
         _self: InscricaoService,
         codigo_eol: str | None,
+        inscricao_uuid: str | None = None,
     ) -> ParticipanteRedeEol:
         raise ValidationError({"codigo_eol": MENSAGEM_EOL_NAO_ENCONTRADO})
 
@@ -539,6 +557,67 @@ def test_participante_eol_nao_encontrado_nao_grava(
     assert Inscricao.objects.count() == 0
 
 
+def test_participante_eol_retorna_erro_quando_ja_inscrito(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """Inscrição na edição vigente retorna mensagem de erro HTTP 400."""
+
+    def _consultar(
+        _self: InscricaoService,
+        codigo_eol: str | None,
+        inscricao_uuid: str | None = None,
+    ) -> ParticipanteRedeEol:
+        assert codigo_eol == "6034178"
+        raise InscricaoExistenteError(MENSAGEM_INSCRICAO_EOL_EXISTENTE)
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_eol",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(
+        f"{URL}participante-eol/",
+        {"codigo_eol": "6034178"},
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data == {"detalhe": MENSAGEM_INSCRICAO_EOL_EXISTENTE}
+
+
+def test_participante_eol_repassa_inscricao_em_edicao(
+    cliente_autenticado,
+    monkeypatch,
+) -> None:
+    """A consulta da edição encaminha o uuid que fica fora da duplicidade."""
+    participante = _participante()
+    inscricao_uuid = "11111111-1111-1111-1111-111111111111"
+
+    def _consultar(
+        _self: InscricaoService,
+        codigo_eol: str | None,
+        inscricao: str | None = None,
+    ) -> ParticipanteRedeEol:
+        assert codigo_eol == "6034178"
+        assert inscricao == inscricao_uuid
+        return participante
+
+    monkeypatch.setattr(
+        InscricaoService,
+        "consultar_participante_por_eol",
+        _consultar,
+    )
+
+    response = cliente_autenticado.get(
+        f"{URL}participante-eol/",
+        {"codigo_eol": "6034178", "inscricao": inscricao_uuid},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["codigo_eol"] == "6034178"
+
+
 def test_participante_eol_retorna_erro_de_configuracao(
     cliente_autenticado,
     monkeypatch,
@@ -548,6 +627,7 @@ def test_participante_eol_retorna_erro_de_configuracao(
     def _consultar(
         _self: InscricaoService,
         codigo_eol: str | None,
+        inscricao_uuid: str | None = None,
     ) -> ParticipanteRedeEol:
         raise EolConfigError("config")
 
@@ -577,6 +657,7 @@ def test_participante_eol_retorna_erro_de_integracao(
     def _consultar(
         _self: InscricaoService,
         codigo_eol: str | None,
+        inscricao_uuid: str | None = None,
     ) -> ParticipanteRedeEol:
         raise erro
 
@@ -752,3 +833,56 @@ def test_participante_cpf_retorna_erro_de_integracao(
 
     assert response.status_code == status.HTTP_502_BAD_GATEWAY
     assert response.data == {"detalhe": str(erro)}
+
+
+def test_verificar_cpf_participante_exige_autenticacao(api_client) -> None:
+    """A verificação por CPF exige autenticação."""
+    response = api_client.get(f"{URL}verificar-cpf-participante/")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_verificar_cpf_participante_na_edicao_vigente(
+    cliente_autenticado,
+    edicao_factory,
+    inscricao_factory,
+) -> None:
+    """Detecta inscrição do CPF apenas na edição ativa dentro do período."""
+    with freeze_time("2026-07-10 12:00:00"):
+        edicao = edicao_factory(
+            data_inicio=date(2026, 7, 15),
+            data_fim=date(2026, 7, 31),
+            inscricoes_inicio=date(2026, 7, 1),
+            inscricoes_fim=date(2026, 7, 14),
+        )
+        inscricao_factory(edicao=edicao, cpf_participante="123.456.789-09")
+
+        encontrado = cliente_autenticado.get(
+            f"{URL}verificar-cpf-participante/",
+            {"cpf_participante": "12345678909"},
+        )
+        ausente = cliente_autenticado.get(
+            f"{URL}verificar-cpf-participante/",
+            {"cpf_participante": "98765432100"},
+        )
+
+    with freeze_time("2026-08-05 12:00:00"):
+        encerrada = cliente_autenticado.get(
+            f"{URL}verificar-cpf-participante/",
+            {"cpf_participante": "12345678909"},
+        )
+
+    assert encontrado.status_code == status.HTTP_200_OK
+    assert encontrado.data == {"possui_inscricao": True}
+    assert ausente.data == {"possui_inscricao": False}
+    assert encerrada.data == {"possui_inscricao": False}
+
+
+def test_verificar_cpf_participante_rejeita_cpf_invalido(
+    cliente_autenticado,
+) -> None:
+    """CPF ausente ou malformado devolve erro de validação."""
+    response = cliente_autenticado.get(f"{URL}verificar-cpf-participante/")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert str(response.data["detalhe"]) == "Informe um CPF válido."
