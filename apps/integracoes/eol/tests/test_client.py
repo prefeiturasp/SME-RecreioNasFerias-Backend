@@ -19,6 +19,7 @@ TEST_CARGO = 3360
 TEST_CODIGO_ALUNO = "1000001"
 TEST_CODIGO_TURMA = 3026805
 TEST_CPF_RESPONSAVEL = "12345678909"
+TEST_RF_SERVIDOR = "8080640"
 
 
 class FakeResponse:
@@ -720,3 +721,122 @@ def test_obter_dados_turma_rejeita_resposta_invalida(settings: Any) -> None:
                 FakeResponse(status_code=200, data=[{"nomeTurma": "7C"}])
             )
         ).obter_dados_turma(TEST_CODIGO_TURMA)
+
+
+def _servidor_bruto() -> dict[str, Any]:
+    """Monta o payload de exemplo da consulta por registro funcional."""
+    return {
+        "rf": TEST_RF_SERVIDOR,
+        "cpf": "22712612876",
+        "email": "vania.montefusco@sme.prefeitura.sp.gov.br",
+        "cargos": [
+            {
+                "codigoCargo": 2640,
+                "descricaoCargo": "ASSISTENTE TECNICO DE EDUCACAO I",
+                "codigoUnidade": "121000",
+                "descricaoUnidade": (
+                    "COORDENADORIA DOS CENTROS EDUCACIONAIS "
+                    "UNIFICADOS - COCEU"
+                ),
+                "codigoDre": "121000",
+                "contratoExterno": False,
+            }
+        ],
+        "nome": "VANIA FERREIRA DA SILVA CANEKI",
+        "inexistenteEol": False,
+    }
+
+
+def test_obter_dados_servidor_envia_requisicao_esperada(
+    settings: Any,
+) -> None:
+    """Devolve o payload bruto e a URL do servidor pelo RF."""
+    _configurar_ambiente(settings)
+    payload = _servidor_bruto()
+    session = FakeSession(FakeResponse(status_code=200, data=payload))
+
+    dados = EolClient(session=session).obter_dados_servidor(
+        f"  {TEST_RF_SERVIDOR}  "
+    )
+
+    assert dados == payload
+    assert session.request_args == {
+        "method": "GET",
+        "url": (
+            "https://eol.exemplo.gov.br/api/funcionarios/DadosSigpae/"
+            f"{TEST_RF_SERVIDOR}"
+        ),
+        "headers": {"x-api-eol-key": "api-key"},
+        "timeout": (5, 60),
+    }
+
+
+def test_obter_dados_servidor_retorna_none_para_404(settings: Any) -> None:
+    """Trata servidor não encontrado como ausência de dados."""
+    _configurar_ambiente(settings)
+
+    dados = EolClient(
+        session=FakeSession(FakeResponse(status_code=404, data={}))
+    ).obter_dados_servidor(TEST_RF_SERVIDOR)
+
+    assert dados is None
+
+
+def test_obter_dados_servidor_rejeita_resposta_invalida(
+    settings: Any,
+) -> None:
+    """Rejeita dados do servidor cujo corpo não é um objeto."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolContratoError):
+        EolClient(
+            session=FakeSession(
+                FakeResponse(status_code=200, data=[{"rf": TEST_RF_SERVIDOR}])
+            )
+        ).obter_dados_servidor(TEST_RF_SERVIDOR)
+
+
+def test_obter_dados_servidor_rejeita_json_invalido(settings: Any) -> None:
+    """Rejeita resposta 200 sem JSON válido."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolContratoError):
+        EolClient(
+            session=FakeSession(
+                FakeResponse(status_code=200, data=ValueError("json invalido"))
+            )
+        ).obter_dados_servidor(TEST_RF_SERVIDOR)
+
+
+def test_obter_dados_servidor_falha_sem_configuracao(settings: Any) -> None:
+    """Impede a consulta do servidor sem URL e chave configuradas."""
+    settings.AUTH_API_BASE_URL = ""
+    settings.AUTH_API_EOL_KEY = ""
+
+    with pytest.raises(EolConfigError):
+        EolClient(
+            session=FakeSession(FakeResponse(status_code=200, data={}))
+        ).obter_dados_servidor(TEST_RF_SERVIDOR)
+
+
+def test_obter_dados_servidor_mapeia_erro_de_rede(settings: Any) -> None:
+    """Converte falha de rede da consulta do servidor em indisponibilidade."""
+    _configurar_ambiente(settings)
+
+    with pytest.raises(EolIndisponivelError):
+        EolClient(
+            session=FakeSession(requests.RequestException("falha de rede"))
+        ).obter_dados_servidor(TEST_RF_SERVIDOR)
+
+
+def test_obter_dados_servidor_mapeia_5xx_para_indisponibilidade(
+    settings: Any,
+) -> None:
+    """Converte erro HTTP 5xx da consulta do servidor em indisponibilidade."""
+    _configurar_ambiente(settings)
+    response = FakeResponse(status_code=503, data={"detail": "indisponivel"})
+
+    with pytest.raises(EolIndisponivelError, match="indisponivel"):
+        EolClient(session=FakeSession(response)).obter_dados_servidor(
+            TEST_RF_SERVIDOR
+        )
