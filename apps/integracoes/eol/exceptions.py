@@ -38,3 +38,17 @@ class EolContratoError(EolError):
     default_message = (
         "Resposta da SME Integração/EOL fora do contrato esperado."
     )
+
+
+class ServidorNaoEncontradoError(EolError):
+    """Indica que o registro funcional não existe na base da SME."""
+
+    default_message = (
+        "Não foi possível encontrar o servidor com o RF informado."
+    )
+
+
+class ConsultaServidorIndisponivelError(EolError):
+    """Indica que a consulta do servidor não pôde ser realizada."""
+
+    default_message = "A consulta não pôde ser realizada. Tente novamente."

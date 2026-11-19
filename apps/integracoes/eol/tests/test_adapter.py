@@ -4,15 +4,26 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from apps.integracoes.eol.adapter import EolAdapter
 from apps.integracoes.eol.constants import CODIGO_CARGO_DIRETOR_ESCOLA
-from apps.integracoes.eol.exceptions import EolIndisponivelError
+from apps.integracoes.eol.exceptions import (
+    ConsultaServidorIndisponivelError,
+    EolConfigError,
+    EolContratoError,
+    EolError,
+    EolIndisponivelError,
+    ServidorNaoEncontradoError,
+)
 from apps.integracoes.eol.port import (
     AlunoEol,
+    CargoServidorEol,
     DadosUnidadeEol,
     DreEol,
     InformacoesAlunoEol,
     ParticipanteRedeEol,
+    ServidorEol,
     TipoEscolaEol,
     UnidadeEol,
     UnidadeRecreioEol,
@@ -36,6 +47,8 @@ class FakeClient:
         alunos_por_cpf: list[dict[str, Any]] | None = None,
         informacoes: dict[str, Any] | None = None,
         turmas: dict[int, dict[str, Any]] | None = None,
+        servidor: dict[str, Any] | None = None,
+        falha_servidor: EolError | None = None,
     ) -> None:
         """Inicializa o fake com os payloads que serão devolvidos."""
         self.unidades = unidades or []
@@ -49,11 +62,14 @@ class FakeClient:
         self.alunos_por_cpf = alunos_por_cpf or []
         self.informacoes = informacoes
         self.turmas = turmas or {}
+        self.servidor = servidor
+        self.falha_servidor = falha_servidor
         self.calls_obter_dados: list[str] = []
         self.calls_obter_diretor: list[tuple[str, int]] = []
         self.calls_alunos_por_cpf: list[str] = []
         self.calls_informacoes: list[str] = []
         self.calls_turma: list[int] = []
+        self.calls_servidor: list[str] = []
 
     def listar_todas_unidades(self) -> list[dict[str, Any]]:
         """Devolve o catalogo bruto configurado."""
@@ -115,6 +131,16 @@ class FakeClient:
         """Devolve a turma bruta ou ``None`` quando ausente."""
         self.calls_turma.append(codigo_turma)
         return self.turmas.get(codigo_turma)
+
+    def obter_dados_servidor(
+        self,
+        codigo_rf: str,
+    ) -> dict[str, Any] | None:
+        """Devolve o servidor bruto ou simula a falha configurada."""
+        self.calls_servidor.append(codigo_rf)
+        if self.falha_servidor is not None:
+            raise self.falha_servidor
+        return self.servidor
 
 
 def _unidade_bruta(codigo: str, sigla: str) -> dict[str, Any]:
@@ -1120,3 +1146,179 @@ def test_consultar_participante_por_cpf_herda_turma_do_ultimo() -> None:
     assert participante.ano == "7"
     assert client.calls_informacoes == ["1234567"]
     assert client.calls_turma == [3026805]
+
+
+def _servidor_bruto() -> dict[str, Any]:
+    """Monta o payload de exemplo da consulta por registro funcional."""
+    return {
+        "rf": "8080640",
+        "cpf": "22712612876",
+        "email": "vania.montefusco@sme.prefeitura.sp.gov.br",
+        "cargos": [
+            {
+                "codigoCargo": 2640,
+                "descricaoCargo": "ASSISTENTE TECNICO DE EDUCACAO I",
+                "codigoUnidade": "121000",
+                "descricaoUnidade": (
+                    "COORDENADORIA DOS CENTROS EDUCACIONAIS "
+                    "UNIFICADOS - COCEU"
+                ),
+                "codigoDre": "121000",
+                "contratoExterno": False,
+            }
+        ],
+        "nome": "VANIA FERREIRA DA SILVA CANEKI",
+        "inexistenteEol": False,
+    }
+
+
+def _servidor_esperado() -> ServidorEol:
+    """Monta o servidor já normalizado a partir do exemplo."""
+    return ServidorEol(
+        rf="8080640",
+        cpf="22712612876",
+        email="vania.montefusco@sme.prefeitura.sp.gov.br",
+        nome="VANIA FERREIRA DA SILVA CANEKI",
+        cargos=(
+            CargoServidorEol(
+                codigo_cargo=2640,
+                descricao_cargo="ASSISTENTE TECNICO DE EDUCACAO I",
+                codigo_unidade="121000",
+                descricao_unidade=(
+                    "COORDENADORIA DOS CENTROS EDUCACIONAIS "
+                    "UNIFICADOS - COCEU"
+                ),
+                codigo_dre="121000",
+                contrato_externo=False,
+            ),
+        ),
+    )
+
+
+def test_consultar_servidor_normaliza_payload() -> None:
+    """Converte o exemplo da SME em nome, cargo, unidade, e-mail e CPF."""
+    client = FakeClient(servidor=_servidor_bruto())
+
+    servidor = EolAdapter(client=client).consultar_servidor(" 8080640 ")
+
+    assert servidor == _servidor_esperado()
+    assert client.calls_servidor == [" 8080640 "]
+
+
+def test_consultar_servidor_limpa_textos_e_ignora_cargo_invalido() -> None:
+    """Texto com borda some e item de cargo que não é objeto é ignorado."""
+    bruto = _servidor_bruto()
+    bruto["nome"] = " VANIA FERREIRA DA SILVA CANEKI "
+    bruto["email"] = " vania.montefusco@sme.prefeitura.sp.gov.br "
+    bruto["cargos"] = [
+        {
+            "descricaoCargo": " ASSISTENTE TECNICO DE EDUCACAO I ",
+            "codigoUnidade": " 121000 ",
+            "descricaoUnidade": " COCEU ",
+            "codigoDre": " 121000 ",
+            "contratoExterno": "false",
+        },
+        "item-invalido",
+    ]
+    client = FakeClient(servidor=bruto)
+
+    servidor = EolAdapter(client=client).consultar_servidor("8080640")
+
+    assert servidor.nome == "VANIA FERREIRA DA SILVA CANEKI"
+    assert servidor.email == "vania.montefusco@sme.prefeitura.sp.gov.br"
+    assert servidor.cargos == (
+        CargoServidorEol(
+            codigo_cargo=0,
+            descricao_cargo="ASSISTENTE TECNICO DE EDUCACAO I",
+            codigo_unidade="121000",
+            descricao_unidade="COCEU",
+            codigo_dre="121000",
+            contrato_externo=False,
+        ),
+    )
+
+
+def test_consultar_servidor_aceita_servidor_sem_cargos() -> None:
+    """Servidor localizado sem lista de cargos continua encontrado."""
+    bruto = _servidor_bruto()
+    bruto["cargos"] = None
+    client = FakeClient(servidor=bruto)
+
+    servidor = EolAdapter(client=client).consultar_servidor("8080640")
+
+    assert servidor.nome == "VANIA FERREIRA DA SILVA CANEKI"
+    assert servidor.cargos == ()
+
+
+def test_consultar_servidor_nao_esconde_flag_que_nao_e_bool() -> None:
+    """Só ``inexistenteEol`` booleano verdadeiro significa RF ausente."""
+    bruto = _servidor_bruto()
+    bruto["inexistenteEol"] = "true"
+    client = FakeClient(servidor=bruto)
+
+    servidor = EolAdapter(client=client).consultar_servidor("8080640")
+
+    assert servidor == _servidor_esperado()
+
+
+def test_consultar_servidor_rejeita_rf_ausente() -> None:
+    """HTTP 404 vira a mensagem de servidor não encontrado."""
+    client = FakeClient()
+
+    with pytest.raises(
+        ServidorNaoEncontradoError,
+        match="Não foi possível encontrar o servidor com o RF informado.",
+    ):
+        EolAdapter(client=client).consultar_servidor("8080640")
+
+
+def test_consultar_servidor_rejeita_inexistente_na_eol() -> None:
+    """``inexistenteEol`` verdadeiro também é RF não encontrado."""
+    bruto = _servidor_bruto()
+    bruto["inexistenteEol"] = True
+    bruto["nome"] = "VANIA FERREIRA DA SILVA CANEKI"
+    client = FakeClient(servidor=bruto)
+
+    with pytest.raises(
+        ServidorNaoEncontradoError,
+        match="Não foi possível encontrar o servidor com o RF informado.",
+    ):
+        EolAdapter(client=client).consultar_servidor("8080640")
+
+
+def test_consultar_servidor_traduz_falha_de_rede() -> None:
+    """Falha da fonte vira mensagem estável e preserva a causa."""
+    origem = EolIndisponivelError("falha de rede")
+    client = FakeClient(falha_servidor=origem)
+
+    with pytest.raises(
+        ConsultaServidorIndisponivelError,
+        match="A consulta não pôde ser realizada. Tente novamente.",
+    ) as contexto:
+        EolAdapter(client=client).consultar_servidor("8080640")
+
+    assert contexto.value.__cause__ is origem
+
+
+def test_consultar_servidor_traduz_contrato_invalido() -> None:
+    """Corpo fora do contrato também permite nova tentativa."""
+    origem = EolContratoError("formato inesperado")
+    client = FakeClient(falha_servidor=origem)
+
+    with pytest.raises(
+        ConsultaServidorIndisponivelError,
+        match="A consulta não pôde ser realizada. Tente novamente.",
+    ) as contexto:
+        EolAdapter(client=client).consultar_servidor("8080640")
+
+    assert contexto.value.__cause__ is origem
+
+
+def test_consultar_servidor_propaga_erro_de_configuracao() -> None:
+    """Configuração ausente não vira falha retentável da consulta."""
+    client = FakeClient(
+        falha_servidor=EolConfigError("AUTH_API_BASE_URL nao configurada.")
+    )
+
+    with pytest.raises(EolConfigError, match="AUTH_API_BASE_URL"):
+        EolAdapter(client=client).consultar_servidor("8080640")
