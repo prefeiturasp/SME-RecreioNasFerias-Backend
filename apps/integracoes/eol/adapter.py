@@ -18,16 +18,20 @@ from apps.integracoes.eol.constants import (
     SIGLAS_TIPO_UE_RECREIO,
 )
 from apps.integracoes.eol.exceptions import (
+    ConsultaServidorIndisponivelError,
     EolContratoError,
     EolIndisponivelError,
+    ServidorNaoEncontradoError,
 )
 from apps.integracoes.eol.port import (
     AlunoEol,
+    CargoServidorEol,
     DadosUnidadeEol,
     DreEol,
     EolPort,
     InformacoesAlunoEol,
     ParticipanteRedeEol,
+    ServidorEol,
     TipoEscolaEol,
     TurmaEol,
     UnidadeEol,
@@ -77,6 +81,12 @@ class EolEscolasClient(Protocol):
         codigo_turma: int,
     ) -> dict[str, Any] | None:
         """Devolve os dados brutos da turma ou ``None``."""
+
+    def obter_dados_servidor(
+        self,
+        codigo_rf: str,
+    ) -> dict[str, Any] | None:
+        """Devolve os dados brutos do servidor ou ``None``."""
 
 
 class EolAdapter(EolPort):
@@ -331,6 +341,64 @@ class EolAdapter(EolPort):
         if not codigo:
             return None
         return self.consultar_participante(str(codigo))
+
+    def consultar_servidor(self, codigo_rf: str) -> ServidorEol:
+        """Normaliza o servidor consultado pelo registro funcional.
+
+        HTTP 404 e ``inexistenteEol`` verdadeiro significam que o RF
+        não foi localizado. Falha de rede, HTTP ou contrato viram uma
+        mensagem estável para nova tentativa. Erro de configuração
+        segue sem ser reescrito.
+
+        Args:
+            codigo_rf: Registro funcional informado na consulta.
+
+        Returns:
+            Servidor normalizado, com a lista de cargos.
+
+        Raises:
+            ServidorNaoEncontradoError: Quando o RF não existe na SME.
+            ConsultaServidorIndisponivelError: Quando a consulta falha.
+            EolConfigError: Quando a configuração da integração falta.
+        """
+        try:
+            dados = self.client.obter_dados_servidor(codigo_rf)
+        except (EolIndisponivelError, EolContratoError) as exc:
+            raise ConsultaServidorIndisponivelError() from exc
+        if dados is None or self._booleano(dados.get("inexistenteEol")):
+            raise ServidorNaoEncontradoError()
+        return self._normalizar_servidor(dados)
+
+    def _normalizar_servidor(self, payload: dict[str, Any]) -> ServidorEol:
+        """Converte o payload bruto do servidor em ``ServidorEol``."""
+        cargos = payload.get("cargos")
+        if not isinstance(cargos, list):
+            cargos = []
+        return ServidorEol(
+            rf=self._texto(payload.get("rf")),
+            cpf=self._texto(payload.get("cpf")),
+            email=self._texto(payload.get("email")),
+            nome=self._texto(payload.get("nome")),
+            cargos=tuple(
+                self._normalizar_cargo_servidor(cargo)
+                for cargo in cargos
+                if isinstance(cargo, dict)
+            ),
+        )
+
+    def _normalizar_cargo_servidor(
+        self,
+        payload: dict[str, Any],
+    ) -> CargoServidorEol:
+        """Converte um cargo bruto em ``CargoServidorEol``."""
+        return CargoServidorEol(
+            codigo_cargo=self._inteiro(payload.get("codigoCargo")),
+            descricao_cargo=self._texto(payload.get("descricaoCargo")),
+            codigo_unidade=self._texto(payload.get("codigoUnidade")),
+            descricao_unidade=self._texto(payload.get("descricaoUnidade")),
+            codigo_dre=self._texto(payload.get("codigoDre")),
+            contrato_externo=self._booleano(payload.get("contratoExterno")),
+        )
 
     def _normalizar_unidade(self, payload: dict[str, Any]) -> UnidadeEol:
         """Converte um item do catálogo bruto em ``UnidadeEol``."""

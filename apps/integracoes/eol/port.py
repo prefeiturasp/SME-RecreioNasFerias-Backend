@@ -193,6 +193,29 @@ class ParticipanteRedeEol:
     unidade_educacional_tipo: str = ""
 
 
+@dataclass(frozen=True, slots=True)
+class CargoServidorEol:
+    """Cargo normalizado do servidor na consulta por registro funcional."""
+
+    codigo_cargo: int
+    descricao_cargo: str
+    codigo_unidade: str
+    descricao_unidade: str
+    codigo_dre: str
+    contrato_externo: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ServidorEol:
+    """Servidor normalizado a partir da consulta por registro funcional."""
+
+    rf: str
+    cpf: str
+    email: str
+    nome: str
+    cargos: tuple[CargoServidorEol, ...]
+
+
 class EolPort(ABC):
     """Define as operações esperadas da integração de escolas da SME."""
 
@@ -277,3 +300,14 @@ class EolPort(ABC):
         cpf: str,
     ) -> ParticipanteRedeEol | None:
         """Une o primeiro aluno do CPF à ficha. ``None`` sem código útil."""
+
+    @abstractmethod
+    def consultar_servidor(self, codigo_rf: str) -> ServidorEol:
+        """Obtém o servidor normalizado pelo registro funcional.
+
+        Args:
+            codigo_rf: Registro funcional informado na consulta.
+
+        Returns:
+            Servidor normalizado, com a lista de cargos.
+        """

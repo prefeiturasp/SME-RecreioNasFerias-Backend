@@ -12,6 +12,7 @@ alimentar a sincronização de polos de gestão direta:
 - ``GET /api/alunos/responsaveis/{cpf}``
 - ``GET /api/alunos/{codigo}/informacoes``
 - ``GET /api/turmas/{codigo}/dados``
+- ``GET /api/funcionarios/DadosSigpae/{codigoRf}``
 """
 
 from __future__ import annotations
@@ -360,6 +361,44 @@ class EolClient:
         if not isinstance(dados, dict):
             raise EolContratoError(
                 f"Dados da turma {codigo} em formato inesperado."
+            )
+        return dados
+
+    def obter_dados_servidor(
+        self,
+        codigo_rf: str,
+    ) -> dict[str, Any] | None:
+        """Consulta os dados brutos do servidor pelo registro funcional.
+
+        Args:
+            codigo_rf: Registro funcional do servidor.
+
+        Returns:
+            Payload bruto ou ``None`` quando o servidor não existe
+            (HTTP 404).
+
+        Raises:
+            EolConfigError: Quando a configuração obrigatória estiver ausente.
+            EolIndisponivelError: Quando houver erro de rede ou HTTP 4xx/5xx.
+            EolContratoError: Quando a resposta não seguir o contrato esperado.
+        """
+        self._validar_configuracao()
+        codigo = str(codigo_rf).strip()
+        url = (
+            f"{settings.AUTH_API_BASE_URL}"
+            f"/api/funcionarios/DadosSigpae/{codigo}"
+        )
+        response = self._requisicao("GET", url)
+        if response.status_code == 404:
+            return None
+        self._garantir_sucesso_http(
+            response,
+            f"obter dados do servidor {codigo}",
+        )
+        dados = self._parse_json(response)
+        if not isinstance(dados, dict):
+            raise EolContratoError(
+                f"Dados do servidor {codigo} em formato inesperado."
             )
         return dados
 
